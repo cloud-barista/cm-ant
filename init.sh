@@ -1,5 +1,5 @@
 #!/bin/bash
-export JMETER_WORKING_DIR_PREFIX="./pkg/jmeter"
+export JMETER_WORKING_DIR_PREFIX="./third_party/jmeter"
 export JMETER_VERSION="apache-jmeter-5.6.3"
 export JMETER_INSTALL_URL="https://downloads.apache.org//jmeter/binaries/$JMETER_VERSION.tgz"
 
@@ -23,3 +23,4 @@ else
     echo "[CB-ANT] Jmeter is completely installed!!"
 fi
 
+alias jmeter="$JMETER_WORKING_DIR_PREFIX/$JMETER_VERSION/bin/jmeter"

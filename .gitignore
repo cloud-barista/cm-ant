@@ -1,2 +1,3 @@
-pkg/jmeter/**
+third_party/**
 jmeter.log
+.idea
