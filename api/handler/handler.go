@@ -24,7 +24,7 @@ func NewLoadTestProperties() LoadTestProperties {
 		RampTime: 1,
 		Loop:     1,
 		Hostname: "localhost",
-		Port:     8080,
+		Port:     1324,
 		Path:     "/milkyway/cpus",
 	}
 }
@@ -36,22 +36,70 @@ func LoadTestHandler() gin.HandlerFunc {
 		if err := c.ShouldBindQuery(&loadTestProperties); err != nil {
 			// handle query bind error
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"message": "request param is bad",
+				"status":  "bad request",
+				"message": "request param is incorrect",
 			})
 			return
 		}
 
 		currentTime := time.Now()
-		formattedTime := currentTime.Format("20060102150405")
+		formattedTimestamp := currentTime.Format("20060102150405")
 
-		filePath := fmt.Sprintf("%s_%s", formattedTime, "config.properties")
-		propertiesData := utils.StructToMap(loadTestProperties)
+		folderPath := fmt.Sprintf("temp/%s", formattedTimestamp)
+		err := utils.CreateFolder(folderPath)
 
-		err := utils.WritePropertiesFile(filePath, propertiesData)
 		if err != nil {
-			fmt.Println("Error writing properties file:", err)
+			fmt.Printf("Error while creating folder: %s; %v\n", folderPath, err)
+			c.JSON(http.StatusInternalServerError, map[string]string{
+				"status":  "internal server error",
+				"message": fmt.Sprintf("Error while creating folder: %s", folderPath),
+			})
 			return
 		}
 
+		reportFolderPath := fmt.Sprintf("%s/test_%s_report", folderPath, formattedTimestamp)
+		err = utils.CreateFolder(reportFolderPath)
+		if err != nil {
+			fmt.Printf("Error while creating folder: %s; %v\n", reportFolderPath, err)
+			c.JSON(http.StatusInternalServerError, map[string]string{
+				"status":  "internal server error",
+				"message": fmt.Sprintf("Error while creating folder: %s", reportFolderPath),
+			})
+			return
+		}
+
+		propertiesFilePath := fmt.Sprintf("temp/%s/%s_config.properties", formattedTimestamp, formattedTimestamp)
+		propertiesData := utils.StructToMap(loadTestProperties)
+		err = utils.WritePropertiesFile(propertiesFilePath, propertiesData)
+		if err != nil {
+			fmt.Printf("Error while writing properties filePath: %s; %v\n", propertiesFilePath, err)
+			c.JSON(http.StatusInternalServerError, map[string]string{
+				"status":  "internal server error",
+				"message": fmt.Sprintf("Error while writing properties filePath: %s", propertiesFilePath),
+			})
+			return
+		}
+
+		cmdStr := jmeterExecutionCmdGenerator(propertiesFilePath, "sample_test_plan.jmx", folderPath, formattedTimestamp, reportFolderPath)
+
+		result, err := utils.SysCall(cmdStr)
+		if err != nil {
+			fmt.Printf("Error while executing jmeter cmd: %s; %v\n", result, err)
+			c.JSON(http.StatusInternalServerError, map[string]string{
+				"status":  "internal server error",
+				"message": fmt.Sprintf("Error while executing jmeter cmd: %s", result),
+			})
+
+			return
+		}
+
+		c.JSON(http.StatusOK, map[string]string{
+			"status":    "ok",
+			"resultKey": formattedTimestamp,
+		})
 	}
+}
+
+func jmeterExecutionCmdGenerator(propertiesPath, testFilePath, folderPath, timeStamp, reportFolderPath string) string {
+	return fmt.Sprintf("third_party/jmeter/apache-jmeter-5.6.3/bin/jmeter.sh -p %s -n -t %s -l %s/test_%s_result.csv -e -o %s", propertiesPath, testFilePath, folderPath, timeStamp, reportFolderPath)
 }

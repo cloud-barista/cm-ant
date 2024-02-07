@@ -50,3 +50,11 @@ func WritePropertiesFile(filePath string, properties map[string]interface{}) err
 
 	return nil
 }
+
+func CreateFolder(filename string) error {
+	err := os.Mkdir(filename, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	return nil
+}
