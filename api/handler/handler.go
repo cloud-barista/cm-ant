@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -49,7 +50,7 @@ func LoadTestHandler() gin.HandlerFunc {
 		err := utils.CreateFolder(folderPath)
 
 		if err != nil {
-			fmt.Printf("Error while creating folder: %s; %v\n", folderPath, err)
+			log.Printf("Error while creating folder: %s; %v\n", folderPath, err)
 			c.JSON(http.StatusInternalServerError, map[string]string{
 				"status":  "internal server error",
 				"message": fmt.Sprintf("Error while creating folder: %s", folderPath),
@@ -60,7 +61,7 @@ func LoadTestHandler() gin.HandlerFunc {
 		reportFolderPath := fmt.Sprintf("%s/test_%s_report", folderPath, formattedTimestamp)
 		err = utils.CreateFolder(reportFolderPath)
 		if err != nil {
-			fmt.Printf("Error while creating folder: %s; %v\n", reportFolderPath, err)
+			log.Printf("Error while creating folder: %s; %v\n", reportFolderPath, err)
 			c.JSON(http.StatusInternalServerError, map[string]string{
 				"status":  "internal server error",
 				"message": fmt.Sprintf("Error while creating folder: %s", reportFolderPath),
@@ -72,7 +73,7 @@ func LoadTestHandler() gin.HandlerFunc {
 		propertiesData := utils.StructToMap(loadTestProperties)
 		err = utils.WritePropertiesFile(propertiesFilePath, propertiesData)
 		if err != nil {
-			fmt.Printf("Error while writing properties filePath: %s; %v\n", propertiesFilePath, err)
+			log.Printf("Error while writing properties filePath: %s; %v\n", propertiesFilePath, err)
 			c.JSON(http.StatusInternalServerError, map[string]string{
 				"status":  "internal server error",
 				"message": fmt.Sprintf("Error while writing properties filePath: %s", propertiesFilePath),
@@ -84,7 +85,7 @@ func LoadTestHandler() gin.HandlerFunc {
 
 		result, err := utils.SysCall(cmdStr)
 		if err != nil {
-			fmt.Printf("Error while executing jmeter cmd: %s; %v\n", result, err)
+			log.Printf("Error while executing jmeter cmd: %s; %v\n", result, err)
 			c.JSON(http.StatusInternalServerError, map[string]string{
 				"status":  "internal server error",
 				"message": fmt.Sprintf("Error while executing jmeter cmd: %s", result),
