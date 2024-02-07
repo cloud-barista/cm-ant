@@ -43,7 +43,7 @@ func LoadTestHandler() gin.HandlerFunc {
 		}
 
 		currentTime := time.Now()
-		formattedTimestamp := currentTime.Format("20060102150405")
+		formattedTimestamp := fmt.Sprintf("%d", currentTime.Unix())
 
 		folderPath := fmt.Sprintf("temp/%s", formattedTimestamp)
 		err := utils.CreateFolder(folderPath)
