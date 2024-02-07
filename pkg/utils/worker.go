@@ -1,7 +1,10 @@
 package utils
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -50,6 +53,23 @@ func (w *TempFileRemoveWorker) Shutdown() {
 
 // temp folder 하위 폴더명을 확인하여 현재의 unix 시간과 시간을 확인해서 .5 시간 이상 차이나는 데이터는 삭제
 func (w *TempFileRemoveWorker) Action() {
-	time.Sleep(5 * time.Second)
-	log.Println("Action complete!")
+	currentTime := time.Now()
+	currentTimestamp := currentTime.UnixMilli()
+
+	files, err := os.ReadDir("temp")
+	if err != nil {
+		log.Printf("error while reading temp directory for remove; %v\n", err)
+	}
+
+	log.Printf("%d folders read from temp directory", len(files))
+	standardMilliSec := int64(30 * 60 * 1000)
+	for _, file := range files {
+		folderName := file.Name()
+		timestamp, _ := strconv.Atoi(folderName)
+
+		if err == nil && file.IsDir() && currentTimestamp-int64(timestamp) > standardMilliSec {
+			os.RemoveAll(fmt.Sprintf("temp/%s", folderName))
+			log.Printf("%s folder deleted in temp directory.\n", folderName)
+		}
+	}
 }
