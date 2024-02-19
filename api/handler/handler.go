@@ -6,42 +6,44 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/pkg/antcontainer"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 )
 
 type LoadTestProperties struct {
-	Threads  int64  `form:"threads" binding:"omitempty"`
-	RampTime int64  `form:"rampTime" binding:"omitempty"`
-	Loop     int64  `form:"loop" binding:"omitempty"`
-	Hostname string `form:"hostname" bind:"omitempty"`
-	Port     int64  `form:"port" bind:"omitempty"`
-	Path     string `form:"path" bind:"omitempty"`
+	Threads   string `form:"threads" binding:"required,gte=1"`
+	RampTime  string `form:"rampTime"`
+	LoopCount string `form:"loopCount" binding:"required,gte=1"`
+	Protocol  string `form:"protocol" bind:"required"`
+	Hostname  string `form:"hostname" bind:"required"`
+	Port      string `form:"port"`
+	Path      string `form:"path"`
 }
 
 func NewLoadTestProperties() LoadTestProperties {
 	return LoadTestProperties{
-		Threads:  1,
-		RampTime: 1,
-		Loop:     1,
-		Hostname: "localhost",
-		Port:     1324,
-		Path:     "/milkyway/cpus",
+		Threads:   "1",
+		RampTime:  "1",
+		LoopCount: "1",
+		Protocol:  "http",
 	}
 }
 
 func LoadTestHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		loadTestProperties := NewLoadTestProperties()
-
-		if err := c.ShouldBindQuery(&loadTestProperties); err != nil {
-			// handle query bind error
+		if err := c.ShouldBindBodyWith(&loadTestProperties, binding.JSON); err != nil {
+			log.Printf("error while binding request body; %+v", err)
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"status":  "bad request",
-				"message": "request param is incorrect",
+				"message": fmt.Sprintf("request param is incorrect; %+v", loadTestProperties),
 			})
 			return
 		}
+
+		log.Printf("request body: %+v\n", loadTestProperties)
 
 		currentTime := time.Now()
 		formattedTimestamp := fmt.Sprintf("%d", currentTime.UnixMilli())
@@ -98,6 +100,23 @@ func LoadTestHandler() gin.HandlerFunc {
 			"status":    "ok",
 			"resultKey": formattedTimestamp,
 		})
+	}
+}
+
+func SlaveCreateHandler() gin.HandlerFunc {
+	
+	return func(c *gin.Context) {
+		containerManager := antcontainer.CManager
+		err := containerManager.BuildJMeterDockerImage()
+		if err != nil {
+			log.Printf("Error while creating container; %v\n", err)
+			c.JSON(http.StatusInternalServerError, map[string]string{
+				"status":  "internal server error",
+				"message": fmt.Sprintf("Error while creating container; %v", err),
+			})
+
+			return
+		}
 	}
 }
 

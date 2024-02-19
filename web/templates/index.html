@@ -1,0 +1,124 @@
+<!DOCTYPE html5>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JMeter Load Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: row;
+        }
+
+        #left {
+            width: 30%;
+            padding: 20px;
+        }
+
+        #right {
+            width: 70%;
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="left">
+        <h2>Load Test Configuration</h2>
+        <div class="form-group">
+            <label for="threads">Threads:</label>
+            <input type="range" id="threads" name="threads" min="1" max="50" onchange="updateRangeValue(this.id)"
+                value="1">
+            <span id="threadsValue">1</span>
+        </div>
+        <div class="form-group">
+            <label for="rampTime">Ramp Time:</label>
+            <input type="range" id="rampTime" name="rampTime" min="1" max="60" onchange="updateRangeValue(this.id)"
+                value="0">
+            <span id="rampTimeValue">1</span>
+        </div>
+        <div class="form-group">
+            <label for="loopCount">Loop Count:</label>
+            <input type="range" id="loopCount" name="loopCount" min="1" max="50" onchange="updateRangeValue(this.id)"
+                value="1">
+            <span id="loopCountValue">1</span>
+        </div>
+
+        <div class="form-group">
+            <label for="protocol">Protocol:</label>
+            <input type="text" id="protocol" name="protocol" value="http">
+        </div>
+        <div class="form-group">
+            <label for="hostname">Hostname:</label>
+            <input type="text" id="hostname" name="hostname" placeholder="enter.your.hostname.com">
+        </div>
+        <div class="form-group">
+            <label for="port">Port:</label>
+            <input type="number" id="port" name="port" min="1000" max="65535" placeholder="Enter port number">
+        </div>
+        <div class="form-group">
+            <label for="path">Path:</label>
+            <input type="text" id="path" name="path" placeholder="/enter/your/endpoint">
+        </div>
+        <button onclick="executeLoadTest()">Execute</button>
+        
+    </div>
+    <div id="right">
+        <h2>Load Test Results</h2>
+        <iframe id="resultsFrame" width="100%" height="400"></iframe>
+    </div>
+
+    <script>
+        function executeLoadTest() {
+            const threads = document.getElementById("threads").value;
+            const rampTime = document.getElementById("rampTime").value;
+            const loopCount = document.getElementById("loopCount").value;
+            const protocol = document.getElementById("protocol").value;
+            const hostname = document.getElementById("hostname").value;
+            const port = document.getElementById("port").value;
+            const path = document.getElementById("path").value;
+
+            if (!threads || !loopCount || !hostname) {
+                alert("Please fill out all fields.", threads, loopCount, hostname);
+                return;
+            }
+
+            const requestData = {
+                threads: threads,
+                rampTime: rampTime,
+                loopCount: loopCount,
+                protocol: protocol,
+                hostname: hostname,
+                port: port,
+                path: path
+            };
+
+            fetch('http://localhost:8080/load-test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Display or process the received data as needed
+                    console.log(data);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function updateRangeValue(inputId) {
+            var rangeValue = document.getElementById(inputId).value;
+            document.getElementById(inputId + "Value").textContent = rangeValue;
+        }
+    </script>
+</body>
+
+</html>
