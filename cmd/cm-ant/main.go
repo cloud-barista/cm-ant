@@ -23,7 +23,8 @@ func main() {
 		c.HTML(http.StatusOK, "index.html", gin.H{})
 	})
 	router.POST("/load-test", handler.LoadTestHandler())
-	router.POST("/slave", handler.SlaveCreateHandler())
+	router.GET("/load-test", handler.GetLoadTestHandler())
+	// router.POST("/slave", handler.SlaveCreateHandler())
 	router.Run()
 
 }

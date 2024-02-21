@@ -5,24 +5,31 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
-type TempFileRemoveWorker struct {
+type Worker interface {
+	Run()
+	Shutdown()
+	Action()
+}
+
+type tempFileRemoveWorker struct {
 	Stopped         bool
 	ShutdownChannel chan string
 	Interval        time.Duration
 }
 
-func NewWorker(interval time.Duration) *TempFileRemoveWorker {
-	return &TempFileRemoveWorker{
+func NewWorker(interval time.Duration) Worker {
+	return &tempFileRemoveWorker{
 		Stopped:         false,
 		ShutdownChannel: make(chan string),
 		Interval:        interval,
 	}
 }
 
-func (w *TempFileRemoveWorker) Run() {
+func (w *tempFileRemoveWorker) Run() {
 
 	log.Println("TempFileRemoveWorker Started")
 
@@ -42,7 +49,7 @@ func (w *TempFileRemoveWorker) Run() {
 	}
 }
 
-func (w *TempFileRemoveWorker) Shutdown() {
+func (w *tempFileRemoveWorker) Shutdown() {
 	w.Stopped = true
 
 	w.ShutdownChannel <- "Down"
@@ -52,7 +59,7 @@ func (w *TempFileRemoveWorker) Shutdown() {
 }
 
 // temp folder 하위 폴더명을 확인하여 현재의 unix 시간과 시간을 확인해서 .5 시간 이상 차이나는 데이터는 삭제
-func (w *TempFileRemoveWorker) Action() {
+func (w *tempFileRemoveWorker) Action() {
 	currentTime := time.Now()
 	currentTimestamp := currentTime.UnixMilli()
 
@@ -62,14 +69,20 @@ func (w *TempFileRemoveWorker) Action() {
 	}
 
 	log.Printf("%d folders read from temp directory", len(files))
-	standardMilliSec := int64(30 * 60 * 1000)
+	standardMilliSec := int64(10 * 60 * 1000)
 	for _, file := range files {
 		folderName := file.Name()
-		timestamp, _ := strconv.Atoi(folderName)
+		time := getFirstPart(folderName)
+		timestamp, _ := strconv.Atoi(time)
 
 		if err == nil && file.IsDir() && currentTimestamp-int64(timestamp) > standardMilliSec {
 			os.RemoveAll(fmt.Sprintf("temp/%s", folderName))
 			log.Printf("%s folder deleted in temp directory.\n", folderName)
 		}
 	}
+}
+
+func getFirstPart(input string) string {
+	parts := strings.Split(input, "-")
+	return parts[0]
 }
