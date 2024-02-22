@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/domain"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -28,32 +29,7 @@ const (
 	resultTcp     = "tcp"
 )
 
-type LoadTestProperties struct {
-	TestId string `form:"testId,omitempty"`
-
-	Protocol string `form:"protocol,omitempty"`
-	Hostname string `form:"hostname,omitempty"`
-	Port     string `form:"port,omitempty"`
-	Path     string `form:"port,omitempty"`
-	BodyData string `form:"bodyData,omitempty"`
-
-	Threads   string `form:"threads,omitempty"`
-	RampTime  string `form:"rampTime,omitempty"`
-	LoopCount string `form:"loopCount,omitempty"`
-
-	Scheduled bool   `form:"scheduled,omitempty"`
-	Infinite  bool   `form:"infinite,omitempty"`
-	Duration  string `form:"duration,omitempty"`
-
-	AgentHost string `form:"agentHost,omitempty"`
-	AgentPort string `form:"agentPort,omitempty"`
-}
-
-func NewLoadTestProperties() LoadTestProperties {
-	return LoadTestProperties{}
-}
-
-func GetLoadTestHandler() gin.HandlerFunc {
+func GetLoadTestResultHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		testId := c.Query("testId")
 
@@ -98,9 +74,9 @@ func GetLoadTestHandler() gin.HandlerFunc {
 	}
 }
 
-func LoadTestHandler() gin.HandlerFunc {
+func ExecuteLoadTestHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		loadTestProperties := NewLoadTestProperties()
+		loadTestProperties := domain.NewLoadTestProperties()
 		if err := c.ShouldBindBodyWith(&loadTestProperties, binding.JSON); err != nil {
 			log.Printf("error while binding request body; %+v", err)
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -153,12 +129,12 @@ func LoadTestHandler() gin.HandlerFunc {
 
 		cmdStr := jmeterExecutionCmdGenerator(propertiesFilePath, testPlanFile, testFolderPath, testId, reportFolderPath)
 
-		result, err := utils.SysCall(cmdStr)
+		err = utils.SyncSysCall(cmdStr)
 		if err != nil {
-			log.Printf("Error while executing jmeter cmd: %s; %v\n", result, err)
+			log.Printf("Error while executing jmeter cmd; %v\n", err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, map[string]string{
 				"status":  "internal server error",
-				"message": fmt.Sprintf("Error while executing jmeter cmd: %s", result),
+				"message": "Error while executing jmeter cmd;",
 			})
 
 			return

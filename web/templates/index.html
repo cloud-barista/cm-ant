@@ -60,6 +60,9 @@
             transform: translateX(28px) translateY(-50%);
         }
     </style>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.min.js"
+        integrity="sha512-L0Shl7nXXzIlBSUUPpxrokqq4ojqgZFQczTYlGjzONGTDAcLremjwaWv5A+EDLnxhQzY5xUZPWLOLqYRkY0Cbw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
 </head>
 
 <body>
@@ -143,7 +146,165 @@
         </div>
     </div>
 
+    <div>
+        <div class="agent-form-group">
+            <label for="agent-hostname">Host Hostname: </label>
+            <input type="text" id="agent-hostname" name="agent-hostname" placeholder="target domain / ip">
+        </div>
+        <div class="agent-form-group">
+            <label for="agent-username">Host username: </label>
+            <input type="text" id="agent-username" name="agent-username" placeholder="Enter username">
+        </div>
+        <div class="agent-form-group">
+            <label for="agent-tcp-port">Agent TCP Port: </label>
+            <input type="number" id="agent-tcp-port" name="agent-tcp-port" min="1000" max="65535"
+                placeholder="agent tcp port you want to open">
+        </div>
+        <div class="agent-form-group">
+            <label for="agent-shutdown" class="toggle-container">Shutdown after test done: </label>
+            <input type="checkbox" id="agent-shutdown" name="agent-shutdown" checked>
+        </div>
+        <div id="agent-info-box" style="display: none;">
+            <h3 id="agent-id"></h3>
+        </div>
+        <div>
+            <button id="agent-install-btn" onclick="installServerAgent()">설치</button>
+        </div>
+        <div>
+            <button id="agent-start-btn" onclick="startServerAgent()">시작</button>
+        </div>
+        <div>
+            <button id="agent-stop-btn" onclick="stopServerAgent()">멈춤</button>
+        </div>
+        <div>
+            <button id="agent-remove-btn" onclick="removeServerAgent()">삭제</button>
+        </div>
+    </div>
+
     <script>
+
+        function installServerAgent() {
+            const agentHostname = document.getElementById("agent-hostname").value;
+            const agentUsername = document.getElementById("agent-username").value;
+            const agentTcpPort = document.getElementById("agent-tcp-port").value;
+            const agentShutdown = document.getElementById("agent-shutdown").checked;
+
+            const requestData = {
+                hostname: agentHostname,
+                username: agentUsername,
+                tcpPort: agentTcpPort,
+                shutdown: agentShutdown,
+            };
+
+            fetch('http://localhost:8080/agent/install', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    const agentId = data.agentId;
+                    const status = data.status;
+
+                    console.log(agentId, status);
+
+                    const agentIdHeader = document.getElementById("agent-id");
+                    agentIdHeader.textContent = agentId;
+
+                    const agentInfoBox = document.getElementById("agent-info-box");
+                    agentInfoBox.style.display = "block";
+
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert(error)
+                });
+        }
+
+        function startServerAgent() {
+            const agentId = document.getElementById("agent-id").textContent;
+            const params = {
+                agentId: agentId,
+            };
+
+            const queryString = new URLSearchParams(params).toString();
+            const url = `http://localhost:8080/agent/start?${queryString}`;
+
+
+            console.log(url);
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+                .then(data => {
+                    console.log(data)
+
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert(error)
+                });
+        }
+
+        function stopServerAgent() {
+            const agentId = document.getElementById("agent-id").textContent;
+            const params = {
+                agentId: agentId,
+            };
+
+            const queryString = new URLSearchParams(params).toString();
+            const url = `http://localhost:8080/agent/stop?${queryString}`;
+
+
+            console.log(url);
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+                .then(data => {
+                    console.log(data)
+
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert(error)
+                });
+        }
+
+        function removeServerAgent() {
+            const agentId = document.getElementById("agent-id").textContent;
+            const params = {
+                agentId: agentId,
+            };
+
+            const queryString = new URLSearchParams(params).toString();
+            const url = `http://localhost:8080/agent/remove?${queryString}`;
+
+
+            console.log(url);
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+                .then(data => {
+                    console.log(data)
+
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert(error)
+                });
+        }
+
 
         function executeLoadTest() {
             const testResult = document.getElementById("testResult");
@@ -151,7 +312,7 @@
 
             const testIdHeader = document.getElementById("testId");
             testIdHeader.textContent = "";
-            
+
             const testIdBox = document.getElementById("testIdBox");
             testIdBox.style.display = "none";
 

@@ -1,16 +1,16 @@
 #!/bin/bash
 PROJECT_ROOT=$(pwd)
-JMETER_WORKING_DIR="./third_party/jmeter"
+JMETER_WORK_DIR="./third_party/jmeter"
 JMETER_VERSION="apache-jmeter-5.3"
 JMETER_INSTALL_URL="https://archive.apache.org/dist/jmeter/binaries/$JMETER_VERSION.tgz"
 JMETER_BIN="$JMETER_VERSION/bin"
 
 # base setup
-mkdir $JMETER_WORKING_DIR
-cd $JMETER_WORKING_DIR
+mkdir -p $JMETER_WORK_DIR
+cd $JMETER_WORK_DIR
 
 # install need tools
-apt-get install -y wget default-jdk
+apt-get install -y wget default-jre
 
 unzip_jmeter() {
     tar xzvf "$JMETER_VERSION.tgz" && rm "$JMETER_VERSION.tgz"
@@ -21,10 +21,10 @@ unzip_jmeter() {
 if [ -d "$JMETER_VERSION" ]; then
     echo "[CB-ANT] Jmeter is already installed."
 elif [ -f "$JMETER_VERSION.tgz" ]; then 
-    echo "[CB-ANT] Jmeter gzip file is installed on $JMETER_WORKING_DIR. Let's do remaining installation."
+    echo "[CB-ANT] Jmeter gzip file is installed on $JMETER_WORK_DIR. Let's do remaining installation."
     unzip_jmeter
 else
-    echo "[CB-ANT] JMeter is installing on path $JMETER_WORKING_DIR"
+    echo "[CB-ANT] JMeter is installing on path $JMETER_WORK_DIR"
     wget $JMETER_INSTALL_URL
     unzip_jmeter
 fi

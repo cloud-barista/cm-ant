@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"reflect"
@@ -10,17 +11,28 @@ import (
 	"unicode"
 )
 
-func SysCall(cmdStr string) (string, error) {
+func SyncSysCall(cmdStr string) error {
 	cmd := exec.Command("bash", "-c", cmdStr)
 
-	cmdOut, err := cmd.Output()
-
+	out, err := cmd.Output()
 	if err != nil {
-		return "", err
+		log.Println("error while execute system call,", err)
+		return err
 	}
 
-	return string(cmdOut), nil
+	log.Println(string(out))
+	return nil
+}
 
+func AsyncSysCall(cmdStr string) error {
+	cmd := exec.Command("bash", "-c", cmdStr)
+
+	err := cmd.Start()
+	if err != nil {
+		log.Println("error while execute system call", err)
+		return err
+	}
+	return nil
 }
 
 func StructToMap(obj interface{}) map[string]interface{} {
@@ -31,14 +43,14 @@ func StructToMap(obj interface{}) map[string]interface{} {
 
 	for i := 0; i < objValue.NumField(); i++ {
 		field := objType.Field(i)
-		fieldName := firstRuneToLower(field.Name)
+		fieldName := FirstRuneToLower(field.Name)
 		data[fieldName] = objValue.Field(i).Interface()
 	}
 
 	return data
 }
 
-func firstRuneToLower(s string) string {
+func FirstRuneToLower(s string) string {
 	if len(s) == 0 {
 		return s
 	}
