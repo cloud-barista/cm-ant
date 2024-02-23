@@ -29,9 +29,6 @@ type LoadTestProperties struct {
 	Scheduled bool   `form:"scheduled,omitempty"`
 	Infinite  bool   `form:"infinite,omitempty"`
 	Duration  string `form:"duration,omitempty"`
-
-	AgentHost string `form:"agentHost,omitempty"`
-	AgentPort string `form:"agentPort,omitempty"`
 }
 
 func NewLoadTestProperties() LoadTestProperties {

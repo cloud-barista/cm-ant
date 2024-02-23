@@ -104,17 +104,6 @@ func ExecuteLoadTestHandler() gin.HandlerFunc {
 			return
 		}
 
-		reportFolderPath := fmt.Sprintf("%s/report_%s", testFolderPath, testId)
-		err = utils.CreateFolder(reportFolderPath)
-		if err != nil {
-			log.Printf("Error while creating folder: %s; %v\n", reportFolderPath, err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, map[string]string{
-				"status":  "internal server error",
-				"message": fmt.Sprintf("Error while creating folder: %s", reportFolderPath),
-			})
-			return
-		}
-
 		propertiesFilePath := fmt.Sprintf("%s/config_%s.properties", testFolderPath, testId)
 		propertiesData := utils.StructToMap(loadTestProperties)
 		err = utils.WritePropertiesFile(propertiesFilePath, propertiesData, true)
@@ -127,9 +116,26 @@ func ExecuteLoadTestHandler() gin.HandlerFunc {
 			return
 		}
 
-		cmdStr := jmeterExecutionCmdGenerator(propertiesFilePath, testPlanFile, testFolderPath, testId, reportFolderPath)
-
+		cmdStr := jmeterCliExecutionCmdGenerator(propertiesFilePath, testPlanFile, testFolderPath, testId)
+		log.Printf("this is cmd : %s\n", cmdStr)
 		err = utils.SyncSysCall(cmdStr)
+		if err != nil {
+			log.Printf("Error while executing jmeter cmd; %v\n", err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, map[string]string{
+				"status":  "internal server error",
+				"message": "Error while executing jmeter cmd;",
+			})
+
+			return
+		}
+
+		resultFilePath := fmt.Sprintf("temp/%s/result_%s_%s.csv", testId, resultGeneral, testId)
+		reportFolderPath := fmt.Sprintf("temp/%s/report_%s", testId, testId)
+		cmdGenerateReport := jmeterReportGenerateCmdGenerator(resultFilePath, reportFolderPath)
+
+		log.Printf("this is cmdGenerateReport : %s\n", cmdGenerateReport)
+		err = utils.SyncSysCall(cmdGenerateReport)
+
 		if err != nil {
 			log.Printf("Error while executing jmeter cmd; %v\n", err)
 			c.AbortWithStatusJSON(http.StatusInternalServerError, map[string]string{
@@ -156,6 +162,15 @@ func ExecuteLoadTestHandler() gin.HandlerFunc {
 -o : html 리포트 저장 디렉토리 설정
 -R : remore ips for distribute test
 */
-func jmeterExecutionCmdGenerator(propertiesPath, testScriptPath, testFolderPath, testId, reportFolderPath string) string {
-	return fmt.Sprintf("%s -n -p %s -t %s -l %s/result_general_%s.csv -e -o %s", jmeterPath, propertiesPath, testScriptPath, testFolderPath, testId, reportFolderPath)
+
+// func jmeterExecutionCmdGenerator(propertiesPath, testScriptPath, testFolderPath, testId, reportFolderPath string) string {
+// 	return fmt.Sprintf("%s -n -f -p \"%s\" -t \"%s\" -l \"%s/result_general_%s.csv\" -e -o \"%s\"", jmeterPath, propertiesPath, testScriptPath, testFolderPath, testId, reportFolderPath)
+// }
+
+func jmeterCliExecutionCmdGenerator(propertiesPath, testScriptPath, testFolderPath, testId string) string {
+	return fmt.Sprintf("%s -n -f -p \"%s\" -t \"%s\" -l \"%s/result_general_%s.csv\"", jmeterPath, propertiesPath, testScriptPath, testFolderPath, testId)
+}
+
+func jmeterReportGenerateCmdGenerator(resultFilePath, reportFolderPath string) string {
+	return fmt.Sprintf("%s -g %s -o %s", jmeterPath, resultFilePath, reportFolderPath)
 }

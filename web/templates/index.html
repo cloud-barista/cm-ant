@@ -120,18 +120,6 @@
             </div> -->
         </div>
         <div>
-            <h2>Perfmon Agent Configuration</h2>
-            <div class="form-group">
-                <label for="agentHost">Agent Host: </label>
-                <input type="text" id="agentHost" name="agentHost" placeholder="host domain / ip">
-            </div>
-            <div class="form-group">
-                <label for="agentPort">Agent Port: </label>
-                <input type="text" id="agentPort" name="agentPort"
-                    placeholder="perfmon server agent use 4444 by default">
-            </div>
-        </div>
-        <div>
             <button id="executeLoadTest" onclick="executeLoadTest()">execute</button>
         </div>
     </div>
@@ -328,12 +316,10 @@
 
             const threads = document.getElementById("threads").value;
             const rampTime = document.getElementById("rampTime").value;
-            var loopCount = document.getElementById("loopCount").value;
+            const loopCount = document.getElementById("loopCount").value;
             // const scheduled = document.getElementById("scheduled").checked;
             // const duration = document.getElementById("duration").value;
 
-            const agentHost = document.getElementById("agentHost").value;
-            const agentPort = document.getElementById("agentPort").value;
             const requestData = {
                 protocol: protocol,
                 hostname: hostname,
@@ -347,8 +333,6 @@
                 // scheduled: scheduled,
                 // duration: duration,
 
-                agentHost: agentHost,
-                agentPort: agentPort,
             };
 
             fetch('http://localhost:8080/load-test', {
@@ -410,7 +394,6 @@
                     fetchResult.style.display = "block";
                 });
         }
-
 
         function updateRangeValue(inputId) {
             var rangeValue = document.getElementById(inputId).value;
