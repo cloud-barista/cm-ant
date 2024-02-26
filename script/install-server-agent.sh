@@ -1,6 +1,6 @@
 #!bin/bash
 
-AGENT_WORK_DIR
+AGENT_WORK_DIR="${AGENT_WORK_DIR:=/opt/perfmon-agent}"
 AGENT_VERSION="2.2.1"
 AGENT_FILE_NAME="ServerAgent-$AGENT_VERSION.zip"
 AGENT_DOWNLOAD_URL="https://github.com/undera/perfmon-agent/releases/download/$AGENT_VERSION/$AGENT_FILE_NAME"

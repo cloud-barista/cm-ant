@@ -27,7 +27,7 @@ type LocalAgentManager struct {
 }
 
 func (l LocalAgentManager) Install(agentInfo domain.AgentInfo) error {
-	installCmd := fmt.Sprintf("%s source install-server-agent.sh", agentWorkDir)
+	installCmd := fmt.Sprintf("%s source ./script/install-server-agent.sh", agentWorkDir)
 	err := utils.SyncSysCall(installCmd)
 
 	if err != nil {
@@ -50,7 +50,7 @@ func (l LocalAgentManager) Start(agentInfo domain.AgentInfo) error {
 
 	agentInfo.TcpPort = "4444"
 
-	startCmd := fmt.Sprintf("%s TCP_PORT=%s AUTO_SHUTDOWN=%s source start-server-agent.sh", agentWorkDir, agentInfo.TcpPort, autoShutdown)
+	startCmd := fmt.Sprintf("%s TCP_PORT=%s AUTO_SHUTDOWN=%s source ./script/start-server-agent.sh", agentWorkDir, agentInfo.TcpPort, autoShutdown)
 	err := utils.AsyncSysCall(startCmd)
 
 	if err != nil {
@@ -66,7 +66,7 @@ func (l LocalAgentManager) Stop(agentInfo domain.AgentInfo) error {
 
 	agentInfo.TcpPort = "4444"
 
-	stopCmd := fmt.Sprintf("%s TCP_PORT=%s source stop-server-agent.sh", agentWorkDir, agentInfo.TcpPort)
+	stopCmd := fmt.Sprintf("%s TCP_PORT=%s source ./script/stop-server-agent.sh", agentWorkDir, agentInfo.TcpPort)
 	err := utils.SyncSysCall(stopCmd)
 
 	if err != nil {
@@ -80,7 +80,7 @@ func (l LocalAgentManager) Stop(agentInfo domain.AgentInfo) error {
 
 func (l LocalAgentManager) Remove(agentInfo domain.AgentInfo) error {
 
-	stopCmd := fmt.Sprintf("%s source remove-server-agent.sh", agentWorkDir)
+	stopCmd := fmt.Sprintf("%s source ./script/remove-server-agent.sh", agentWorkDir)
 	err := utils.SyncSysCall(stopCmd)
 
 	if err != nil {
