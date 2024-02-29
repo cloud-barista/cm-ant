@@ -58,9 +58,7 @@ cp $PLUGIN_MANAGER_JAR "$JMETER_VERSION/lib/ext/"
 java -jar "$JMETER_VERSION/lib/$CMD_RUNNER_JAR" --tool org.jmeterplugins.repository.PluginManagerCMD install jpgc-perfmon,jpgc-dummy
 echo "[CB-ANT] Installed plugin perfmon."
 
-export PATH="$PATH:$JMETER_BIN"
-alias jmeter="$JMETER_BIN/jmeter"
-jmeter --version
+"$JMETER_BIN/jmeter" --version
 
-cd $PROJECT_ROOT  # move to project root
+cd $PROJECT_ROOT
 echo "[CB-ANT] Jmeter is completely installed!!"

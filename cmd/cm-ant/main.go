@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/api/handler"
@@ -11,7 +12,25 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var SpiderUrl = os.Getenv("SPIDER_URL")
+var TumblebugUrl = os.Getenv("TUMBLEBUG_URL")
+
+func initConfig() {
+	defaultSpiderUrl := "http://localhost:1024"
+	defaultTumblebugUrl := "http://localhost:1323"
+
+	if SpiderUrl == "" {
+		SpiderUrl = defaultSpiderUrl
+	}
+
+	if TumblebugUrl == "" {
+		TumblebugUrl = defaultTumblebugUrl
+	}
+}
+
 func main() {
+	initConfig()
+
 	router := gin.Default()
 	router.LoadHTMLGlob("web/templates/*")
 	router.SetTrustedProxies([]string{"IPv4", " IPv4 CIDRs", "IPv6 addresses"})
@@ -42,5 +61,5 @@ func main() {
 	// local database initialize
 	domain.InitializeDatabase()
 
-	log.Fatal(router.Run())
+	log.Fatal(router.Run(":8080"))
 }

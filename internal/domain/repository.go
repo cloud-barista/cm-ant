@@ -12,7 +12,7 @@ func InitializeDatabase() {
 		"agent": NewRepository(),
 	}
 
-	log.Println("[CM-ANT] Database initialized!!!!!!!!!!!!!!!!")
+	log.Println("[CM-ANT] Database initialized")
 }
 
 type TempRepository interface {
