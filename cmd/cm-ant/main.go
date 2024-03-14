@@ -1,9 +1,10 @@
 package main
 
 import (
+	"github.com/cloud-barista/cm-ant/internal/common/configuration"
 	"log"
 	"net/http"
-	"os"
+	"sync"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/api/handler"
@@ -12,24 +13,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var SpiderUrl = os.Getenv("SPIDER_URL")
-var TumblebugUrl = os.Getenv("TUMBLEBUG_URL")
-
-func initConfig() {
-	defaultSpiderUrl := "http://localhost:1024"
-	defaultTumblebugUrl := "http://localhost:1323"
-
-	if SpiderUrl == "" {
-		SpiderUrl = defaultSpiderUrl
-	}
-
-	if TumblebugUrl == "" {
-		TumblebugUrl = defaultTumblebugUrl
-	}
-}
+var once sync.Once
 
 func main() {
-	initConfig()
+	once.Do(func() {
+		err := configuration.InitConfig("")
+		if err != nil {
+			log.Println(err)
+			log.Fatal("error while reading config file.")
+		}
+	})
+	// TODO: DB Configuration
 
 	router := gin.Default()
 	router.LoadHTMLGlob("web/templates/*")

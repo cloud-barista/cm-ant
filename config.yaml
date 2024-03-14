@@ -1,0 +1,14 @@
+spider:
+  url: http://localhost
+  port: 1024
+
+tumblebug:
+  url: http://localhost
+  port: 1323
+
+server:
+  port: 8880
+
+datasource:
+  type: sqlite
+  url: ~/ant_meta.db
