@@ -5,9 +5,15 @@ import (
 	"fmt"
 	"github.com/spf13/viper"
 	"log"
+	"path/filepath"
+	"runtime"
 )
 
-var runtimeConfig *AntConfig
+var (
+	runtimeConfig *AntConfig
+	_, b, _, _    = runtime.Caller(0)
+	basePath      = filepath.Dir(b)
+)
 
 func Get() (*AntConfig, error) {
 	if runtimeConfig == nil {
@@ -42,7 +48,7 @@ func InitConfig(configPath string) error {
 	cfg := AntConfig{}
 
 	if configPath == "" {
-		configPath = "."
+		configPath = basePath[0 : len(basePath)-len("/internal/common/configuration")]
 	}
 
 	viper.AddConfigPath(configPath)
