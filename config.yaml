@@ -5,6 +5,8 @@ spider:
 tumblebug:
   url: http://localhost
   port: 1323
+  username: default
+  password: default
 
 server:
   port: 8880

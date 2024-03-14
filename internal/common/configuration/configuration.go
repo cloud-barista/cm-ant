@@ -7,34 +7,41 @@ import (
 	"log"
 	"path/filepath"
 	"runtime"
+	"sync"
 )
 
 var (
 	runtimeConfig *AntConfig
 	_, b, _, _    = runtime.Caller(0)
 	basePath      = filepath.Dir(b)
+	lock          sync.RWMutex
 )
 
-func Get() (*AntConfig, error) {
+func Get() *AntConfig {
 	if runtimeConfig == nil {
 		log.Println("configuration process has not completed")
-		return nil, errors.New("configuration process has not completed")
+
+		lock.Lock()
+		defer lock.Unlock()
+		InitConfig("")
 	}
 
-	return runtimeConfig, nil
+	return runtimeConfig
 }
 
 type AntConfig struct {
 	Spider struct {
 		URL  string `yaml:"url"`
-		Port int    `yaml:"port"`
+		Port string `yaml:"port"`
 	} `yaml:"spider"`
 	Tumblebug struct {
-		URL  string `yaml:"url"`
-		Port int    `yaml:"port"`
+		URL      string `yaml:"url"`
+		Port     string `yaml:"port"`
+		Username string `yaml:"username"`
+		Password string `yaml:"password"`
 	} `yaml:"tumblebug"`
 	Server struct {
-		Port int `yaml:"port"`
+		Port string `yaml:"port"`
 	} `yaml:"server"`
 	Datasource struct {
 		Type     string `yaml:"type"`
@@ -45,6 +52,10 @@ type AntConfig struct {
 }
 
 func InitConfig(configPath string) error {
+	if runtimeConfig != nil {
+		return errors.New("cm-ant is already configured")
+	}
+
 	cfg := AntConfig{}
 
 	if configPath == "" {
