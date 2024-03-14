@@ -2,10 +2,10 @@ package managers
 
 import (
 	"fmt"
+	"github.com/cloud-barista/cm-ant/internal/common/utils"
 	"log"
 
 	"github.com/cloud-barista/cm-ant/internal/domain"
-	"github.com/cloud-barista/cm-ant/pkg/utils"
 )
 
 const (

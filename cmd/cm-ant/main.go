@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/cloud-barista/cm-ant/internal/common/configuration"
+	"github.com/cloud-barista/cm-ant/internal/common/utils"
 	"log"
 	"net/http"
 	"sync"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/cloud-barista/cm-ant/api/handler"
 	"github.com/cloud-barista/cm-ant/internal/domain"
-	"github.com/cloud-barista/cm-ant/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
 

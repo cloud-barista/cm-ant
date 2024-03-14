@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"github.com/cloud-barista/cm-ant/internal/common/utils"
 	"log"
 	"net/http"
 	"os"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/domain"
-	"github.com/cloud-barista/cm-ant/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/google/uuid"

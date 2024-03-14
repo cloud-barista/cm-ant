@@ -2,14 +2,22 @@ package utils
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"log"
 	"os"
 	"os/exec"
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
+
+func CreateUniqIdBaseOnUnixTime() string {
+	currentTime := time.Now()
+	uniqId := fmt.Sprintf("%d-%s", currentTime.UnixMilli(), uuid.New().String())
+	return uniqId
+}
 
 func SyncSysCall(cmdStr string) error {
 	cmd := exec.Command("bash", "-c", cmdStr)
