@@ -2,13 +2,16 @@
 set -e
 
 # Base setup
-JMETER_WORK_DIR="/opt/jmeter"
+JMETER_WORK_DIR=${JMETER_WORK_DIR:="/opt/jmeter"}
 JMETER_VERSION=${JMETER_VERSION:="5.3"}
 JMETER_FOLDER="apache-jmeter-${JMETER_VERSION}"
 JMETER_FULL_PATH="${JMETER_WORK_DIR}/${JMETER_FOLDER}"
 JMETER_INSTALL_URL="https://archive.apache.org/dist/jmeter/binaries/$JMETER_FOLDER.tgz"
 
 mkdir -p $JMETER_WORK_DIR
+mkdir -p $JMETER_WORK_DIR/result
+mkdir -p $JMETER_WORK_DIR/test_plan
+
 cd $JMETER_WORK_DIR
 
 # Installation
