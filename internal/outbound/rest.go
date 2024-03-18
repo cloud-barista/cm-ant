@@ -23,7 +23,7 @@ func request(httpMethod, requestUrl string, authHeader string, body []byte) (*ht
 		return nil, fmt.Errorf("error while request to requestUrl: %s; %w", requestUrl, err)
 	}
 
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		return nil, fmt.Errorf("internal server error while request to requestUrl: %s; %w", requestUrl, err)
 	}
 
