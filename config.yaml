@@ -1,12 +1,17 @@
 spider:
-  url: http://localhost
+  host: 127.0.0.1
   port: 1024
 
 tumblebug:
-  url: http://localhost
+  host: 127.0.0.1
   port: 1323
   username: default
   password: default
+
+load:
+  jmeter:
+    workDir: "${HOME}/jmeter"
+    version: 5.3
 
 server:
   port: 8880
