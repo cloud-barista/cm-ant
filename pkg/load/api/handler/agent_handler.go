@@ -1,11 +1,11 @@
 package handler
 
 import (
+	"github.com/cloud-barista/cm-ant/pkg/load/domain"
 	"log"
 	"net/http"
 	"strings"
 
-	"github.com/cloud-barista/cm-ant/internal/domain"
 	"github.com/cloud-barista/cm-ant/pkg/managers"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"

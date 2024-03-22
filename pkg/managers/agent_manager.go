@@ -2,10 +2,9 @@ package managers
 
 import (
 	"fmt"
-	"github.com/cloud-barista/cm-ant/internal/common/utils"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain"
+	antsys "github.com/cloud-barista/cm-ant/pkg/utils"
 	"log"
-
-	"github.com/cloud-barista/cm-ant/internal/domain"
 )
 
 const (
@@ -28,7 +27,7 @@ type LocalAgentManager struct {
 
 func (l LocalAgentManager) Install(agentInfo domain.AgentInfo) error {
 	installCmd := fmt.Sprintf("%s source ./script/install-server-agent.sh", agentWorkDir)
-	err := utils.SyncSysCall(installCmd)
+	err := antsys.InlineCmd(installCmd)
 
 	if err != nil {
 		log.Printf("error while installing server agent; %s\n", err)
@@ -51,7 +50,7 @@ func (l LocalAgentManager) Start(agentInfo domain.AgentInfo) error {
 	agentInfo.TcpPort = "4444"
 
 	startCmd := fmt.Sprintf("%s TCP_PORT=%s AUTO_SHUTDOWN=%s source ./script/start-server-agent.sh", agentWorkDir, agentInfo.TcpPort, autoShutdown)
-	err := utils.AsyncSysCall(startCmd)
+	err := antsys.InlineCmdAsync(startCmd)
 
 	if err != nil {
 		log.Printf("error while start server agent; %s\n", err)
@@ -67,7 +66,7 @@ func (l LocalAgentManager) Stop(agentInfo domain.AgentInfo) error {
 	agentInfo.TcpPort = "4444"
 
 	stopCmd := fmt.Sprintf("%s TCP_PORT=%s source ./script/stop-server-agent.sh", agentWorkDir, agentInfo.TcpPort)
-	err := utils.SyncSysCall(stopCmd)
+	err := antsys.InlineCmd(stopCmd)
 
 	if err != nil {
 		log.Printf("error while stop server agent; %s\n", err)
@@ -81,7 +80,7 @@ func (l LocalAgentManager) Stop(agentInfo domain.AgentInfo) error {
 func (l LocalAgentManager) Remove(agentInfo domain.AgentInfo) error {
 
 	stopCmd := fmt.Sprintf("%s source ./script/remove-server-agent.sh", agentWorkDir)
-	err := utils.SyncSysCall(stopCmd)
+	err := antsys.InlineCmd(stopCmd)
 
 	if err != nil {
 		log.Printf("error while remove server agent; %s\n", err)

@@ -15,7 +15,7 @@ func request(httpMethod, requestUrl string, authHeader string, body []byte) (*ht
 
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	if authHeader != "" {
-		req.Header.Add("Authorization", string(authHeader))
+		req.Header.Add("Authorization", authHeader)
 	}
 
 	resp, err := client.Do(req)

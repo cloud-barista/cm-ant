@@ -1,21 +1,20 @@
 package main
 
 import (
-	"github.com/cloud-barista/cm-ant/internal/common/configuration"
-	"github.com/cloud-barista/cm-ant/internal/common/utils"
+	"fmt"
 	"log"
-	"net/http"
 	"sync"
-	"time"
 
-	"github.com/cloud-barista/cm-ant/api/handler"
-	"github.com/cloud-barista/cm-ant/internal/domain"
+	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"github.com/cloud-barista/cm-ant/pkg/load/api/handler"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain"
 	"github.com/gin-gonic/gin"
 )
 
 var once sync.Once
 
 func main() {
+
 	once.Do(func() {
 		err := configuration.InitConfig("")
 		if err != nil {
@@ -23,37 +22,34 @@ func main() {
 			log.Fatal("error while reading config file.")
 		}
 	})
-	// TODO: DB Configuration
 
-	router := gin.Default()
-	router.LoadHTMLGlob("web/templates/*")
-	router.SetTrustedProxies([]string{"IPv4", " IPv4 CIDRs", "IPv6 addresses"})
-
-	// background worker settings
-	worker := utils.NewWorker(30 * time.Minute)
-	go worker.Run()
-	defer worker.Shutdown()
-
-	router.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", gin.H{})
-	})
-
-	loadTestRouter := router.Group("/load-test")
-	{
-		loadTestRouter.POST("/", handler.ExecuteLoadTestHandler())
-		loadTestRouter.GET("/", handler.GetLoadTestResultHandler())
-	}
-
-	agent := router.Group("/agent")
-	{
-		agent.POST("/install", handler.CreateAgentOnHostHandler())
-		agent.POST("/start", handler.StartAgentOnHostHandler())
-		agent.POST("/stop", handler.StopAgentOnHostHandler())
-		agent.POST("/remove", handler.RemoveAgentOnHostHandler())
-	}
-
-	// local database initialize
+	// TODO: DB Configuration - confirm kind of db
+	// temp db init
 	domain.InitializeDatabase()
+	router := SetRouter()
 
-	log.Fatal(router.Run(":8080"))
+	//// background worker settings
+	//worker := utils.NewWorker(30 * time.Minute)
+	//go worker.Run()
+	//defer worker.Shutdown()
+
+	log.Fatal(router.Run(fmt.Sprintf(":%s", configuration.Get().Server.Port)))
+}
+
+func SetRouter() *gin.Engine {
+	router := gin.Default()
+	router.LoadHTMLGlob(configuration.JoinRootPathWith("/web/templates/*"))
+
+	antRouter := router.Group("/ant")
+
+	{
+		loadRouter := antRouter.Group("/load")
+
+		{
+			loadRouter.POST("/install", handler.InstallLoadGeneratorHandler())
+			loadRouter.POST("/start", handler.RunLoadTestHandler())
+		}
+	}
+
+	return router
 }

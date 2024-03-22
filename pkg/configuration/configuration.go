@@ -1,29 +1,25 @@
 package configuration
 
 import (
-	"errors"
 	"fmt"
 	"github.com/spf13/viper"
 	"log"
-	"path/filepath"
-	"runtime"
+	"strings"
 	"sync"
 )
 
 var (
 	runtimeConfig *AntConfig
-	_, b, _, _    = runtime.Caller(0)
-	basePath      = filepath.Dir(b)
-	lock          sync.RWMutex
+	once          sync.Once
 )
 
 func Get() *AntConfig {
 	if runtimeConfig == nil {
 		log.Println("configuration process has not completed")
 
-		lock.Lock()
-		defer lock.Unlock()
-		InitConfig("")
+		once.Do(func() {
+			InitConfig("")
+		})
 	}
 
 	return runtimeConfig
@@ -31,15 +27,21 @@ func Get() *AntConfig {
 
 type AntConfig struct {
 	Spider struct {
-		URL  string `yaml:"url"`
+		Host string `yaml:"host"`
 		Port string `yaml:"port"`
 	} `yaml:"spider"`
 	Tumblebug struct {
-		URL      string `yaml:"url"`
+		Host     string `yaml:"host"`
 		Port     string `yaml:"port"`
 		Username string `yaml:"username"`
 		Password string `yaml:"password"`
 	} `yaml:"tumblebug"`
+	Load struct {
+		JMeter struct {
+			WorkDir string `yaml:"workDir"`
+			Version string `yaml:"version"`
+		} `yaml:"jmeter"`
+	} `yaml:"load"`
 	Server struct {
 		Port string `yaml:"port"`
 	} `yaml:"server"`
@@ -52,14 +54,10 @@ type AntConfig struct {
 }
 
 func InitConfig(configPath string) error {
-	if runtimeConfig != nil {
-		return errors.New("cm-ant is already configured")
-	}
-
 	cfg := AntConfig{}
 
 	if configPath == "" {
-		configPath = basePath[0 : len(basePath)-len("/internal/common/configuration")]
+		configPath = RootPath()
 	}
 
 	viper.AddConfigPath(configPath)
@@ -77,8 +75,8 @@ func InitConfig(configPath string) error {
 		return fmt.Errorf("fatal error config file: %w", err)
 	}
 
-	runtimeConfig = &cfg
-	log.Printf("configuration completed; %v", cfg)
+	cfg.Load.JMeter.WorkDir = strings.Replace(cfg.Load.JMeter.WorkDir, "~", HomePath(), 1)
 
+	runtimeConfig = &cfg
 	return nil
 }

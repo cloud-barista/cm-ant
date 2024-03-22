@@ -1,15 +1,10 @@
 package configuration
 
 import (
-	"path/filepath"
-	"runtime"
 	"testing"
 )
 
 func TestInitConfig(t *testing.T) {
-	_, b, _, _ = runtime.Caller(0)
-	basePath = filepath.Dir(b)
-
 	type test struct {
 		desc string
 		arg  string
@@ -22,11 +17,11 @@ func TestInitConfig(t *testing.T) {
 		},
 		{
 			"상대 경로 지정시 파일을 잘 읽어 온다.",
-			"../../..",
+			"../..",
 		},
 		{
 			"절대경로 지정시 파일을 잘 읽어 온다.",
-			basePath[0 : len(basePath)-len("/internal/common/configuration")],
+			RootPath(),
 		},
 	}
 

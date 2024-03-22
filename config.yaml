@@ -10,7 +10,7 @@ tumblebug:
 
 load:
   jmeter:
-    workDir: "${HOME}/jmeter"
+    workDir: "~/jmeter"
     version: 5.3
 
 server:
@@ -18,4 +18,4 @@ server:
 
 datasource:
   type: sqlite
-  url: ~/ant_meta.db
+  url: ./meta/ant_meta.db
