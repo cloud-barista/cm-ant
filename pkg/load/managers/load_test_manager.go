@@ -23,14 +23,11 @@ func (l *LoadTestManager) Install(installReq domain.LoadEnvReq) error {
 	installScriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
 
 	if installReq.Type == domain.REMOTE {
-
-		data, err := os.ReadFile(installScriptPath)
+		multiLineCommand, err := readAndParseScript(installScriptPath)
 		if err != nil {
 			log.Println("file doesn't exist on correct path")
 			return err
 		}
-
-		multiLineCommand := strings.Replace(string(data), "#!/bin/bash", "", 1)
 
 		commandReq := outbound.SendCommandReq{
 			Command:  []string{multiLineCommand},
@@ -80,14 +77,14 @@ func (l *LoadTestManager) Run(property domain.LoadTestPropertyReq) (string, erro
 		}
 
 		// 2. pre-requirement check
-		data, err := os.ReadFile(testFolderSetupScript)
+
+		multiLineCommand, err := readAndParseScript(testFolderSetupScript)
 		if err != nil {
 			log.Println("file doesn't exist on correct path")
 			return "", err
 		}
 
-		multiLineCommand := strings.Replace(string(data), "#!/bin/bash", "", 1)
-		multiLineCommand = strings.Replace(multiLineCommand, "$1", "testPlanName", 1)
+		multiLineCommand = strings.Replace(multiLineCommand, "${TEST_PLAN_NAME:=\"test_plan_1.jmx\"}", testPlanName, 1)
 
 		commandReq := outbound.SendCommandReq{
 			Command:  []string{multiLineCommand},
@@ -189,4 +186,21 @@ func executionCmdGen(p domain.LoadTestPropertyReq, testPlanName, resultFileName 
 	builder.WriteString(fmt.Sprintf(" -l=%s", resultPath))
 
 	return builder.String()
+}
+
+func readAndParseScript(scriptPath string) (string, error) {
+	data, err := os.ReadFile(scriptPath)
+	if err != nil {
+		log.Println("file doesn't exist on correct path")
+		return "", err
+	}
+
+	jmeterPath := configuration.Get().Load.JMeter.WorkDir
+	jmeterVersion := configuration.Get().Load.JMeter.Version
+
+	multiLineCommand := strings.Replace(string(data), "#!/bin/bash", "", 1)
+	multiLineCommand = strings.Replace(multiLineCommand, "${JMETER_WORK_DIR:=\"${HOME}/jmeter\"}", jmeterPath, 1)
+	multiLineCommand = strings.Replace(multiLineCommand, "${JMETER_VERSION:=\"5.3\"}", jmeterVersion, 1)
+
+	return multiLineCommand, nil
 }
