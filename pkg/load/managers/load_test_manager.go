@@ -23,6 +23,7 @@ func (l *LoadTestManager) Install(installReq domain.LoadEnvReq) error {
 	installScriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
 
 	if installReq.Type == domain.REMOTE {
+		tumblebugUrl := configuration.TumblebugHostWithPort()
 		multiLineCommand, err := readAndParseScript(installScriptPath)
 		if err != nil {
 			log.Println("file doesn't exist on correct path")
@@ -34,7 +35,7 @@ func (l *LoadTestManager) Install(installReq domain.LoadEnvReq) error {
 			UserName: installReq.Username,
 		}
 
-		stdout, err := outbound.SendCommandTo(configuration.TumblebugHostWithPort(), installReq.NsId, installReq.McisId, commandReq)
+		stdout, err := outbound.SendCommandTo(tumblebugUrl, installReq.NsId, installReq.McisId, commandReq)
 
 		if err != nil {
 			log.Println(stdout)
@@ -53,6 +54,42 @@ func (l *LoadTestManager) Install(installReq domain.LoadEnvReq) error {
 			return fmt.Errorf("error while installing jmeter; %s", err)
 		}
 
+	}
+
+	return nil
+}
+
+func (l *LoadTestManager) Stop(property domain.LoadTestPropertyReq) error {
+
+	// TODO code cloud test using tumblebug
+	if property.LoadEnvReq.Type == domain.REMOTE {
+		tumblebugUrl := configuration.TumblebugHostWithPort()
+
+		killCmd := killCmdGen(property)
+
+		commandReq := outbound.SendCommandReq{
+			Command:  []string{killCmd},
+			UserName: property.LoadEnvReq.Username,
+		}
+
+		stdout, err := outbound.SendCommandTo(tumblebugUrl, property.LoadEnvReq.NsId, property.LoadEnvReq.McisId, commandReq)
+
+		if err != nil {
+			log.Println(stdout)
+			return err
+		}
+
+	} else if property.LoadEnvReq.Type == domain.LOCAL {
+
+		log.Printf("[%s] stop load test on local", property.PropertiesId)
+		killCmd := killCmdGen(property)
+
+		err := utils.InlineCmd(killCmd)
+
+		if err != nil {
+			log.Println(err)
+			return err
+		}
 	}
 
 	return nil
@@ -182,10 +219,17 @@ func executionCmdGen(p domain.LoadTestPropertyReq, testPlanName, resultFileName 
 	builder.WriteString(fmt.Sprintf(" -Jpath=%s", p.HttpReqs.Path))
 	builder.WriteString(fmt.Sprintf(" -JbodyData=%s", p.HttpReqs.BodyData))
 	builder.WriteString(fmt.Sprintf(" -JbodyData=%s", p.LoopCount))
+	builder.WriteString(fmt.Sprintf(" -JpropertiesId=%s", p.PropertiesId))
 	builder.WriteString(fmt.Sprintf(" -t=%s", testPath))
 	builder.WriteString(fmt.Sprintf(" -l=%s", resultPath))
 
 	return builder.String()
+}
+
+func killCmdGen(p domain.LoadTestPropertyReq) string {
+	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*-JpropertiesId=%s'", p.PropertiesId)
+
+	return fmt.Sprintf("kill -9 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
 }
 
 func readAndParseScript(scriptPath string) (string, error) {

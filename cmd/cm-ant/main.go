@@ -48,6 +48,7 @@ func SetRouter() *gin.Engine {
 		{
 			loadRouter.POST("/install", handler.InstallLoadGeneratorHandler())
 			loadRouter.POST("/start", handler.RunLoadTestHandler())
+			loadRouter.POST("/stop", handler.StopLoadTestHandler())
 		}
 	}
 

@@ -34,3 +34,18 @@ func ExecuteLoadTest(properties domain.LoadTestPropertyReq) (string, error) {
 
 	return testId, nil
 }
+
+func StopLoadTest(properties domain.LoadTestPropertyReq) error {
+
+	log.Printf("[%s] stop load test", properties.PropertiesId)
+	loadTestManager := managers.NewLoadTestManager()
+
+	err := loadTestManager.Stop(properties)
+
+	if err != nil {
+		log.Printf("Error while execute load test; %v\n", err)
+		return fmt.Errorf("service - execute load test error; %w", err)
+	}
+
+	return nil
+}

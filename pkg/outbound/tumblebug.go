@@ -38,5 +38,8 @@ func SendCommandTo(domain, nsId, mcisId string, body SendCommandReq) (string, er
 	}
 	defer res.Body.Close()
 
-	return string(responseBody), nil
+	ret := string(responseBody)
+	log.Println(ret)
+
+	return ret, nil
 }

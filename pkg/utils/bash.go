@@ -12,6 +12,7 @@ func InlineCmd(cmdStr string) error {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Println("error while execute bash call,", err)
+		log.Println(string(out))
 		return err
 	}
 

@@ -77,15 +77,22 @@ func StopLoadTestHandler() gin.HandlerFunc {
 		}
 
 		if err := loadTestPropertyReq.LoadEnvReq.Validate(); err != nil {
-			log.Printf("error while execute [RunLoadTestHandler()]; %s\n", err)
+			log.Printf("error while execute [StopLoadTestHandler()]; %s\n", err)
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"message": fmt.Sprintf("if you run on remote, pass nsId, mcisId and username"),
 			})
 			return
 		}
 
-		// TODO add goroutine, sse to get result asynchronously
-		loadTestId, err := services.ExecuteLoadTest(loadTestPropertyReq)
+		if loadTestPropertyReq.PropertiesId == "" {
+			log.Println("error while execute [StopLoadTestHandler()]; no passing propertiesId")
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"message": fmt.Sprintf("pass propertiesId if you want to stop test"),
+			})
+			return
+		}
+
+		err := services.StopLoadTest(loadTestPropertyReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v\n", err)
@@ -96,7 +103,6 @@ func StopLoadTestHandler() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"testId":  loadTestId,
 			"message": "success",
 		})
 	}
