@@ -1,12 +1,9 @@
 package handler
 
 import (
-	"bytes"
-	"encoding/csv"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/cloud-barista/cm-ant/pkg/load/domain"
@@ -15,13 +12,9 @@ import (
 	"github.com/gin-gonic/gin/binding"
 )
 
-const (
-	resultGeneral = "general"
-)
-
 func GetLoadTestResultHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		testId := c.Query("testId")
+		testId := c.Param("testId")
 
 		if len(strings.TrimSpace(testId)) == 0 {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -30,35 +23,19 @@ func GetLoadTestResultHandler() gin.HandlerFunc {
 			})
 			return
 		}
+		result, err := services.GetLoadTestResult(testId)
 
-		file, err := os.Open(fmt.Sprintf("temp/%s/result_%s_%s.csv", testId, resultGeneral, testId))
 		if err != nil {
-			log.Println("Error:", err)
-			return
-		}
-		defer file.Close()
-
-		reader := csv.NewReader(file)
-
-		// Read all the records
-		records, err := reader.ReadAll()
-		if err != nil {
-			log.Println("Error:", err)
+			log.Printf("sorry, internal server error while getting load test result; %s\n", err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"message": "sorry, internal server error while getting load test result;",
+			})
 			return
 		}
 
-		var buf bytes.Buffer
-
-		for _, record := range records {
-			for _, value := range record {
-				buf.WriteString(fmt.Sprintf("%s\t", value))
-			}
-			buf.WriteString("\n")
-		}
-
-		c.JSON(http.StatusOK, map[string]string{
+		c.JSON(http.StatusOK, map[string]interface{}{
 			"status": "ok",
-			"result": buf.String(),
+			"result": result,
 		})
 
 	}

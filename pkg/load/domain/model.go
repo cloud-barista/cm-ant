@@ -27,6 +27,18 @@ type LoadTest struct {
 	LoopCount string `json:"loopCount" form:"loopCount,omitempty"`
 }
 
-func NewLoadTest() LoadTest {
-	return LoadTest{}
+type LoadTestStatistics struct {
+	Label         string  `json:"label"`
+	RequestCount  int     `json:"requestCount"`
+	Average       float64 `json:"average"`
+	Median        float64 `json:"median"`
+	NinetyPercent float64 `json:"ninetyPercent"`
+	NinetyFive    float64 `json:"ninetyFive"`
+	NinetyNine    float64 `json:"ninetyNine"`
+	MinTime       float64 `json:"minTime"`
+	MaxTime       float64 `json:"maxTime"`
+	ErrorPercent  float64 `json:"errorPercent"`
+	Throughput    float64 `json:"throughput"`
+	ReceivedKB    float64 `json:"receivedKB"`
+	SentKB        float64 `json:"sentKB"`
 }

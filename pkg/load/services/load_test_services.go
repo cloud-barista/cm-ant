@@ -49,3 +49,13 @@ func StopLoadTest(properties domain.LoadTestPropertyReq) error {
 
 	return nil
 }
+
+func GetLoadTestResult(testId string) (interface{}, error) {
+	loadTestManager := managers.NewLoadTestManager()
+
+	result, err := loadTestManager.GetResult(testId)
+	if err != nil {
+		return nil, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
+	}
+	return result, nil
+}

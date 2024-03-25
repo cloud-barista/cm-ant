@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/csv"
 	"fmt"
 	"log"
 	"os"
@@ -34,6 +35,24 @@ func CreateFolder(filename string) error {
 		return err
 	}
 	return nil
+}
+
+func ReadCSV(filename string) [][]string {
+	file, err := os.Open(filename)
+	if err != nil {
+		fmt.Println("파일을 열 수 없습니다:", err)
+		os.Exit(1)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		fmt.Println("CSV 파일을 파싱할 수 없습니다:", err)
+		os.Exit(1)
+	}
+
+	return records
 }
 
 func ExistCheck(path string) bool {
