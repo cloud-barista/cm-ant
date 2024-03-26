@@ -17,5 +17,7 @@ server:
   port: 8880
 
 datasource:
-  type: sqlite
-  url: ./meta/ant_meta.db
+  driver: "sqlite"
+  connection: "${ROOT}/meta/ant_meta.db"
+  username:
+  password:

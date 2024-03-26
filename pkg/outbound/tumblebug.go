@@ -4,14 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	"io"
 	"log"
 	"net/http"
 )
 
 func RequestWithBaseAuth(method, url string, body []byte) (*http.Response, error) {
-	return request(method, url, configuration.TumblebugBaseAuthHeader(), body)
+	return request(method, url, TumblebugBaseAuthHeader(), body)
 }
 
 func SendCommandTo(domain, nsId, mcisId string, body SendCommandReq) (string, error) {

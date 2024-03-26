@@ -253,7 +253,7 @@ func (l *LoadTestManager) Install(installReq domain.LoadEnvReq) error {
 	installScriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
 
 	if installReq.Type == domain.REMOTE {
-		tumblebugUrl := configuration.TumblebugHostWithPort()
+		tumblebugUrl := outbound.TumblebugHostWithPort()
 		multiLineCommand, err := readAndParseScript(installScriptPath)
 		if err != nil {
 			log.Println("file doesn't exist on correct path")
@@ -293,7 +293,7 @@ func (l *LoadTestManager) Stop(property domain.LoadTestPropertyReq) error {
 
 	// TODO code cloud test using tumblebug
 	if property.LoadEnvReq.Type == domain.REMOTE {
-		tumblebugUrl := configuration.TumblebugHostWithPort()
+		tumblebugUrl := outbound.TumblebugHostWithPort()
 
 		killCmd := killCmdGen(property)
 
@@ -334,7 +334,7 @@ func (l *LoadTestManager) Run(property domain.LoadTestPropertyReq) (string, erro
 
 	// TODO code cloud test using tumblebug
 	if property.LoadEnvReq.Type == domain.REMOTE {
-		tumblebugUrl := configuration.TumblebugHostWithPort()
+		tumblebugUrl := outbound.TumblebugHostWithPort()
 
 		// 1. Installation check
 		err := l.Install(property.LoadEnvReq)

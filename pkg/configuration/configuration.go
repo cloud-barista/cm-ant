@@ -9,20 +9,20 @@ import (
 )
 
 var (
-	runtimeConfig *AntConfig
-	once          sync.Once
+	appConfig *AntConfig
+	once      sync.Once
 )
 
 func Get() *AntConfig {
-	if runtimeConfig == nil {
-		log.Println("configuration process has not completed")
+	if appConfig == nil {
+		log.Println(">>>> configuration process has not completed")
 
 		once.Do(func() {
-			InitConfig("")
+			Initialize()
 		})
 	}
 
-	return runtimeConfig
+	return appConfig
 }
 
 type AntConfig struct {
@@ -45,38 +45,59 @@ type AntConfig struct {
 	Server struct {
 		Port string `yaml:"port"`
 	} `yaml:"server"`
-	Datasource struct {
-		Type     string `yaml:"type"`
-		URL      string `yaml:"url"`
-		Username string `yaml:"username"`
-		Password string `yaml:"password"`
+	datasource struct {
+		Driver     string `yaml:"driver"`
+		Connection string `yaml:"connection"`
+		Username   string `yaml:"username"`
+		Password   string `yaml:"password"`
 	} `yaml:"datasource"`
+	DB Repo
 }
 
-func InitConfig(configPath string) error {
-	cfg := AntConfig{}
+func Initialize() error {
 
-	if configPath == "" {
-		configPath = RootPath()
-	}
+	log.Println(">>>> start initialize application configuration")
 
-	viper.AddConfigPath(configPath)
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	err := viper.ReadInConfig()
+	// configure app
+	err := initAppConfig()
 	if err != nil {
 		log.Fatal(err)
+		return err
+	}
+
+	// config database
+	err = initDatabase()
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	log.Println(">>>> complete initialize application configuration")
+
+	return nil
+}
+
+func initAppConfig() error {
+	log.Println(">>>> start initAppConfig()")
+	cfg := AntConfig{}
+
+	viper.AddConfigPath(RootPath())
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+
+	err := viper.ReadInConfig()
+	if err != nil {
 		return fmt.Errorf("fatal error config file: %w", err)
 	}
 
 	err = viper.Unmarshal(&cfg)
 	if err != nil {
-		log.Fatal(err)
 		return fmt.Errorf("fatal error config file: %w", err)
 	}
 
 	cfg.Load.JMeter.WorkDir = strings.Replace(cfg.Load.JMeter.WorkDir, "~", HomePath(), 1)
+	appConfig = &cfg
+	log.Println(">>>> completed initAppConfig()")
 
-	runtimeConfig = &cfg
 	return nil
 }

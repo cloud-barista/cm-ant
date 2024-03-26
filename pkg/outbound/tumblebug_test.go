@@ -3,7 +3,6 @@ package outbound
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +13,7 @@ import (
 func TestHostCheck(t *testing.T) {
 	expected := "http://localhost:1323"
 	t.Run("domain name check", func(t *testing.T) {
-		got := configuration.TumblebugHostWithPort()
+		got := TumblebugHostWithPort()
 		if got != expected {
 			t.Errorf("got : %s, expected : %s", got, expected)
 		}
