@@ -1,4 +1,4 @@
-package domain
+package constant
 
 type OsType string
 

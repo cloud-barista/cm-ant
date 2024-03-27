@@ -2,6 +2,9 @@ package managers
 
 import (
 	"fmt"
+	"github.com/cloud-barista/cm-ant/pkg/load/api"
+	"github.com/cloud-barista/cm-ant/pkg/load/constant"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"github.com/cloud-barista/cm-ant/pkg/outbound"
 	"log"
 	"math"
@@ -12,7 +15,6 @@ import (
 	"time"
 
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
-	"github.com/cloud-barista/cm-ant/pkg/load/domain"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 )
 
@@ -159,7 +161,7 @@ func (l *LoadTestManager) GetResult(testId string) (interface{}, error) {
 		}
 	}
 
-	var statistics []domain.LoadTestStatistics
+	var statistics []model.LoadTestStatistics
 
 	for label, records := range labelGroup {
 		var requestCount, totalElapsed, totalBytes, totalSentBytes, errorCount int
@@ -211,7 +213,7 @@ func (l *LoadTestManager) GetResult(testId string) (interface{}, error) {
 		receivedKB := calculateReceivedKBPerSec(totalBytes, int(runningTime))
 		sentKB := calculateSentKBPerSec(totalSentBytes, int(runningTime))
 
-		labelStat := domain.LoadTestStatistics{
+		labelStat := model.LoadTestStatistics{
 			Label:         label,
 			RequestCount:  requestCount,
 			Average:       average,
@@ -233,26 +235,10 @@ func (l *LoadTestManager) GetResult(testId string) (interface{}, error) {
 	return statistics, nil
 }
 
-// 최소값 구하기
-func min(a, b time.Time) time.Time {
-	if a.Before(b) {
-		return a
-	}
-	return b
-}
-
-// 최대값 구하기
-func max(a, b time.Time) time.Time {
-	if a.After(b) {
-		return a
-	}
-	return b
-}
-
-func (l *LoadTestManager) Install(installReq domain.LoadEnvReq) error {
+func (l *LoadTestManager) Install(installReq api.LoadEnvReq) error {
 	installScriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
 
-	if installReq.Type == domain.REMOTE {
+	if installReq.Type == constant.REMOTE {
 		tumblebugUrl := outbound.TumblebugHostWithPort()
 		multiLineCommand, err := readAndParseScript(installScriptPath)
 		if err != nil {
@@ -274,7 +260,7 @@ func (l *LoadTestManager) Install(installReq domain.LoadEnvReq) error {
 
 		log.Println(stdout)
 
-	} else if installReq.Type == domain.LOCAL {
+	} else if installReq.Type == constant.LOCAL {
 
 		err := utils.Script(installScriptPath, []string{
 			fmt.Sprintf("JMETER_WORK_DIR=%s", configuration.Get().Load.JMeter.WorkDir),
@@ -289,10 +275,10 @@ func (l *LoadTestManager) Install(installReq domain.LoadEnvReq) error {
 	return nil
 }
 
-func (l *LoadTestManager) Stop(property domain.LoadTestPropertyReq) error {
+func (l *LoadTestManager) Stop(property api.LoadTestPropertyReq) error {
 
 	// TODO code cloud test using tumblebug
-	if property.LoadEnvReq.Type == domain.REMOTE {
+	if property.LoadEnvReq.Type == constant.REMOTE {
 		tumblebugUrl := outbound.TumblebugHostWithPort()
 
 		killCmd := killCmdGen(property)
@@ -309,7 +295,7 @@ func (l *LoadTestManager) Stop(property domain.LoadTestPropertyReq) error {
 			return err
 		}
 
-	} else if property.LoadEnvReq.Type == domain.LOCAL {
+	} else if property.LoadEnvReq.Type == constant.LOCAL {
 
 		log.Printf("[%s] stop load test on local", property.PropertiesId)
 		killCmd := killCmdGen(property)
@@ -325,7 +311,7 @@ func (l *LoadTestManager) Stop(property domain.LoadTestPropertyReq) error {
 	return nil
 }
 
-func (l *LoadTestManager) Run(property domain.LoadTestPropertyReq) (string, error) {
+func (l *LoadTestManager) Run(property api.LoadTestPropertyReq) (string, error) {
 	var testId string
 	testFolderSetupScript := configuration.JoinRootPathWith("/script/pre-execute-jmeter.sh")
 	testPlanName := "test_plan_1.jmx"
@@ -333,7 +319,7 @@ func (l *LoadTestManager) Run(property domain.LoadTestPropertyReq) (string, erro
 	jmeterVersion := configuration.Get().Load.JMeter.Version
 
 	// TODO code cloud test using tumblebug
-	if property.LoadEnvReq.Type == domain.REMOTE {
+	if property.LoadEnvReq.Type == constant.REMOTE {
 		tumblebugUrl := outbound.TumblebugHostWithPort()
 
 		// 1. Installation check
@@ -386,15 +372,15 @@ func (l *LoadTestManager) Run(property domain.LoadTestPropertyReq) (string, erro
 
 		log.Println(stdout)
 
-	} else if property.LoadEnvReq.Type == domain.LOCAL {
+	} else if property.LoadEnvReq.Type == constant.LOCAL {
 
 		log.Printf("[%s] Do load test on local", property.PropertiesId)
 
 		exist := utils.ExistCheck(jmeterPath)
 
 		if !exist {
-			loadInstallReq := domain.LoadEnvReq{
-				Type: domain.LOCAL,
+			loadInstallReq := api.LoadEnvReq{
+				Type: constant.LOCAL,
 			}
 
 			err := l.Install(loadInstallReq)
@@ -431,7 +417,7 @@ func (l *LoadTestManager) Run(property domain.LoadTestPropertyReq) (string, erro
 	return testId, nil
 }
 
-func executionCmdGen(p domain.LoadTestPropertyReq, testPlanName, resultFileName string) string {
+func executionCmdGen(p api.LoadTestPropertyReq, testPlanName, resultFileName string) string {
 	jmeterConf := configuration.Get().Load.JMeter
 
 	var builder strings.Builder
@@ -456,7 +442,7 @@ func executionCmdGen(p domain.LoadTestPropertyReq, testPlanName, resultFileName 
 	return builder.String()
 }
 
-func killCmdGen(p domain.LoadTestPropertyReq) string {
+func killCmdGen(p api.LoadTestPropertyReq) string {
 	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*-JpropertiesId=%s'", p.PropertiesId)
 
 	return fmt.Sprintf("kill -9 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)

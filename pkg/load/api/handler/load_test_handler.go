@@ -2,11 +2,11 @@ package handler
 
 import (
 	"fmt"
+	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"log"
 	"net/http"
 	"strings"
 
-	"github.com/cloud-barista/cm-ant/pkg/load/domain"
 	"github.com/cloud-barista/cm-ant/pkg/load/services"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -43,20 +43,12 @@ func GetLoadTestResultHandler() gin.HandlerFunc {
 
 func StopLoadTestHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		loadTestPropertyReq := domain.LoadTestPropertyReq{}
+		loadTestPropertyReq := api.LoadTestPropertyReq{}
 
 		if err := c.ShouldBindBodyWith(&loadTestPropertyReq, binding.JSON); err != nil {
 			log.Printf("error while binding request body; %+v\n", err)
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"message": fmt.Sprintf("request param is incorrect; %+v", loadTestPropertyReq),
-			})
-			return
-		}
-
-		if err := loadTestPropertyReq.LoadEnvReq.Validate(); err != nil {
-			log.Printf("error while execute [StopLoadTestHandler()]; %s\n", err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"message": fmt.Sprintf("if you run on remote, pass nsId, mcisId and username"),
 			})
 			return
 		}
@@ -87,7 +79,7 @@ func StopLoadTestHandler() gin.HandlerFunc {
 
 func RunLoadTestHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		loadTestPropertyReq := domain.LoadTestPropertyReq{}
+		loadTestPropertyReq := api.LoadTestPropertyReq{}
 
 		if err := c.ShouldBindBodyWith(&loadTestPropertyReq, binding.JSON); err != nil {
 			log.Printf("error while binding request body; %+v\n", err)
@@ -97,15 +89,6 @@ func RunLoadTestHandler() gin.HandlerFunc {
 			return
 		}
 
-		if err := loadTestPropertyReq.LoadEnvReq.Validate(); err != nil {
-			log.Printf("error while execute [RunLoadTestHandler()]; %s\n", err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"message": fmt.Sprintf("if you run on remote, pass nsId, mcisId and username"),
-			})
-			return
-		}
-
-		// TODO add goroutine, sse to get result asynchronously
 		loadTestId, err := services.ExecuteLoadTest(loadTestPropertyReq)
 
 		if err != nil {
@@ -125,7 +108,7 @@ func RunLoadTestHandler() gin.HandlerFunc {
 
 func InstallLoadGeneratorHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		loadInstallReq := domain.LoadEnvReq{}
+		loadInstallReq := api.LoadEnvReq{}
 
 		if err := c.ShouldBindBodyWith(&loadInstallReq, binding.JSON); err != nil {
 			log.Printf("error while binding request body; %+v\n", err)

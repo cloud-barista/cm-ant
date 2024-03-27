@@ -2,7 +2,10 @@ package configuration
 
 import (
 	"fmt"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"github.com/spf13/viper"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"log"
 	"strings"
 	"sync"
@@ -11,6 +14,7 @@ import (
 var (
 	appConfig *AntConfig
 	once      sync.Once
+	db        *gorm.DB
 )
 
 func Get() *AntConfig {
@@ -18,11 +22,21 @@ func Get() *AntConfig {
 		log.Println(">>>> configuration process has not completed")
 
 		once.Do(func() {
-			Initialize()
+			err := Initialize()
+			if err != nil {
+				log.Fatal(">>>> configuration failure")
+			}
 		})
 	}
 
 	return appConfig
+}
+
+func DB() *gorm.DB {
+	if db == nil {
+		log.Fatal("database is not configured")
+	}
+	return db
 }
 
 type AntConfig struct {
@@ -45,13 +59,12 @@ type AntConfig struct {
 	Server struct {
 		Port string `yaml:"port"`
 	} `yaml:"server"`
-	datasource struct {
+	Datasource struct {
 		Driver     string `yaml:"driver"`
 		Connection string `yaml:"connection"`
 		Username   string `yaml:"username"`
 		Password   string `yaml:"password"`
 	} `yaml:"datasource"`
-	DB Repo
 }
 
 func Initialize() error {
@@ -100,4 +113,61 @@ func initAppConfig() error {
 	log.Println(">>>> completed initAppConfig()")
 
 	return nil
+}
+
+func initDatabase() error {
+	log.Println(">>>> start initDatabase()")
+	ds := Get().Datasource
+
+	if ds.Driver == "sqlite" || ds.Driver == "sqlite3" {
+		sqlFilePath := sqliteFilePath()
+		sqliteDB, err := connectSqliteDB(sqlFilePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = migrateDB(sqliteDB)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		db = sqliteDB
+	} else if ds.Driver == "mysql" {
+
+	}
+	log.Println(">>>> complete initDatabase()")
+	return nil
+}
+func migrateDB(defaultDb *gorm.DB) error {
+	err := defaultDb.AutoMigrate(&model.LoadEnv{})
+	if err != nil {
+		log.Println("connectSqliteDB() fail to connect to sqlite database")
+		return err
+	}
+
+	return nil
+}
+
+func connectSqliteDB(dbPath string) (*gorm.DB, error) {
+	log.Println(">>>> sqlite configuration; meta sqliteDb path is", dbPath)
+
+	sqliteDb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		log.Println("connectSqliteDB() fail to connect to sqlite database")
+		return nil, err
+	}
+
+	return sqliteDb, nil
+}
+
+func sqliteFilePath() string {
+	dbFile := Get().Datasource.Connection
+	rp := RootPath()
+
+	if dbFile != "" {
+		dbFile = strings.Replace(dbFile, "${ROOT}", rp, 1)
+	} else {
+		dbFile = rp + "/meta/ant_meta.db"
+	}
+	return dbFile
 }

@@ -2,7 +2,7 @@ package managers
 
 import (
 	"fmt"
-	"github.com/cloud-barista/cm-ant/pkg/load/domain"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	antsys "github.com/cloud-barista/cm-ant/pkg/utils"
 	"log"
 )
@@ -12,10 +12,10 @@ const (
 )
 
 type AgentManager interface {
-	Install(domain.AgentInfo) error
-	Start(domain.AgentInfo) error
-	Stop(domain.AgentInfo) error
-	Remove(domain.AgentInfo) error
+	Install(model.AgentInfo) error
+	Start(model.AgentInfo) error
+	Stop(model.AgentInfo) error
+	Remove(model.AgentInfo) error
 }
 
 func NewAgentManager() AgentManager {
@@ -25,7 +25,7 @@ func NewAgentManager() AgentManager {
 type LocalAgentManager struct {
 }
 
-func (l LocalAgentManager) Install(agentInfo domain.AgentInfo) error {
+func (l LocalAgentManager) Install(agentInfo model.AgentInfo) error {
 	installCmd := fmt.Sprintf("%s source ./script/install-server-agent.sh", agentWorkDir)
 	err := antsys.InlineCmd(installCmd)
 
@@ -38,7 +38,7 @@ func (l LocalAgentManager) Install(agentInfo domain.AgentInfo) error {
 	return nil
 }
 
-func (l LocalAgentManager) Start(agentInfo domain.AgentInfo) error {
+func (l LocalAgentManager) Start(agentInfo model.AgentInfo) error {
 
 	shutdown := agentInfo.Shutdown
 	autoShutdown := ""
@@ -61,7 +61,7 @@ func (l LocalAgentManager) Start(agentInfo domain.AgentInfo) error {
 	return nil
 }
 
-func (l LocalAgentManager) Stop(agentInfo domain.AgentInfo) error {
+func (l LocalAgentManager) Stop(agentInfo model.AgentInfo) error {
 
 	agentInfo.TcpPort = "4444"
 
@@ -77,7 +77,7 @@ func (l LocalAgentManager) Stop(agentInfo domain.AgentInfo) error {
 	return nil
 }
 
-func (l LocalAgentManager) Remove(agentInfo domain.AgentInfo) error {
+func (l LocalAgentManager) Remove(agentInfo model.AgentInfo) error {
 
 	stopCmd := fmt.Sprintf("%s source ./script/remove-server-agent.sh", agentWorkDir)
 	err := antsys.InlineCmd(stopCmd)

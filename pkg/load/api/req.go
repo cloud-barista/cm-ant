@@ -1,16 +1,19 @@
-package domain
+package api
 
-import "errors"
+import (
+	"errors"
+	"github.com/cloud-barista/cm-ant/pkg/load/constant"
+)
 
 type LoadEnvReq struct {
-	Type     AccessType `json:"type" form:"type,required"`
-	NsId     string     `json:"nsId" form:"nsId,omitempty"`
-	McisId   string     `json:"mcisId" form:"mcisId,omitempty"`
-	Username string     `json:"username" form:"username,omitempty"`
+	Type     constant.AccessType `json:"type" form:"type,required"`
+	NsId     string              `json:"nsId" form:"nsId,omitempty"`
+	McisId   string              `json:"mcisId" form:"mcisId,omitempty"`
+	Username string              `json:"username" form:"username,omitempty"`
 }
 
 func (l LoadEnvReq) Validate() error {
-	if l.Type == REMOTE {
+	if l.Type == constant.REMOTE {
 		if l.NsId == "" || l.McisId == "" || l.Username == "" {
 			return errors.New("invalid user request for load env request")
 		}

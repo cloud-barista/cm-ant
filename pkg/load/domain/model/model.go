@@ -1,4 +1,17 @@
-package domain
+package model
+
+import (
+	"github.com/cloud-barista/cm-ant/pkg/load/constant"
+	"gorm.io/gorm"
+)
+
+type LoadEnv struct {
+	gorm.Model
+	Type     constant.AccessType `json:"type"`
+	NsId     *string             `json:"nsId"`
+	McisId   *string             `json:"mcisId"`
+	Username *string             `json:"username"`
+}
 
 type AgentInfo struct {
 	AgentId string `json:"agentId" form:"agentId,omitempty"`
