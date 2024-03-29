@@ -12,6 +12,14 @@ const (
 type AccessType string
 
 const (
-	LOCAL  AccessType = "local"
-	REMOTE AccessType = "remote"
+	Local  AccessType = "local"
+	Remote AccessType = "remote"
+)
+
+type RemoteConnectionType string
+
+const (
+	Password   RemoteConnectionType = "password"
+	PrivateKey RemoteConnectionType = "privateKey"
+	BuiltIn    RemoteConnectionType = "builtIn"
 )

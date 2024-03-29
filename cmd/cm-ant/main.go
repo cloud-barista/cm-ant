@@ -52,6 +52,14 @@ func InitRouter() *echo.Echo {
 			})
 		})
 
+		connectionRouter := antRouter.Group("/connection")
+
+		{
+			connectionRouter.GET("/", handler.GetAllRemoteConnection())
+			connectionRouter.POST("/", handler.RegisterRemoteConnection())
+			connectionRouter.DELETE("/:remoteConnectionId", handler.DeleteRemoteConnection())
+		}
+
 		loadRouter := antRouter.Group("/load")
 
 		{

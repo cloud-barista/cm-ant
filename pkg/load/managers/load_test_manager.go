@@ -238,7 +238,7 @@ func (l *LoadTestManager) GetResult(testId string) (interface{}, error) {
 func (l *LoadTestManager) Install(installReq api.LoadEnvReq) error {
 	installScriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
 
-	if installReq.Type == constant.REMOTE {
+	if installReq.Type == constant.Remote {
 		tumblebugUrl := outbound.TumblebugHostWithPort()
 		multiLineCommand, err := readAndParseScript(installScriptPath)
 		if err != nil {
@@ -260,7 +260,7 @@ func (l *LoadTestManager) Install(installReq api.LoadEnvReq) error {
 
 		log.Println(stdout)
 
-	} else if installReq.Type == constant.LOCAL {
+	} else if installReq.Type == constant.Local {
 
 		err := utils.Script(installScriptPath, []string{
 			fmt.Sprintf("JMETER_WORK_DIR=%s", configuration.Get().Load.JMeter.WorkDir),
@@ -278,7 +278,7 @@ func (l *LoadTestManager) Install(installReq api.LoadEnvReq) error {
 func (l *LoadTestManager) Stop(property api.LoadTestPropertyReq) error {
 
 	// TODO code cloud test using tumblebug
-	if property.LoadEnvReq.Type == constant.REMOTE {
+	if property.LoadEnvReq.Type == constant.Remote {
 		tumblebugUrl := outbound.TumblebugHostWithPort()
 
 		killCmd := killCmdGen(property)
@@ -295,7 +295,7 @@ func (l *LoadTestManager) Stop(property api.LoadTestPropertyReq) error {
 			return err
 		}
 
-	} else if property.LoadEnvReq.Type == constant.LOCAL {
+	} else if property.LoadEnvReq.Type == constant.Local {
 
 		log.Printf("[%s] stop load test on local", property.PropertiesId)
 		killCmd := killCmdGen(property)
@@ -319,7 +319,7 @@ func (l *LoadTestManager) Run(property api.LoadTestPropertyReq) (string, error) 
 	jmeterVersion := configuration.Get().Load.JMeter.Version
 
 	// TODO code cloud test using tumblebug
-	if property.LoadEnvReq.Type == constant.REMOTE {
+	if property.LoadEnvReq.Type == constant.Remote {
 		tumblebugUrl := outbound.TumblebugHostWithPort()
 
 		// 1. Installation check
@@ -372,7 +372,7 @@ func (l *LoadTestManager) Run(property api.LoadTestPropertyReq) (string, error) 
 
 		log.Println(stdout)
 
-	} else if property.LoadEnvReq.Type == constant.LOCAL {
+	} else if property.LoadEnvReq.Type == constant.Local {
 
 		log.Printf("[%s] Do load test on local", property.PropertiesId)
 
@@ -380,7 +380,7 @@ func (l *LoadTestManager) Run(property api.LoadTestPropertyReq) (string, error) 
 
 		if !exist {
 			loadInstallReq := api.LoadEnvReq{
-				Type: constant.LOCAL,
+				Type: constant.Local,
 			}
 
 			err := l.Install(loadInstallReq)
