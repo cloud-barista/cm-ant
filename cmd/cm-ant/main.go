@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -44,6 +45,13 @@ func InitRouter() *echo.Echo {
 	antRouter := e.Group("/ant")
 
 	{
+
+		antRouter.GET("/health", func(c echo.Context) error {
+			return c.JSON(http.StatusOK, map[string]string{
+				"message": "CM-Ant API server is running",
+			})
+		})
+
 		loadRouter := antRouter.Group("/load")
 
 		{
