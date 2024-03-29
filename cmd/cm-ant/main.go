@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"github.com/cloud-barista/cm-ant/pkg/load/api/handler"
-	"github.com/gin-gonic/gin"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
 )
@@ -21,15 +23,25 @@ func main() {
 			log.Fatal("error while reading config file.")
 		}
 		router := InitRouter()
-		log.Fatal(router.Run(fmt.Sprintf(":%s", configuration.Get().Server.Port)))
+		log.Fatal(router.Start(fmt.Sprintf(":%s", configuration.Get().Server.Port)))
 	})
 }
 
-func InitRouter() *gin.Engine {
-	router := gin.Default()
-	router.LoadHTMLGlob(configuration.JoinRootPathWith("/web/templates/*"))
+func InitRouter() *echo.Echo {
+	e := echo.New()
 
-	antRouter := router.Group("/ant")
+	e.Static("/web/templates", configuration.RootPath()+"/web/template")
+	e.Use(middleware.Logger(), middleware.Recover(), middleware.RequestID())
+	e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
+		Skipper:      middleware.DefaultSkipper,
+		ErrorMessage: "request timeout",
+		OnTimeoutRouteErrorHandler: func(err error, c echo.Context) {
+			log.Println(c.Path())
+		},
+		Timeout: 120 * time.Second,
+	}))
+
+	antRouter := e.Group("/ant")
 
 	{
 		loadRouter := antRouter.Group("/load")
@@ -41,6 +53,5 @@ func InitRouter() *gin.Engine {
 			loadRouter.GET("/:testId/result", handler.GetLoadTestResultHandler())
 		}
 	}
-
-	return router
+	return e
 }

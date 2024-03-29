@@ -6,10 +6,10 @@ import (
 )
 
 type LoadEnvReq struct {
-	Type     constant.AccessType `json:"type" form:"type,required"`
-	NsId     string              `json:"nsId" form:"nsId,omitempty"`
-	McisId   string              `json:"mcisId" form:"mcisId,omitempty"`
-	Username string              `json:"username" form:"username,omitempty"`
+	Type     constant.AccessType `json:"type"`
+	NsId     string              `json:"nsId"`
+	McisId   string              `json:"mcisId"`
+	Username string              `json:"username"`
 }
 
 func (l LoadEnvReq) Validate() error {
@@ -23,22 +23,22 @@ func (l LoadEnvReq) Validate() error {
 }
 
 type LoadHttpReq struct {
-	Method   string `json:"method" form:"method,omitempty"`
-	Protocol string `json:"protocol" form:"protocol,omitempty"`
-	Hostname string `json:"hostname" form:"hostname,omitempty"`
-	Port     string `json:"port" form:"port,omitempty"`
-	Path     string `json:"path" form:"port,omitempty"`
-	BodyData string `json:"bodyData" form:"bodyData,omitempty"`
+	Method   string `json:"method"`
+	Protocol string `json:"protocol"`
+	Hostname string `json:"hostname"`
+	Port     string `json:"port"`
+	Path     string `json:"path"`
+	BodyData string `json:"bodyData"`
 }
 
 type LoadTestPropertyReq struct {
-	PropertiesId string `json:"propertiesId" form:"propertiesId,omitempty"`
+	PropertiesId string `json:"propertiesId"`
 
-	Threads   string `json:"threads" form:"threads,omitempty"`
-	RampTime  string `json:"rampTime" form:"rampTime,omitempty"`
-	LoopCount string `json:"loopCount" form:"loopCount,omitempty"`
+	Threads   string `json:"threads"`
+	RampTime  string `json:"rampTime"`
+	LoopCount string `json:"loopCount"`
 
-	HttpReqs LoadHttpReq `json:"httpReqs" form:"httpReqs,omitempty"`
+	HttpReqs LoadHttpReq `json:"httpReqs"`
 
-	LoadEnvReq LoadEnvReq `json:"loadEnvReq" form:"loadEnvReq,omitempty"`
+	LoadEnvReq LoadEnvReq `json:"loadEnvReq"`
 }
