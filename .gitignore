@@ -1,0 +1,5 @@
+jmeter.log
+.idea
+temp/**
+**.properties
+meta/**

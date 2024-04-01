@@ -1,0 +1,405 @@
+<!DOCTYPE html5>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JMeter Load Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: row;
+        }
+
+        #left {
+            width: 30%;
+            padding: 20px;
+        }
+
+        #right {
+            width: 70%;
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 10px;
+        }
+
+        .toggle-container {
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .toggle-container input[type="checkbox"] {
+            display: none;
+        }
+
+        .toggle-slider {
+            width: 50px;
+            height: 20px;
+            background-color: #ccc;
+            position: relative;
+            border-radius: 20px;
+        }
+
+        .toggle-slider:before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background-color: white;
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+            left: 2px;
+            transition: 0.4s;
+        }
+
+        .toggle-container input[type="checkbox"]:checked+.toggle-slider:before {
+            transform: translateX(28px) translateY(-50%);
+        }
+    </style>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.min.js"
+        integrity="sha512-L0Shl7nXXzIlBSUUPpxrokqq4ojqgZFQczTYlGjzONGTDAcLremjwaWv5A+EDLnxhQzY5xUZPWLOLqYRkY0Cbw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
+</head>
+
+<body>
+    <div id="left">
+        <div>
+            <h2>Http Request Configuration</h2>
+            <div class="form-group">
+                <label for="protocol">Protocol: </label>
+                <input type="text" id="protocol" name="protocol" value="http" placeholder="http/https">
+            </div>
+            <div class="form-group">
+                <label for="hostname">Hostname: </label>
+                <input type="text" id="hostname" name="hostname" placeholder="target domain / ip">
+            </div>
+            <div class="form-group">
+                <label for="port">Port: </label>
+                <input type="number" id="port" name="port" min="1000" max="65535" placeholder="Enter port number">
+            </div>
+            <div class="form-group">
+                <label for="path">Path: </label>
+                <input type="text" id="path" name="path" placeholder="/enter/your/endpoint">
+            </div>
+            <div class="form-group">
+                <label for="bodyData">Body Data: </label>
+                <textarea id="bodyData" name="bodyData" placeholder="{key:value}"></textarea>
+            </div>
+        </div>
+        <div>
+            <h2>Thread Group Configuration</h2>
+            <div class="form-group">
+                <label for="threads">Threads: </label>
+                <input type="range" id="threads" name="threads" min="1" max="50" onchange="updateRangeValue(this.id)"
+                    value="1">
+                <span id="threadsValue">1</span>
+            </div>
+            <div class="form-group">
+                <label for="rampTime">Ramp Time: </label>
+                <input type="range" id="rampTime" name="rampTime" min="1" max="60" onchange="updateRangeValue(this.id)"
+                    value="0">
+                <span id="rampTimeValue">1</span>
+            </div>
+            <div class="form-group">
+                <label for="loopCount">Loop Count: </label>
+                <input type="range" id="loopCount" name="loopCount" min="1" max="50"
+                    onchange="updateRangeValue(this.id)" value="1">
+                <span id="loopCountValue">1</span>
+            </div>
+            <!-- <div class="form-group">
+                <label for="scheduled" class="toggle-container">Scheduled: </label>
+                <input type="checkbox" id="scheduled" name="scheduled">
+            </div>
+            <div class="form-group">
+                <label for="duration">Duration: </label>
+                <input type="text" id="duration" name="duration" placeholder="if Scheduled True then enter">
+            </div> -->
+        </div>
+        <div>
+            <button id="executeLoadTest" onclick="executeLoadTest()">execute</button>
+        </div>
+    </div>
+
+    <div id="right">
+        <h2>Load Test Results </h2>
+        <div id="testIdBox" style="display: none;">
+            <h3 id="testId"></h3>
+            <button id="fetchResult" onclick="getLoadTestResult()">fetch result</button>
+            <br />
+            <textarea id="testResult" cols="100" rows="50"></textarea>
+        </div>
+    </div>
+
+    <div>
+        <div class="agent-form-group">
+            <label for="agent-hostname">Host Hostname: </label>
+            <input type="text" id="agent-hostname" name="agent-hostname" placeholder="target domain / ip">
+        </div>
+        <div class="agent-form-group">
+            <label for="agent-username">Host username: </label>
+            <input type="text" id="agent-username" name="agent-username" placeholder="Enter username">
+        </div>
+        <div class="agent-form-group">
+            <label for="agent-tcp-port">Agent TCP Port: </label>
+            <input type="number" id="agent-tcp-port" name="agent-tcp-port" min="1000" max="65535"
+                placeholder="agent tcp port you want to open">
+        </div>
+        <div class="agent-form-group">
+            <label for="agent-shutdown" class="toggle-container">Shutdown after test done: </label>
+            <input type="checkbox" id="agent-shutdown" name="agent-shutdown" checked>
+        </div>
+        <div id="agent-info-box" style="display: none;">
+            <h3 id="agent-id"></h3>
+        </div>
+        <div>
+            <button id="agent-install-btn" onclick="installServerAgent()">설치</button>
+        </div>
+        <div>
+            <button id="agent-start-btn" onclick="startServerAgent()">시작</button>
+        </div>
+        <div>
+            <button id="agent-stop-btn" onclick="stopServerAgent()">멈춤</button>
+        </div>
+        <div>
+            <button id="agent-remove-btn" onclick="removeServerAgent()">삭제</button>
+        </div>
+    </div>
+
+    <script>
+
+        function installServerAgent() {
+            const agentHostname = document.getElementById("agent-hostname").value;
+            const agentUsername = document.getElementById("agent-username").value;
+            const agentTcpPort = document.getElementById("agent-tcp-port").value;
+            const agentShutdown = document.getElementById("agent-shutdown").checked;
+
+            const requestData = {
+                hostname: agentHostname,
+                username: agentUsername,
+                tcpPort: agentTcpPort,
+                shutdown: agentShutdown,
+            };
+
+            fetch('http://localhost:8080/agent/install', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    const agentId = data.agentId;
+                    const status = data.status;
+
+                    console.log(agentId, status);
+
+                    const agentIdHeader = document.getElementById("agent-id");
+                    agentIdHeader.textContent = agentId;
+
+                    const agentInfoBox = document.getElementById("agent-info-box");
+                    agentInfoBox.style.display = "block";
+
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert(error)
+                });
+        }
+
+        function startServerAgent() {
+            const agentId = document.getElementById("agent-id").textContent;
+            const params = {
+                agentId: agentId,
+            };
+
+            const queryString = new URLSearchParams(params).toString();
+            const url = `http://localhost:8080/agent/start?${queryString}`;
+
+
+            console.log(url);
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+                .then(data => {
+                    console.log(data)
+
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert(error)
+                });
+        }
+
+        function stopServerAgent() {
+            const agentId = document.getElementById("agent-id").textContent;
+            const params = {
+                agentId: agentId,
+            };
+
+            const queryString = new URLSearchParams(params).toString();
+            const url = `http://localhost:8080/agent/stop?${queryString}`;
+
+
+            console.log(url);
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+                .then(data => {
+                    console.log(data)
+
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert(error)
+                });
+        }
+
+        function removeServerAgent() {
+            const agentId = document.getElementById("agent-id").textContent;
+            const params = {
+                agentId: agentId,
+            };
+
+            const queryString = new URLSearchParams(params).toString();
+            const url = `http://localhost:8080/agent/remove?${queryString}`;
+
+
+            console.log(url);
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+                .then(data => {
+                    console.log(data)
+
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert(error)
+                });
+        }
+
+
+        function executeLoadTest() {
+            const testResult = document.getElementById("testResult");
+            testResult.textContent = "";
+
+            const testIdHeader = document.getElementById("testId");
+            testIdHeader.textContent = "";
+
+            const testIdBox = document.getElementById("testIdBox");
+            testIdBox.style.display = "none";
+
+            const executeLoadTestButton = document.getElementById("executeLoadTest");
+            executeLoadTestButton.style.display = "none";
+
+            const protocol = document.getElementById("protocol").value;
+            const hostname = document.getElementById("hostname").value;
+            const port = document.getElementById("port").value;
+            const path = document.getElementById("path").value;
+            const bodyData = document.getElementById("bodyData").value;
+
+
+            const threads = document.getElementById("threads").value;
+            const rampTime = document.getElementById("rampTime").value;
+            const loopCount = document.getElementById("loopCount").value;
+            // const scheduled = document.getElementById("scheduled").checked;
+            // const duration = document.getElementById("duration").value;
+
+            const requestData = {
+                protocol: protocol,
+                hostname: hostname,
+                port: port,
+                path: path,
+                bodyData: bodyData,
+
+                threads: threads,
+                rampTime: rampTime,
+                loopCount: loopCount,
+                // scheduled: scheduled,
+                // duration: duration,
+
+            };
+
+            fetch('http://localhost:8080/load-test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const testId = data.testId
+                    const status = data.status
+
+                    console.log(testId, status)
+                    executeLoadTestButton.style.display = "block";
+                    testIdBox.style.display = "block";
+                    testIdHeader.textContent = testId;
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert(error)
+                    executeLoadTestButton.style.display = "block";
+                });
+        }
+
+        function getLoadTestResult() {
+            const testResult = document.getElementById("testResult");
+            testResult.textContent = "";
+
+            const executeLoadTestButton = document.getElementById("executeLoadTest");
+            executeLoadTestButton.style.display = "none";
+
+            const fetchResult = document.getElementById("fetchResult");
+            fetchResult.style.display = "none";
+
+            const testId = document.getElementById("testId").textContent;
+
+
+            const params = {
+                testId: testId,
+            };
+
+            const queryString = new URLSearchParams(params).toString();
+            const url = `http://localhost:8080/load-test?${queryString}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const result = data.result
+                    testResult.textContent = result;
+                    executeLoadTestButton.style.display = "block";
+                    fetchResult.style.display = "block";
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert(error)
+                    executeLoadTestButton.style.display = "block";
+                    fetchResult.style.display = "block";
+                });
+        }
+
+        function updateRangeValue(inputId) {
+            var rangeValue = document.getElementById(inputId).value;
+            document.getElementById(inputId + "Value").textContent = rangeValue;
+        }
+    </script>
+</body>
+
+</html>
