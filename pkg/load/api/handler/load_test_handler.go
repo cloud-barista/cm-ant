@@ -13,15 +13,16 @@ import (
 
 func GetLoadTestResultHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		testId := c.Param("testKey")
+		envId := c.QueryParam("envId")
+		testKey := c.QueryParam("testKey")
 
-		if len(strings.TrimSpace(testId)) == 0 {
+		if len(strings.TrimSpace(testKey)) == 0 || len(strings.TrimSpace(envId)) == 0 {
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
 				"status":  "bad request",
-				"message": "testId must be passed",
+				"message": "testKey and envId must be passed",
 			})
 		}
-		result, err := services.GetLoadTestResult(testId)
+		result, err := services.GetLoadTestResult(testKey)
 
 		if err != nil {
 			log.Printf("sorry, internal server error while getting load test result; %s\n", err)

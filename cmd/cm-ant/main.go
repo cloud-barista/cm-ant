@@ -56,7 +56,6 @@ func InitRouter() *echo.Echo {
 
 		{
 			connectionRouter.GET("", handler.GetAllRemoteConnection())
-			connectionRouter.DELETE("/:envId", handler.DeleteRemoteConnection())
 		}
 
 		loadRouter := antRouter.Group("/load")
@@ -65,7 +64,7 @@ func InitRouter() *echo.Echo {
 			loadRouter.POST("/install", handler.InstallLoadGeneratorHandler())
 			loadRouter.POST("/start", handler.RunLoadTestHandler())
 			loadRouter.POST("/stop", handler.StopLoadTestHandler())
-			loadRouter.GET("/:testId/result", handler.GetLoadTestResultHandler())
+			loadRouter.GET("/result", handler.GetLoadTestResultHandler())
 		}
 	}
 	return e
