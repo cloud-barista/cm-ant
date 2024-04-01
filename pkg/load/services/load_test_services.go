@@ -101,10 +101,15 @@ func StopLoadTest(loadTestReq api.LoadTestReq) error {
 	return nil
 }
 
-func GetLoadTestResult(testKey string) (interface{}, error) {
+func GetLoadTestResult(envId, testKey, format string) (interface{}, error) {
+	loadEnv, err := repository.GetEnvironment(envId)
+	if err != nil {
+		return nil, err
+	}
+
 	loadTestManager := managers.NewLoadTestManager()
 
-	result, err := loadTestManager.GetResult(testKey)
+	result, err := loadTestManager.GetResult(loadEnv, testKey, format)
 	if err != nil {
 		return nil, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
 	}

@@ -77,7 +77,8 @@ func calculateSentKBPerSec(totalBytes int, totalMillTime int) float64 {
 	return (float64(totalBytes) / 1024) / (float64(totalMillTime)) * 1000
 }
 
-type tempRecord struct {
+type processedData struct {
+	No         int
 	Elapsed    int // time to last byte
 	Bytes      int
 	SentBytes  int
@@ -89,17 +90,13 @@ type tempRecord struct {
 	Timestamp  time.Time
 }
 
-func (l *LoadTestManager) GetResult(testKey string) (interface{}, error) {
-
+func makeProcessedData(testKey string) *map[string][]*processedData {
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
 	resultFilePath := fmt.Sprintf("%s/result/%s_result.csv", jmeterPath, testKey)
 
-	// TODO: testKey 가 어떤 구성으로(LoadEnvReq) 로 테스트를 실행했는지 확인 필요 - 현재 로컬만 커버
-	// TODO: db 설정 후 간단 통계 계산 데이터를 저장하는 방식이 나쁘지 않아 보임
-
 	csvRows := utils.ReadCSV(resultFilePath)
 
-	labelGroup := make(map[string][]*tempRecord)
+	labelGroup := make(map[string][]*processedData)
 
 	// every time is basically millisecond
 	for i, row := range csvRows[1:] {
@@ -145,7 +142,8 @@ func (l *LoadTestManager) GetResult(testKey string) (interface{}, error) {
 		url := row[13]
 		t := time.UnixMilli(unixMilliseconds)
 
-		tr := &tempRecord{
+		tr := &processedData{
+			No:         i,
 			Elapsed:    elapsed,
 			Bytes:      bytes,
 			SentBytes:  sentBytes,
@@ -157,15 +155,19 @@ func (l *LoadTestManager) GetResult(testKey string) (interface{}, error) {
 			Timestamp:  t,
 		}
 		if _, ok := labelGroup[label]; !ok {
-			labelGroup[label] = []*tempRecord{tr}
+			labelGroup[label] = []*processedData{tr}
 		} else {
 			labelGroup[label] = append(labelGroup[label], tr)
 		}
 	}
 
+	return &labelGroup
+}
+
+func aggregate(processedData *map[string][]*processedData) *[]model.LoadTestStatistics {
 	var statistics []model.LoadTestStatistics
 
-	for label, records := range labelGroup {
+	for label, records := range *processedData {
 		var requestCount, totalElapsed, totalBytes, totalSentBytes, errorCount int
 		var elapsedList []int
 		if len(records) < 1 {
@@ -234,7 +236,39 @@ func (l *LoadTestManager) GetResult(testKey string) (interface{}, error) {
 		statistics = append(statistics, labelStat)
 	}
 
-	return statistics, nil
+	return &statistics
+}
+
+func generateFormat(format string, processedData *map[string][]*processedData) (interface{}, error) {
+	switch format {
+	case "aggregate":
+		return aggregate(processedData), nil
+	}
+
+	return processedData, nil
+}
+
+func (l *LoadTestManager) GetResult(env *model.LoadEnv, testKey, format string) (interface{}, error) {
+	var processedData *map[string][]*processedData
+	if (*env).InstallLocation == constant.Remote {
+		switch (*env).RemoteConnectionType {
+		case constant.BuiltIn:
+
+		case constant.PrivateKey, constant.Password:
+
+		}
+
+	} else if (*env).InstallLocation == constant.Local {
+		processedData = makeProcessedData(testKey)
+	}
+
+	formattedDate, err := generateFormat(format, processedData)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return formattedDate, nil
 }
 
 func (l *LoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
