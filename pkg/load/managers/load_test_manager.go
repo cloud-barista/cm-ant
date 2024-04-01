@@ -90,16 +90,16 @@ type processedData struct {
 	Timestamp  time.Time
 }
 
-func makeProcessedData(testKey string) *map[string][]*processedData {
-	jmeterPath := configuration.Get().Load.JMeter.WorkDir
-	resultFilePath := fmt.Sprintf("%s/result/%s_result.csv", jmeterPath, testKey)
-
-	csvRows := utils.ReadCSV(resultFilePath)
+func makeLocalProcessedData(resultFilePath string) (*map[string][]*processedData, error) {
+	csvRows, err := utils.ReadCSV(resultFilePath)
+	if err != nil || csvRows == nil {
+		return nil, err
+	}
 
 	labelGroup := make(map[string][]*processedData)
 
 	// every time is basically millisecond
-	for i, row := range csvRows[1:] {
+	for i, row := range (*csvRows)[1:] {
 		label := row[2]
 
 		elapsed, err := strconv.Atoi(row[1])
@@ -161,7 +161,7 @@ func makeProcessedData(testKey string) *map[string][]*processedData {
 		}
 	}
 
-	return &labelGroup
+	return &labelGroup, nil
 }
 
 func aggregate(processedData *map[string][]*processedData) *[]model.LoadTestStatistics {
@@ -240,6 +240,10 @@ func aggregate(processedData *map[string][]*processedData) *[]model.LoadTestStat
 }
 
 func generateFormat(format string, processedData *map[string][]*processedData) (interface{}, error) {
+	if processedData == nil {
+		return nil, nil
+	}
+
 	switch format {
 	case "aggregate":
 		return aggregate(processedData), nil
@@ -248,18 +252,46 @@ func generateFormat(format string, processedData *map[string][]*processedData) (
 	return processedData, nil
 }
 
-func (l *LoadTestManager) GetResult(env *model.LoadEnv, testKey, format string) (interface{}, error) {
+func (l *LoadTestManager) GetResult(loadEnv *model.LoadEnv, testKey, format string) (interface{}, error) {
+
+	jmeterPath := configuration.Get().Load.JMeter.WorkDir
+	fileName := fmt.Sprintf("%s_result.csv", testKey)
+	resultFilePath := fmt.Sprintf("%s/result/%s", jmeterPath, fileName)
+
 	var processedData *map[string][]*processedData
-	if (*env).InstallLocation == constant.Remote {
-		switch (*env).RemoteConnectionType {
+
+	if (*loadEnv).InstallLocation == constant.Remote {
+		switch (*loadEnv).RemoteConnectionType {
 		case constant.BuiltIn:
 
 		case constant.PrivateKey, constant.Password:
 
+			tempFolderPath := configuration.JoinRootPathWith("/temp")
+
+			err := utils.CreateFolderIfNotExist(tempFolderPath)
+			if err != nil {
+				return nil, err
+			}
+
+			copiedFilePath, err := downloadIfNotExist(loadEnv, resultFilePath, tempFolderPath, fileName)
+
+			if err != nil {
+				return nil, err
+			}
+			processedData, err = makeLocalProcessedData(copiedFilePath)
+			if err != nil {
+				return nil, err
+			}
+
 		}
 
-	} else if (*env).InstallLocation == constant.Local {
-		processedData = makeProcessedData(testKey)
+	} else if (*loadEnv).InstallLocation == constant.Local {
+		var err error
+		processedData, err = makeLocalProcessedData(resultFilePath)
+		if err != nil {
+			return nil, err
+		}
+
 	}
 
 	formattedDate, err := generateFormat(format, processedData)
@@ -269,6 +301,39 @@ func (l *LoadTestManager) GetResult(env *model.LoadEnv, testKey, format string) 
 	}
 
 	return formattedDate, nil
+}
+
+func downloadIfNotExist(loadEnv *model.LoadEnv, resultFilePath, tempFolderPath, fileName string) (string, error) {
+	copiedFilePath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
+
+	if exist := utils.ExistCheck(copiedFilePath); !exist {
+		var auth goph.Auth
+		var err error
+
+		if loadEnv.RemoteConnectionType == constant.PrivateKey {
+			auth, err = goph.Key(loadEnv.Cert, "")
+			if err != nil {
+				return "", err
+			}
+		} else if loadEnv.RemoteConnectionType == constant.Password {
+			auth = goph.Password(loadEnv.Cert)
+			if err != nil {
+				return "", err
+			}
+		}
+
+		client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
+
+		defer client.Close()
+		err = client.Download(resultFilePath, copiedFilePath)
+
+		if err != nil {
+			return "", err
+		}
+		return copiedFilePath, nil
+	}
+
+	return copiedFilePath, nil
 }
 
 func (l *LoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {

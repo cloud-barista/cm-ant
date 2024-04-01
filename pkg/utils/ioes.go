@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -29,30 +30,53 @@ func WritePropertiesFile(filePath string, properties map[string]interface{}, emp
 	return nil
 }
 
-func CreateFolder(filename string) error {
-	err := os.Mkdir(filename, os.ModePerm)
+func CreateFolderIfNotExist(filePath string) error {
+	if exist := ExistCheck(filePath); !exist {
+		err := CreateFolder(filePath)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+func CreateFolder(filePath string) error {
+	err := os.Mkdir(filePath, os.ModePerm)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func ReadCSV(filename string) [][]string {
+func ReadCSV(filename string) (*[][]string, error) {
+	// 파일 열기
 	file, err := os.Open(filename)
 	if err != nil {
-		fmt.Println("파일을 열 수 없습니다:", err)
-		os.Exit(1)
+		log.Println("파일을 열 수 없습니다:", err)
+		return nil, err
 	}
 	defer file.Close()
 
 	reader := csv.NewReader(file)
-	records, err := reader.ReadAll()
-	if err != nil {
-		fmt.Println("CSV 파일을 파싱할 수 없습니다:", err)
-		os.Exit(1)
+
+	var parsedCsv [][]string
+	for {
+		line, err := reader.Read()
+
+		if err != nil {
+			if err == io.EOF {
+				return &parsedCsv, nil
+			}
+
+			log.Println(err)
+			break
+		}
+
+		parsedCsv = append(parsedCsv, line)
 	}
 
-	return records
+	return &parsedCsv, nil
 }
 
 func ExistCheck(path string) bool {
