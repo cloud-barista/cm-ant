@@ -13,7 +13,7 @@ import (
 
 func GetLoadTestResultHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		testId := c.Param("testId")
+		testId := c.Param("testKey")
 
 		if len(strings.TrimSpace(testId)) == 0 {
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
@@ -39,23 +39,23 @@ func GetLoadTestResultHandler() echo.HandlerFunc {
 
 func StopLoadTestHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		loadTestPropertyReq := api.LoadTestPropertyReq{}
+		loadTestReq := api.LoadTestReq{}
 
-		if err := c.Bind(&loadTestPropertyReq); err != nil {
+		if err := c.Bind(&loadTestReq); err != nil {
 			log.Printf("error while binding request body; %+v\n", err)
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": fmt.Sprintf("request param is incorrect; %+v", loadTestPropertyReq),
+				"message": fmt.Sprintf("request param is incorrect; %+v", loadTestReq),
 			})
 		}
 
-		if loadTestPropertyReq.PropertiesId == "" || loadTestPropertyReq.EnvId == "" {
+		if loadTestReq.LoadTestKey == "" || loadTestReq.EnvId == "" {
 			log.Println("error while execute [StopLoadTestHandler()]; no passing propertiesId")
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
 				"message": fmt.Sprintf("pass propertiesId if you want to stop test"),
 			})
 		}
 
-		err := services.StopLoadTest(loadTestPropertyReq)
+		err := services.StopLoadTest(loadTestReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v\n", err)
@@ -73,22 +73,22 @@ func StopLoadTestHandler() echo.HandlerFunc {
 
 func RunLoadTestHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		loadTestPropertyReq := api.LoadTestPropertyReq{}
+		loadTestReq := api.LoadTestReq{}
 
-		if err := c.Bind(&loadTestPropertyReq); err != nil {
+		if err := c.Bind(&loadTestReq); err != nil {
 			log.Printf("error while binding request body; %+v\n", err)
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": fmt.Sprintf("request param is incorrect; %+v", loadTestPropertyReq),
+				"message": fmt.Sprintf("request param is incorrect; %+v", loadTestReq),
 			})
 		}
 
-		if loadTestPropertyReq.LoadEnvReq.Validate() != nil {
+		if loadTestReq.LoadEnvReq.Validate() != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
 				"message": fmt.Sprintf("load test environment is not correct"),
 			})
 		}
 
-		envId, propertyId, err := services.ExecuteLoadTest(&loadTestPropertyReq)
+		envId, testKey, err := services.ExecuteLoadTest(&loadTestReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v\n", err)
@@ -98,33 +98,33 @@ func RunLoadTestHandler() echo.HandlerFunc {
 		}
 
 		return c.JSON(http.StatusOK, map[string]any{
-			"propertyId": propertyId,
-			"envId":      envId,
-			"message":    "success",
+			"testKey": testKey,
+			"envId":   envId,
+			"message": "success",
 		})
 	}
 }
 
 func InstallLoadGeneratorHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		loadInstallReq := api.LoadEnvReq{}
+		loadEnvReq := api.LoadEnvReq{}
 
-		if err := c.Bind(&loadInstallReq); err != nil {
+		if err := c.Bind(&loadEnvReq); err != nil {
 			log.Printf("error while binding request body; %+v\n", err)
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": fmt.Sprintf("pass me correct body; %v", loadInstallReq),
+				"message": fmt.Sprintf("pass me correct body; %v", loadEnvReq),
 			})
 
 		}
 
-		if err := loadInstallReq.Validate(); err != nil {
+		if err := loadEnvReq.Validate(); err != nil {
 			log.Printf("error while execute [InstallLoadGeneratorHandler()]; %s\n", err)
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
 				"message": fmt.Sprintf("if you install on remote, pass nsId, mcisId and username"),
 			})
 		}
 
-		createdId, err := services.InstallLoadGenerator(&loadInstallReq)
+		createdEnvId, err := services.InstallLoadGenerator(&loadEnvReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v", err)
@@ -136,7 +136,7 @@ func InstallLoadGeneratorHandler() echo.HandlerFunc {
 
 		return c.JSON(http.StatusOK, map[string]any{
 			"message": "success",
-			"result":  createdId,
+			"result":  createdEnvId,
 		})
 	}
 }

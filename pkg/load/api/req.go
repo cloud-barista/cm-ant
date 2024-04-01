@@ -84,8 +84,8 @@ type LoadHttpReq struct {
 	BodyData string `json:"bodyData"`
 }
 
-type LoadTestPropertyReq struct {
-	PropertiesId string `json:"propertiesId"`
+type LoadTestReq struct {
+	LoadTestKey string `json:"loadTestKey"`
 
 	EnvId string `json:"envId"`
 

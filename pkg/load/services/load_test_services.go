@@ -25,18 +25,18 @@ func InstallLoadGenerator(installReq *api.LoadEnvReq) (uint, error) {
 	return createdEnvId, nil
 }
 
-func ExecuteLoadTest(property *api.LoadTestPropertyReq) (uint, string, error) {
-	propertiesId := utils.CreateUniqIdBaseOnUnixTime()
-	property.PropertiesId = propertiesId
+func ExecuteLoadTest(loadTestReq *api.LoadTestReq) (uint, string, error) {
+	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()
+	loadTestReq.LoadTestKey = loadTestKey
 
 	// check env
-	if property.EnvId != "" {
-		loadEnv, err := repository.GetEnvironment(property.EnvId)
+	if loadTestReq.EnvId != "" {
+		loadEnv, err := repository.GetEnvironment(loadTestReq.EnvId)
 		if err != nil {
 			return 0, "", err
 		}
 
-		if loadEnv != nil && property.LoadEnvReq.InstallLocation == "" {
+		if loadEnv != nil && loadTestReq.LoadEnvReq.InstallLocation == "" {
 			var env api.LoadEnvReq
 			env.InstallLocation = (*loadEnv).InstallLocation
 			env.RemoteConnectionType = (*loadEnv).RemoteConnectionType
@@ -46,33 +46,33 @@ func ExecuteLoadTest(property *api.LoadTestPropertyReq) (uint, string, error) {
 			env.NsId = (*loadEnv).NsId
 			env.McisId = (*loadEnv).McisId
 
-			property.LoadEnvReq = env
+			loadTestReq.LoadEnvReq = env
 		}
 	}
 
 	// installation jmeter
-	envId, err := InstallLoadGenerator(&property.LoadEnvReq)
+	envId, err := InstallLoadGenerator(&loadTestReq.LoadEnvReq)
 	if err != nil {
 		return 0, "", err
 	}
 
-	log.Printf("[%s] start load test", propertiesId)
+	log.Printf("[%s] start load test", loadTestKey)
 	loadTestManager := managers.NewLoadTestManager()
 
-	testId, err := loadTestManager.Run(property)
+	err = loadTestManager.Run(loadTestReq)
 
 	if err != nil {
 		log.Printf("Error while execute load test; %v\n", err)
 		return 0, "", fmt.Errorf("service - execute load test error; %w", err)
 	}
 
-	return envId, testId, nil
+	return envId, loadTestKey, nil
 }
 
-func StopLoadTest(property api.LoadTestPropertyReq) error {
+func StopLoadTest(loadTestReq api.LoadTestReq) error {
 	var env api.LoadEnvReq
-	if property.EnvId != "" {
-		loadEnv, err := repository.GetEnvironment(property.EnvId)
+	if loadTestReq.EnvId != "" {
+		loadEnv, err := repository.GetEnvironment(loadTestReq.EnvId)
 		if err != nil {
 			return err
 		}
@@ -85,13 +85,13 @@ func StopLoadTest(property api.LoadTestPropertyReq) error {
 		env.NsId = (*loadEnv).NsId
 		env.McisId = (*loadEnv).McisId
 
-		property.LoadEnvReq = env
+		loadTestReq.LoadEnvReq = env
 	}
 
-	log.Printf("[%s] stop load test", property.PropertiesId)
+	log.Printf("[%s] stop load test", loadTestReq.LoadTestKey)
 	loadTestManager := managers.NewLoadTestManager()
 
-	err := loadTestManager.Stop(property)
+	err := loadTestManager.Stop(loadTestReq)
 
 	if err != nil {
 		log.Printf("Error while execute load test; %v\n", err)
@@ -101,10 +101,10 @@ func StopLoadTest(property api.LoadTestPropertyReq) error {
 	return nil
 }
 
-func GetLoadTestResult(testId string) (interface{}, error) {
+func GetLoadTestResult(testKey string) (interface{}, error) {
 	loadTestManager := managers.NewLoadTestManager()
 
-	result, err := loadTestManager.GetResult(testId)
+	result, err := loadTestManager.GetResult(testKey)
 	if err != nil {
 		return nil, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
 	}
