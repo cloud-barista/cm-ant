@@ -48,7 +48,7 @@ func StopLoadTestHandler() echo.HandlerFunc {
 			})
 		}
 
-		if loadTestPropertyReq.PropertiesId == "" {
+		if loadTestPropertyReq.PropertiesId == "" || loadTestPropertyReq.EnvId == "" {
 			log.Println("error while execute [StopLoadTestHandler()]; no passing propertiesId")
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
 				"message": fmt.Sprintf("pass propertiesId if you want to stop test"),
@@ -60,7 +60,7 @@ func StopLoadTestHandler() echo.HandlerFunc {
 		if err != nil {
 			log.Printf("error while executing load test; %+v\n", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-				"message": fmt.Sprintf("sorry, internal server error while executing load test; %+v", loadTestPropertyReq),
+				"message": fmt.Sprintf("sorry, internal server error while executing load test;"),
 			})
 
 		}
@@ -82,18 +82,25 @@ func RunLoadTestHandler() echo.HandlerFunc {
 			})
 		}
 
-		loadTestId, err := services.ExecuteLoadTest(loadTestPropertyReq)
+		if loadTestPropertyReq.LoadEnvReq.Validate() != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
+				"message": fmt.Sprintf("load test environment is not correct"),
+			})
+		}
+
+		envId, propertyId, err := services.ExecuteLoadTest(&loadTestPropertyReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v\n", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-				"message": fmt.Sprintf("sorry, internal server error while executing load test; %+v", loadTestPropertyReq),
+				"message": fmt.Sprintf("sorry, internal server error while executing load test;"),
 			})
 		}
 
 		return c.JSON(http.StatusOK, map[string]any{
-			"testId":  loadTestId,
-			"message": "success",
+			"propertyId": propertyId,
+			"envId":      envId,
+			"message":    "success",
 		})
 	}
 }
@@ -117,7 +124,7 @@ func InstallLoadGeneratorHandler() echo.HandlerFunc {
 			})
 		}
 
-		createdId, err := services.InstallLoadGenerator(loadInstallReq)
+		createdId, err := services.InstallLoadGenerator(&loadInstallReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v", err)

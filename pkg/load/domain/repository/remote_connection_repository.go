@@ -8,6 +8,8 @@ import (
 
 func GetAllEnvironment() ([]model.LoadEnv, error) {
 	db := configuration.DB()
+	tx := db.Begin()
+
 	var loadEnvs []model.LoadEnv
 
 	result := db.Find(&loadEnvs)
@@ -15,22 +17,37 @@ func GetAllEnvironment() ([]model.LoadEnv, error) {
 	if err := result.Error; err != nil {
 		return nil, err
 	}
-
+	tx.Commit()
 	return loadEnvs, nil
 }
 
-func SaveLoadTestInstallEnv(installReq api.LoadEnvReq) (uint, error) {
+func GetEnvironment(envId string) (*model.LoadEnv, error) {
+	db := configuration.DB()
+	tx := db.Begin()
+	var loadEnv model.LoadEnv
+
+	result := db.First(&loadEnv, envId)
+
+	if err := result.Error; err != nil {
+		return nil, err
+	}
+	tx.Commit()
+
+	return &loadEnv, nil
+}
+
+func SaveLoadTestInstallEnv(installReq *api.LoadEnvReq) (uint, error) {
 	db := configuration.DB()
 	tx := db.Begin()
 
 	loadEnv := model.LoadEnv{
-		InstallLocation:      installReq.InstallLocation,
-		RemoteConnectionType: installReq.RemoteConnectionType,
-		NsId:                 installReq.NsId,
-		McisId:               installReq.McisId,
-		Username:             installReq.Username,
-		PublicIp:             installReq.PublicIp,
-		Cert:                 installReq.Cert,
+		InstallLocation:      (*installReq).InstallLocation,
+		RemoteConnectionType: (*installReq).RemoteConnectionType,
+		NsId:                 (*installReq).NsId,
+		McisId:               (*installReq).McisId,
+		Username:             (*installReq).Username,
+		PublicIp:             (*installReq).PublicIp,
+		Cert:                 (*installReq).Cert,
 	}
 
 	if err := tx.FirstOrCreate(

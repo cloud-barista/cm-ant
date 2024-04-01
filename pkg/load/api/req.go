@@ -50,6 +50,7 @@ type LoadEnvReq struct {
 }
 
 func (l LoadEnvReq) Validate() error {
+
 	if l.InstallLocation == constant.Remote {
 		if l.RemoteConnectionType == "" {
 			return errors.New("remote connection type should set")
@@ -84,8 +85,9 @@ type LoadHttpReq struct {
 }
 
 type LoadTestPropertyReq struct {
-	EnvId        string `json:"envId"`
 	PropertiesId string `json:"propertiesId"`
+
+	EnvId string `json:"envId"`
 
 	Threads   string `json:"threads"`
 	RampTime  string `json:"rampTime"`

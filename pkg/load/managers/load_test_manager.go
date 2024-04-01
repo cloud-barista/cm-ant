@@ -237,7 +237,7 @@ func (l *LoadTestManager) GetResult(testId string) (interface{}, error) {
 	return statistics, nil
 }
 
-func (l *LoadTestManager) Install(installReq api.LoadEnvReq) error {
+func (l *LoadTestManager) Install(installReq *api.LoadEnvReq) error {
 	installScriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
 
 	if installReq.InstallLocation == constant.Remote {
@@ -316,22 +316,60 @@ func (l *LoadTestManager) Stop(property api.LoadTestPropertyReq) error {
 	killCmd := killCmdGen(property)
 
 	// TODO code cloud test using tumblebug
-	if property.LoadEnvReq.InstallLocation == constant.Remote {
-		tumblebugUrl := outbound.TumblebugHostWithPort()
+	loadEnv := property.LoadEnvReq
+	if loadEnv.InstallLocation == constant.Remote {
 
-		commandReq := outbound.SendCommandReq{
-			Command:  []string{killCmd},
-			UserName: property.LoadEnvReq.Username,
-		}
+		switch loadEnv.RemoteConnectionType {
+		case constant.BuiltIn:
+			tumblebugUrl := outbound.TumblebugHostWithPort()
 
-		stdout, err := outbound.SendCommandTo(tumblebugUrl, property.LoadEnvReq.NsId, property.LoadEnvReq.McisId, commandReq)
+			commandReq := outbound.SendCommandReq{
+				Command:  []string{killCmd},
+				UserName: loadEnv.Username,
+			}
 
-		if err != nil {
+			stdout, err := outbound.SendCommandTo(tumblebugUrl, loadEnv.NsId, loadEnv.McisId, commandReq)
+
+			if err != nil {
+				log.Println(stdout)
+				return err
+			}
+
 			log.Println(stdout)
-			return err
+		case constant.PrivateKey, constant.Password:
+			var auth goph.Auth
+			var err error
+
+			if loadEnv.RemoteConnectionType == constant.PrivateKey {
+				auth, err = goph.Key(loadEnv.Cert, "")
+				if err != nil {
+					return err
+				}
+			} else if loadEnv.RemoteConnectionType == constant.Password {
+				auth = goph.Password(loadEnv.Cert)
+				if err != nil {
+					return err
+				}
+			}
+
+			// 1. ssh client connection
+			client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
+			if err != nil {
+				return err
+			}
+
+			defer client.Close()
+
+			out, err := client.RunContext(context.Background(), killCmd)
+
+			if err != nil {
+				return err
+			}
+
+			log.Println(string(out))
 		}
 
-	} else if property.LoadEnvReq.InstallLocation == constant.Local {
+	} else if loadEnv.InstallLocation == constant.Local {
 		log.Printf("[%s] stop load test on local", property.PropertiesId)
 
 		err := utils.InlineCmd(killCmd)
@@ -345,68 +383,104 @@ func (l *LoadTestManager) Stop(property api.LoadTestPropertyReq) error {
 	return nil
 }
 
-func (l *LoadTestManager) Run(property api.LoadTestPropertyReq) (string, error) {
+func (l *LoadTestManager) Run(property *api.LoadTestPropertyReq) (string, error) {
 	var testId string
 	testFolderSetupScript := configuration.JoinRootPathWith("/script/pre-execute-jmeter.sh")
 	testPlanName := "test_plan_1.jmx"
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
 	jmeterVersion := configuration.Get().Load.JMeter.Version
+	loadEnv := property.LoadEnvReq
 
 	// TODO code cloud test using tumblebug
-	if property.LoadEnvReq.InstallLocation == constant.Remote {
-		tumblebugUrl := outbound.TumblebugHostWithPort()
-
-		// 1. Installation check
-		err := l.Install(property.LoadEnvReq)
-
-		if err != nil {
-			return "", err
-		}
-
-		// 2. pre-requirement check
-
-		multiLineCommand, err := readAndParseScript(testFolderSetupScript)
+	if loadEnv.InstallLocation == constant.Remote {
+		preRequirementCmd, err := readAndParseScript(testFolderSetupScript)
 		if err != nil {
 			log.Println("file doesn't exist on correct path")
 			return "", err
 		}
+		preRequirementCmd = strings.Replace(preRequirementCmd, "${TEST_PLAN_NAME:=\"test_plan_1.jmx\"}", testPlanName, 1)
 
-		multiLineCommand = strings.Replace(multiLineCommand, "${TEST_PLAN_NAME:=\"test_plan_1.jmx\"}", testPlanName, 1)
+		switch loadEnv.RemoteConnectionType {
+		case constant.BuiltIn:
+			tumblebugUrl := outbound.TumblebugHostWithPort()
+			commandReq := outbound.SendCommandReq{
+				Command:  []string{preRequirementCmd},
+				UserName: property.LoadEnvReq.Username,
+			}
 
-		commandReq := outbound.SendCommandReq{
-			Command:  []string{multiLineCommand},
-			UserName: property.LoadEnvReq.Username,
-		}
+			// 1. check pre-requisition
+			stdout, err := outbound.SendCommandTo(tumblebugUrl, property.LoadEnvReq.NsId, property.LoadEnvReq.McisId, commandReq)
 
-		stdout, err := outbound.SendCommandTo(tumblebugUrl, property.LoadEnvReq.NsId, property.LoadEnvReq.McisId, commandReq)
+			if err != nil {
+				log.Printf("error occured; %s\n", err)
+				log.Println(stdout)
+				return "", err
+			}
 
-		if err != nil {
-			log.Printf("error occured; %s\n", err)
 			log.Println(stdout)
-			return "", err
-		}
 
-		log.Println(stdout)
+			// 2. execute jmeter test
+			jmeterTestCommand := executionCmdGen(property, testPlanName, fmt.Sprintf("%s_result.csv", property.PropertiesId))
 
-		// 3. execute jmeter test
-		jmeterTestCommand := executionCmdGen(property, testPlanName, fmt.Sprintf("%s_result.csv", property.PropertiesId))
+			commandReq = outbound.SendCommandReq{
+				Command:  []string{jmeterTestCommand},
+				UserName: property.LoadEnvReq.Username,
+			}
 
-		commandReq = outbound.SendCommandReq{
-			Command:  []string{jmeterTestCommand},
-			UserName: property.LoadEnvReq.Username,
-		}
+			stdout, err = outbound.SendCommandTo(tumblebugUrl, property.LoadEnvReq.NsId, property.LoadEnvReq.McisId, commandReq)
 
-		stdout, err = outbound.SendCommandTo(tumblebugUrl, property.LoadEnvReq.NsId, property.LoadEnvReq.McisId, commandReq)
+			if err != nil {
+				log.Printf("error occured; %s\n", err)
+				log.Println(stdout)
+				return "", err
+			}
 
-		if err != nil {
-			log.Printf("error occured; %s\n", err)
 			log.Println(stdout)
-			return "", err
+		case constant.PrivateKey, constant.Password:
+			var auth goph.Auth
+			var err error
+
+			if loadEnv.RemoteConnectionType == constant.PrivateKey {
+				auth, err = goph.Key(loadEnv.Cert, "")
+				if err != nil {
+					return "", err
+				}
+			} else if loadEnv.RemoteConnectionType == constant.Password {
+				auth = goph.Password(loadEnv.Cert)
+				if err != nil {
+					return "", err
+				}
+			}
+
+			// 1. ssh client connection
+			client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
+			if err != nil {
+				return "", err
+			}
+
+			defer client.Close()
+
+			// 2. check pre-requisition
+			out, err := client.RunContext(context.Background(), preRequirementCmd)
+
+			if err != nil {
+				return "", err
+			}
+
+			log.Println(string(out))
+
+			// 3. execute jmeter test
+			jmeterTestCommand := executionCmdGen(property, testPlanName, fmt.Sprintf("%s_result.csv", property.PropertiesId))
+			out, err = client.RunContext(context.Background(), jmeterTestCommand)
+
+			if err != nil {
+				return "", err
+			}
+
+			log.Println(string(out))
 		}
 
-		log.Println(stdout)
-
-	} else if property.LoadEnvReq.InstallLocation == constant.Local {
+	} else if loadEnv.InstallLocation == constant.Local {
 
 		log.Printf("[%s] Do load test on local", property.PropertiesId)
 
@@ -417,7 +491,7 @@ func (l *LoadTestManager) Run(property api.LoadTestPropertyReq) (string, error) 
 				InstallLocation: constant.Local,
 			}
 
-			err := l.Install(loadInstallReq)
+			err := l.Install(&loadInstallReq)
 
 			if err != nil {
 				log.Printf("error while execute [Run()]; %s\n", err)
@@ -443,15 +517,12 @@ func (l *LoadTestManager) Run(property api.LoadTestPropertyReq) (string, error) 
 			log.Println(err)
 			return "", err
 		}
-
-		// 3. save test configuration
-		testId = property.PropertiesId
 	}
-
+	testId = property.PropertiesId
 	return testId, nil
 }
 
-func executionCmdGen(p api.LoadTestPropertyReq, testPlanName, resultFileName string) string {
+func executionCmdGen(p *api.LoadTestPropertyReq, testPlanName, resultFileName string) string {
 	jmeterConf := configuration.Get().Load.JMeter
 
 	var builder strings.Builder
