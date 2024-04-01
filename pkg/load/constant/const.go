@@ -9,11 +9,11 @@ const (
 	ARCH   OsType = "arch"
 )
 
-type AccessType string
+type InstallLocation string
 
 const (
-	Local  AccessType = "local"
-	Remote AccessType = "remote"
+	Local  InstallLocation = "local"
+	Remote InstallLocation = "remote"
 )
 
 type RemoteConnectionType string

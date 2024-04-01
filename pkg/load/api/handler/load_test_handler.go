@@ -117,7 +117,7 @@ func InstallLoadGeneratorHandler() echo.HandlerFunc {
 			})
 		}
 
-		err := services.InstallLoadGenerator(loadInstallReq)
+		createdId, err := services.InstallLoadGenerator(loadInstallReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v", err)
@@ -129,6 +129,7 @@ func InstallLoadGeneratorHandler() echo.HandlerFunc {
 
 		return c.JSON(http.StatusOK, map[string]any{
 			"message": "success",
+			"result":  createdId,
 		})
 	}
 }

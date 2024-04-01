@@ -38,16 +38,36 @@ func (r RemoteConnectionReq) Validate() error {
 }
 
 type LoadEnvReq struct {
-	Type     constant.AccessType `json:"type"`
-	NsId     string              `json:"nsId"`
-	McisId   string              `json:"mcisId"`
-	Username string              `json:"username"`
+	InstallLocation      constant.InstallLocation      `json:"installLocation,omitempty"`
+	RemoteConnectionType constant.RemoteConnectionType `json:"remoteConnectionType,omitempty"`
+	Username             string                        `json:"username,omitempty"`
+
+	PublicIp string `json:"publicIp,omitempty"`
+	Cert     string `json:"cert,omitempty"`
+
+	NsId   string `json:"nsId,omitempty"`
+	McisId string `json:"mcisId,omitempty"`
 }
 
 func (l LoadEnvReq) Validate() error {
-	if l.Type == constant.Remote {
-		if l.NsId == "" || l.McisId == "" || l.Username == "" {
-			return errors.New("invalid user request for load env request")
+	if l.InstallLocation == constant.Remote {
+		if l.RemoteConnectionType == "" {
+			return errors.New("remote connection type should set")
+		}
+
+		switch l.RemoteConnectionType {
+		case constant.BuiltIn:
+			if l.NsId == "" ||
+				l.McisId == "" ||
+				l.Username == "" {
+				return errors.New("check build in properties. all field has to filled")
+			}
+		case constant.PrivateKey, constant.Password:
+			if l.PublicIp == "" ||
+				l.Cert == "" ||
+				l.Username == "" {
+				return errors.New("check Secure shell properties. all field has to filled")
+			}
 		}
 	}
 
@@ -64,6 +84,7 @@ type LoadHttpReq struct {
 }
 
 type LoadTestPropertyReq struct {
+	EnvId        string `json:"envId"`
 	PropertiesId string `json:"propertiesId"`
 
 	Threads   string `json:"threads"`

@@ -9,20 +9,20 @@ import (
 	"log"
 )
 
-func InstallLoadGenerator(installReq api.LoadEnvReq) error {
+func InstallLoadGenerator(installReq api.LoadEnvReq) (uint, error) {
 	loadTestManager := managers.NewLoadTestManager()
 
 	err := loadTestManager.Install(installReq)
 	if err != nil {
-		return fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
+		return 0, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
 	}
 
-	created, err := repository.SaveLoadTestInstallEnv(installReq)
+	createdEnvId, err := repository.SaveLoadTestInstallEnv(installReq)
 	if err != nil {
-		return fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
+		return 0, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
 	}
-	log.Println(created, " load test env object is created")
-	return nil
+	log.Println(createdEnvId, " load test env object is created")
+	return createdEnvId, nil
 }
 
 func ExecuteLoadTest(properties api.LoadTestPropertyReq) (string, error) {

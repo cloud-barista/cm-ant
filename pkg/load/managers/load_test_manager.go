@@ -1,11 +1,13 @@
 package managers
 
 import (
+	"context"
 	"fmt"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"github.com/cloud-barista/cm-ant/pkg/outbound"
+	"github.com/melbahja/goph"
 	"log"
 	"math"
 	"os"
@@ -238,29 +240,63 @@ func (l *LoadTestManager) GetResult(testId string) (interface{}, error) {
 func (l *LoadTestManager) Install(installReq api.LoadEnvReq) error {
 	installScriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
 
-	if installReq.Type == constant.Remote {
-		tumblebugUrl := outbound.TumblebugHostWithPort()
-		multiLineCommand, err := readAndParseScript(installScriptPath)
+	if installReq.InstallLocation == constant.Remote {
+		installationCommand, err := readAndParseScript(installScriptPath)
 		if err != nil {
 			log.Println("file doesn't exist on correct path")
 			return err
 		}
 
-		commandReq := outbound.SendCommandReq{
-			Command:  []string{multiLineCommand},
-			UserName: installReq.Username,
-		}
+		switch installReq.RemoteConnectionType {
+		case constant.BuiltIn:
+			tumblebugUrl := outbound.TumblebugHostWithPort()
 
-		stdout, err := outbound.SendCommandTo(tumblebugUrl, installReq.NsId, installReq.McisId, commandReq)
+			commandReq := outbound.SendCommandReq{
+				Command:  []string{installationCommand},
+				UserName: installReq.Username,
+			}
 
-		if err != nil {
+			stdout, err := outbound.SendCommandTo(tumblebugUrl, installReq.NsId, installReq.McisId, commandReq)
+
+			if err != nil {
+				log.Println(stdout)
+				return err
+			}
+
 			log.Println(stdout)
-			return err
+		case constant.PrivateKey, constant.Password:
+			var auth goph.Auth
+			var err error
+
+			if installReq.RemoteConnectionType == constant.PrivateKey {
+				auth, err = goph.Key(installReq.Cert, "")
+				if err != nil {
+					return err
+				}
+			} else if installReq.RemoteConnectionType == constant.Password {
+				auth = goph.Password(installReq.Cert)
+				if err != nil {
+					return err
+				}
+			}
+
+			client, err := goph.New(installReq.Username, installReq.PublicIp, auth)
+			if err != nil {
+				return err
+			}
+
+			defer client.Close()
+
+			out, err := client.RunContext(context.Background(), installationCommand)
+
+			if err != nil {
+				return err
+			}
+
+			log.Println(string(out))
 		}
 
-		log.Println(stdout)
-
-	} else if installReq.Type == constant.Local {
+	} else if installReq.InstallLocation == constant.Local {
 
 		err := utils.Script(installScriptPath, []string{
 			fmt.Sprintf("JMETER_WORK_DIR=%s", configuration.Get().Load.JMeter.WorkDir),
@@ -277,11 +313,11 @@ func (l *LoadTestManager) Install(installReq api.LoadEnvReq) error {
 
 func (l *LoadTestManager) Stop(property api.LoadTestPropertyReq) error {
 
-	// TODO code cloud test using tumblebug
-	if property.LoadEnvReq.Type == constant.Remote {
-		tumblebugUrl := outbound.TumblebugHostWithPort()
+	killCmd := killCmdGen(property)
 
-		killCmd := killCmdGen(property)
+	// TODO code cloud test using tumblebug
+	if property.LoadEnvReq.InstallLocation == constant.Remote {
+		tumblebugUrl := outbound.TumblebugHostWithPort()
 
 		commandReq := outbound.SendCommandReq{
 			Command:  []string{killCmd},
@@ -295,10 +331,8 @@ func (l *LoadTestManager) Stop(property api.LoadTestPropertyReq) error {
 			return err
 		}
 
-	} else if property.LoadEnvReq.Type == constant.Local {
-
+	} else if property.LoadEnvReq.InstallLocation == constant.Local {
 		log.Printf("[%s] stop load test on local", property.PropertiesId)
-		killCmd := killCmdGen(property)
 
 		err := utils.InlineCmd(killCmd)
 
@@ -319,7 +353,7 @@ func (l *LoadTestManager) Run(property api.LoadTestPropertyReq) (string, error) 
 	jmeterVersion := configuration.Get().Load.JMeter.Version
 
 	// TODO code cloud test using tumblebug
-	if property.LoadEnvReq.Type == constant.Remote {
+	if property.LoadEnvReq.InstallLocation == constant.Remote {
 		tumblebugUrl := outbound.TumblebugHostWithPort()
 
 		// 1. Installation check
@@ -372,7 +406,7 @@ func (l *LoadTestManager) Run(property api.LoadTestPropertyReq) (string, error) 
 
 		log.Println(stdout)
 
-	} else if property.LoadEnvReq.Type == constant.Local {
+	} else if property.LoadEnvReq.InstallLocation == constant.Local {
 
 		log.Printf("[%s] Do load test on local", property.PropertiesId)
 
@@ -380,7 +414,7 @@ func (l *LoadTestManager) Run(property api.LoadTestPropertyReq) (string, error) 
 
 		if !exist {
 			loadInstallReq := api.LoadEnvReq{
-				Type: constant.Local,
+				InstallLocation: constant.Local,
 			}
 
 			err := l.Install(loadInstallReq)

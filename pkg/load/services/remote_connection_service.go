@@ -1,15 +1,22 @@
 package services
 
-import "github.com/cloud-barista/cm-ant/pkg/load/api"
+import (
+	"fmt"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain/repository"
+)
 
-func RegisterRemoteConnection(remoteConnectionReq api.RemoteConnectionReq) error {
-	return nil
+func GetAllRemoteConnection() ([]model.LoadEnv, error) {
+	allEnvs, err := repository.GetAllEnvironment()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return allEnvs, nil
 }
 
-func GetAllRemoteConnection() (any, error) {
-	return nil, nil
-}
-
-func DeleteRemoteConnection(remoteConnectionId string) error {
+func DeleteRemoteConnection(envId string) error {
+	fmt.Println("asdf")
 	return nil
 }

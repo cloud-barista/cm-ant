@@ -7,10 +7,13 @@ import (
 
 type LoadEnv struct {
 	gorm.Model
-	Type     constant.AccessType `json:"type"`
-	NsId     *string             `json:"nsId"`
-	McisId   *string             `json:"mcisId"`
-	Username *string             `json:"username"`
+	InstallLocation      constant.InstallLocation      `json:"installLocation"`
+	RemoteConnectionType constant.RemoteConnectionType `json:"remoteConnectionType"`
+	NsId                 string                        `json:"nsId"`
+	McisId               string                        `json:"mcisId"`
+	Username             string                        `json:"username"`
+	PublicIp             string                        `json:"publicIp"`
+	Cert                 string                        `json:"cert"`
 }
 
 type AgentInfo struct {
