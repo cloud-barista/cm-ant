@@ -1,4 +1,4 @@
-package managers
+package jmetermanager
 
 import (
 	"context"
@@ -20,11 +20,7 @@ import (
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 )
 
-type LoadTestManager struct {
-}
-
-func NewLoadTestManager() LoadTestManager {
-	return LoadTestManager{}
+type JMeterLoadTestManager struct {
 }
 
 func calculatePercentile(elapsedList []int, percentile float64) float64 {
@@ -252,7 +248,7 @@ func generateFormat(format string, processedData *map[string][]*processedData) (
 	return processedData, nil
 }
 
-func (l *LoadTestManager) GetResult(loadEnv *model.LoadEnv, testKey, format string) (interface{}, error) {
+func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, testKey, format string) (interface{}, error) {
 
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
 	fileName := fmt.Sprintf("%s_result.csv", testKey)
@@ -336,7 +332,7 @@ func downloadIfNotExist(loadEnv *model.LoadEnv, resultFilePath, tempFolderPath, 
 	return copiedFilePath, nil
 }
 
-func (l *LoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
+func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 	installScriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
 
 	if loadEnvReq.InstallLocation == constant.Remote {
@@ -410,7 +406,7 @@ func (l *LoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 	return nil
 }
 
-func (l *LoadTestManager) Stop(loadTestReq api.LoadTestReq) error {
+func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadTestReq) error {
 
 	killCmd := killCmdGen(loadTestReq)
 
@@ -482,7 +478,7 @@ func (l *LoadTestManager) Stop(loadTestReq api.LoadTestReq) error {
 	return nil
 }
 
-func (l *LoadTestManager) Run(loadTestReq *api.LoadTestReq) error {
+func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadTestReq) error {
 	testFolderSetupScript := configuration.JoinRootPathWith("/script/pre-execute-jmeter.sh")
 	testPlanName := "test_plan_1.jmx"
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
@@ -589,7 +585,7 @@ func (l *LoadTestManager) Run(loadTestReq *api.LoadTestReq) error {
 				InstallLocation: constant.Local,
 			}
 
-			err := l.Install(&loadInstallReq)
+			err := j.Install(&loadInstallReq)
 
 			if err != nil {
 				log.Printf("error while execute [Run()]; %s\n", err)
