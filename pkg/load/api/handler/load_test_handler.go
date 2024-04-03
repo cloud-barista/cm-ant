@@ -41,7 +41,7 @@ func GetLoadTestResultHandler() echo.HandlerFunc {
 
 func StopLoadTestHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		loadTestReq := api.LoadTestReq{}
+		loadTestReq := api.LoadExecutionConfigReq{}
 
 		if err := c.Bind(&loadTestReq); err != nil {
 			log.Printf("error while binding request body; %+v\n", err)
@@ -75,7 +75,7 @@ func StopLoadTestHandler() echo.HandlerFunc {
 
 func RunLoadTestHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		loadTestReq := api.LoadTestReq{}
+		loadTestReq := api.LoadExecutionConfigReq{}
 
 		if err := c.Bind(&loadTestReq); err != nil {
 			log.Printf("error while binding request body; %+v\n", err)
@@ -90,7 +90,7 @@ func RunLoadTestHandler() echo.HandlerFunc {
 			})
 		}
 
-		envId, testKey, err := services.ExecuteLoadTest(&loadTestReq)
+		envId, testKey, loadExecutionConfigId, err := services.ExecuteLoadTest(&loadTestReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v\n", err)
@@ -100,9 +100,10 @@ func RunLoadTestHandler() echo.HandlerFunc {
 		}
 
 		return c.JSON(http.StatusOK, map[string]any{
-			"testKey": testKey,
-			"envId":   envId,
-			"message": "success",
+			"testKey":               testKey,
+			"envId":                 envId,
+			"loadExecutionConfigId": loadExecutionConfigId,
+			"message":               "success",
 		})
 	}
 }

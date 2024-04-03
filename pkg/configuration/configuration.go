@@ -6,9 +6,12 @@ import (
 	"github.com/spf13/viper"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"log"
+	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 var (
@@ -157,7 +160,20 @@ func migrateDB(defaultDb *gorm.DB) error {
 func connectSqliteDB(dbPath string) (*gorm.DB, error) {
 	log.Println(">>>> sqlite configuration; meta sqliteDb path is", dbPath)
 
-	sqliteDb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             time.Second,
+			LogLevel:                  logger.Info,
+			IgnoreRecordNotFoundError: true,
+			ParameterizedQueries:      true,
+			Colorful:                  true,
+		},
+	)
+
+	sqliteDb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+		Logger: newLogger,
+	})
 	if err != nil {
 		log.Println("connectSqliteDB() fail to connect to sqlite database")
 		return nil, err

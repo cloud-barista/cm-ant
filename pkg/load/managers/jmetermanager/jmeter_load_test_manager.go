@@ -407,7 +407,7 @@ func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 	return nil
 }
 
-func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadTestReq) error {
+func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadExecutionConfigReq) error {
 
 	killCmd := killCmdGen(loadTestReq)
 
@@ -480,7 +480,7 @@ func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadTestReq) error {
 	return nil
 }
 
-func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadTestReq) error {
+func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) error {
 	testFolderSetupScript := configuration.JoinRootPathWith("/script/pre-execute-jmeter.sh")
 	testPlanName := "test_plan_1.jmx"
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
@@ -619,7 +619,7 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadTestReq) error {
 	return nil
 }
 
-func executionCmdGen(p *api.LoadTestReq, testPlanName, resultFileName string) string {
+func executionCmdGen(p *api.LoadExecutionConfigReq, testPlanName, resultFileName string) string {
 	jmeterConf := configuration.Get().Load.JMeter
 
 	var builder strings.Builder
@@ -644,7 +644,7 @@ func executionCmdGen(p *api.LoadTestReq, testPlanName, resultFileName string) st
 	return builder.String()
 }
 
-func killCmdGen(p api.LoadTestReq) string {
+func killCmdGen(p api.LoadExecutionConfigReq) string {
 	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*-JpropertiesId=%s'", p.LoadTestKey)
 
 	return fmt.Sprintf("kill -9 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)

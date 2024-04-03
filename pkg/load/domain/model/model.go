@@ -14,7 +14,7 @@ type LoadEnv struct {
 	Username             string                        `json:"username"`
 	PublicIp             string                        `json:"publicIp"`
 	Cert                 string                        `json:"cert"`
-	LoadEnvs             []LoadExecutionState
+	LoadExecutionStates  []LoadExecutionState
 	LoadExecutionConfigs []LoadExecutionConfig
 }
 
@@ -27,12 +27,12 @@ type LoadExecutionState struct {
 
 type LoadExecutionConfig struct {
 	gorm.Model
-	LoadEnvID   uint
-	LoadTestKey string `json:"loadTestKey"`
-	Threads     string `json:"threads"`
-	RampTime    string `json:"rampTime"`
-	LoopCount   string `json:"loopCount"`
-	Https       []LoadExecutionHttp
+	LoadEnvID          uint
+	LoadTestKey        string              `json:"loadTestKey"`
+	Threads            string              `json:"threads"`
+	RampTime           string              `json:"rampTime"`
+	LoopCount          string              `json:"loopCount"`
+	LoadExecutionHttps []LoadExecutionHttp `gorm:"constraint:OnUpdate:CASCADE"`
 }
 
 type LoadExecutionHttp struct {

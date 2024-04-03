@@ -75,7 +75,7 @@ func (l LoadEnvReq) Validate() error {
 	return nil
 }
 
-type LoadHttpReq struct {
+type LoadExecutionHttpReq struct {
 	Method   string `json:"method"`
 	Protocol string `json:"protocol"`
 	Hostname string `json:"hostname"`
@@ -84,7 +84,7 @@ type LoadHttpReq struct {
 	BodyData string `json:"bodyData"`
 }
 
-type LoadTestReq struct {
+type LoadExecutionConfigReq struct {
 	LoadTestKey string `json:"loadTestKey"`
 
 	EnvId string `json:"envId"`
@@ -93,7 +93,7 @@ type LoadTestReq struct {
 	RampTime  string `json:"rampTime"`
 	LoopCount string `json:"loopCount"`
 
-	HttpReqs LoadHttpReq `json:"httpReqs"`
+	HttpReqs LoadExecutionHttpReq `json:"httpReqs"`
 
 	LoadEnvReq LoadEnvReq `json:"loadEnvReq"`
 }
