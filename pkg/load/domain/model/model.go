@@ -14,8 +14,6 @@ type LoadEnv struct {
 	Username             string                        `json:"username"`
 	PublicIp             string                        `json:"publicIp"`
 	Cert                 string                        `json:"cert"`
-	LoadExecutionStates  []LoadExecutionState
-	LoadExecutionConfigs []LoadExecutionConfig
 }
 
 type LoadExecutionState struct {

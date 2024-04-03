@@ -76,3 +76,15 @@ func UpdateLoadExecutionState(envId, loadTestKey string, state constant.Executio
 	tx.Commit()
 	return nil
 }
+
+func GetLoadExecutionConfigById(configId string) (model.LoadExecutionConfig, error) {
+	db := configuration.DB()
+	var loadExecutionConfig model.LoadExecutionConfig
+	if err := db.Preload("LoadExecutionHttps").
+		First(&loadExecutionConfig, configId).
+		Error; err != nil {
+		return loadExecutionConfig, err
+	}
+
+	return loadExecutionConfig, nil
+}

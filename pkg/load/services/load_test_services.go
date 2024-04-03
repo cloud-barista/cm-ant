@@ -135,3 +135,53 @@ func GetLoadTestResult(envId, testKey, format string) (interface{}, error) {
 	}
 	return result, nil
 }
+
+func GetLoadExecutionConfigById(configId string) (interface{}, error) {
+	loadExecutionConfig, err := repository.GetLoadExecutionConfigById(configId)
+	if err != nil {
+		return nil, err
+	}
+
+	loadEnvId := fmt.Sprintf("%d", loadExecutionConfig.LoadEnvID)
+	loadEnv, err := repository.GetEnvironment(loadEnvId)
+	if err != nil {
+		return nil, err
+	}
+
+	var load api.LoadEnvRes
+	load.LoadEnvId = loadEnv.ID
+	load.InstallLocation = loadEnv.InstallLocation
+	load.RemoteConnectionType = loadEnv.RemoteConnectionType
+	load.Username = loadEnv.Username
+	load.PublicIp = loadEnv.PublicIp
+	load.Cert = loadEnv.Cert
+	load.NsId = loadEnv.NsId
+	load.McisId = loadEnv.McisId
+
+	loadExecutionHttps := make([]api.LoadExecutionHttpRes, 0)
+
+	for _, v := range loadExecutionConfig.LoadExecutionHttps {
+		loadHttp := api.LoadExecutionHttpRes{
+			LoadExecutionHttpId: v.LoadExecutionConfigID,
+			Method:              v.Method,
+			Protocol:            v.Protocol,
+			Hostname:            v.Hostname,
+			Port:                v.Port,
+			Path:                v.Path,
+			BodyData:            v.BodyData,
+		}
+		loadExecutionHttps = append(loadExecutionHttps, loadHttp)
+	}
+
+	res := api.LoadExecutionRes{
+		LoadExecutionConfigId: loadExecutionConfig.ID,
+		LoadTestKey:           loadExecutionConfig.LoadTestKey,
+		Threads:               loadExecutionConfig.Threads,
+		RampTime:              loadExecutionConfig.RampTime,
+		LoopCount:             loadExecutionConfig.LoopCount,
+		LoadEnv:               load,
+		LoadExecutionHttp:     loadExecutionHttps,
+	}
+
+	return res, nil
+}

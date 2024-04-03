@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/services"
 	"github.com/labstack/echo/v4"
 	"log"
@@ -21,25 +20,9 @@ func GetAllRemoteConnection() echo.HandlerFunc {
 
 		}
 
-		var responseEnv []api.LoadEnvRes
-
-		for _, loadEnv := range result {
-			var load api.LoadEnvRes
-			load.EnvId = loadEnv.ID
-			load.InstallLocation = loadEnv.InstallLocation
-			load.RemoteConnectionType = loadEnv.RemoteConnectionType
-			load.Username = loadEnv.Username
-			load.PublicIp = loadEnv.PublicIp
-			load.Cert = loadEnv.Cert
-			load.NsId = loadEnv.NsId
-			load.McisId = loadEnv.McisId
-
-			responseEnv = append(responseEnv, load)
-		}
-
 		return c.JSON(http.StatusOK, map[string]any{
 			"message": "success",
-			"result":  responseEnv,
+			"result":  result,
 		})
 	}
 }
