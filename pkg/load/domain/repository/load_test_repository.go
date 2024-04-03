@@ -23,11 +23,13 @@ func SaveLoadTestExecution(loadTestReq *api.LoadExecutionConfigReq) (uint, error
 		ExecutionStatus: constant.Process,
 	}
 
-	if err := tx.FirstOrCreate(
-		&loadExecutionState,
-		"load_env_id = ? AND load_test_key = ?",
-		uint(loadEnvId), loadTestReq.LoadTestKey,
-	).Error; err != nil {
+	if err := tx.Model(model.LoadExecutionState{}).
+		Where(
+			"load_env_id = ? AND load_test_key = ?",
+			loadTestReq.EnvId, loadTestReq.LoadTestKey,
+		).
+		FirstOrCreate(&loadExecutionState).
+		Error; err != nil {
 		tx.Rollback()
 		return 0, err
 	}
@@ -64,9 +66,21 @@ func UpdateLoadExecutionState(envId, loadTestKey string, state constant.Executio
 	db := configuration.DB()
 	tx := db.Begin()
 
-	err := tx.Model(&model.LoadExecutionState{}).
+	loadEnvId, err := strconv.ParseUint(envId, 10, 64)
+
+	if err != nil {
+		return err
+	}
+
+	err = tx.Model(&model.LoadExecutionState{}).
 		Where("load_env_id = ? AND load_test_key = ?", envId, loadTestKey).
-		Update("execution_status", state).Error
+		FirstOrCreate(&model.LoadExecutionState{
+			LoadEnvID:       uint(loadEnvId),
+			LoadTestKey:     loadTestKey,
+			ExecutionStatus: state,
+		}).
+		Update("execution_status", state).
+		Error
 
 	if err != nil {
 		tx.Rollback()
@@ -99,4 +113,17 @@ func GetLoadExecutionState(envId, loadTestKey string) (model.LoadExecutionState,
 	}
 
 	return loadExecutionState, nil
+}
+
+func GetAllLoadExecutionState() ([]model.LoadExecutionState, error) {
+	db := configuration.DB()
+
+	var loadExecutionStates []model.LoadExecutionState
+
+	result := db.Find(&loadExecutionStates)
+
+	if err := result.Error; err != nil {
+		return nil, err
+	}
+	return loadExecutionStates, nil
 }

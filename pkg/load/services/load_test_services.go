@@ -67,9 +67,11 @@ func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (uint, string, uin
 		if err != nil {
 			err = repository.UpdateLoadExecutionState(loadTestReq.EnvId, loadTestKey, constant.Failed)
 			if err != nil {
-				log.Println(err)
+				return
 			}
+			return
 		}
+
 		err = repository.UpdateLoadExecutionState(loadTestReq.EnvId, loadTestKey, constant.Success)
 		if err != nil {
 			log.Println(err)
@@ -194,4 +196,27 @@ func GetLoadExecutionConfigById(configId string) (interface{}, error) {
 	}
 
 	return res, nil
+}
+
+func GetAllLoadExecutionState() (interface{}, error) {
+	loadExecutionStates, err := repository.GetAllLoadExecutionState()
+
+	if err != nil {
+		return nil, err
+	}
+
+	responseStates := make([]api.LoadExecutionStateRes, 0)
+	for _, v := range loadExecutionStates {
+		loadExecutionStateRes := api.LoadExecutionStateRes{
+			LoadExecutionStateId: v.ID,
+			LoadEnvID:            v.LoadEnvID,
+			LoadTestKey:          v.LoadTestKey,
+			ExecutionStatus:      v.ExecutionStatus,
+			ExecutionDate:        v.CreatedAt,
+		}
+
+		responseStates = append(responseStates, loadExecutionStateRes)
+	}
+
+	return responseStates, nil
 }

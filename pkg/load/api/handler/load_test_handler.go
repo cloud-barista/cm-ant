@@ -144,7 +144,7 @@ func InstallLoadGeneratorHandler() echo.HandlerFunc {
 	}
 }
 
-func GetLoadConfig() echo.HandlerFunc {
+func GetLoadConfigHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		configId := c.Param("configId")
 
@@ -156,6 +156,25 @@ func GetLoadConfig() echo.HandlerFunc {
 		}
 
 		result, err := services.GetLoadExecutionConfigById(configId)
+
+		if err != nil {
+			log.Printf("error while get load test execution config; %+v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+				"message": "something went wrong.try again.",
+			})
+
+		}
+
+		return c.JSON(http.StatusOK, map[string]any{
+			"message": "success",
+			"result":  result,
+		})
+	}
+}
+
+func GetAllLoadExecutionStateHandler() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		result, err := services.GetAllLoadExecutionState()
 
 		if err != nil {
 			log.Printf("error while get load test execution config; %+v", err)

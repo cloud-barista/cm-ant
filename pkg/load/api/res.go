@@ -1,6 +1,9 @@
 package api
 
-import "github.com/cloud-barista/cm-ant/pkg/load/constant"
+import (
+	"github.com/cloud-barista/cm-ant/pkg/load/constant"
+	"time"
+)
 
 type LoadEnvRes struct {
 	LoadEnvId            uint                          `json:"loadEnvId"`
@@ -34,4 +37,12 @@ type LoadExecutionHttpRes struct {
 	Port                string `json:"port"`
 	Path                string `json:"path"`
 	BodyData            string `json:"bodyData"`
+}
+
+type LoadExecutionStateRes struct {
+	LoadExecutionStateId uint
+	LoadEnvID            uint
+	LoadTestKey          string
+	ExecutionStatus      constant.ExecutionStatus
+	ExecutionDate        time.Time
 }

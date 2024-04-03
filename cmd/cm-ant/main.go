@@ -65,7 +65,8 @@ func InitRouter() *echo.Echo {
 			loadRouter.POST("/start", handler.RunLoadTestHandler())
 			loadRouter.POST("/stop", handler.StopLoadTestHandler())
 			loadRouter.GET("/result", handler.GetLoadTestResultHandler())
-			loadRouter.GET("/config/:configId", handler.GetLoadConfig())
+			loadRouter.GET("/config/:configId", handler.GetLoadConfigHandler())
+			loadRouter.GET("/state", handler.GetAllLoadExecutionStateHandler())
 		}
 	}
 	return e
