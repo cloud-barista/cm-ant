@@ -385,6 +385,7 @@ func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 			out, err := client.RunContext(context.Background(), installationCommand)
 
 			if err != nil {
+				log.Println(string(out))
 				return err
 			}
 
@@ -458,6 +459,7 @@ func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadTestReq) error {
 			out, err := client.RunContext(context.Background(), killCmd)
 
 			if err != nil {
+				log.Println(string(out))
 				return err
 			}
 
@@ -558,6 +560,7 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadTestReq) error {
 			out, err := client.RunContext(context.Background(), preRequirementCmd)
 
 			if err != nil {
+				log.Println(string(out))
 				return err
 			}
 
@@ -568,6 +571,7 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadTestReq) error {
 			out, err = client.RunContext(context.Background(), jmeterTestCommand)
 
 			if err != nil {
+				log.Println(string(out))
 				return err
 			}
 

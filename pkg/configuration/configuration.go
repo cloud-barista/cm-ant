@@ -139,7 +139,13 @@ func initDatabase() error {
 	return nil
 }
 func migrateDB(defaultDb *gorm.DB) error {
-	err := defaultDb.AutoMigrate(&model.LoadEnv{})
+	err := defaultDb.AutoMigrate(
+		&model.LoadEnv{},
+		&model.LoadExecutionConfig{},
+		&model.LoadExecutionState{},
+		&model.LoadExecutionHttp{},
+	)
+
 	if err != nil {
 		log.Println("connectSqliteDB() fail to connect to sqlite database")
 		return err

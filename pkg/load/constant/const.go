@@ -23,3 +23,11 @@ const (
 	PrivateKey RemoteConnectionType = "privateKey"
 	BuiltIn    RemoteConnectionType = "builtIn"
 )
+
+type ExecutionStatus string
+
+const (
+	Progress ExecutionStatus = "progress"
+	Success  ExecutionStatus = "success"
+	Failed   ExecutionStatus = "failed"
+)

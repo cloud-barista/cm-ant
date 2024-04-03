@@ -14,6 +14,36 @@ type LoadEnv struct {
 	Username             string                        `json:"username"`
 	PublicIp             string                        `json:"publicIp"`
 	Cert                 string                        `json:"cert"`
+	LoadEnvs             []LoadExecutionState
+	LoadExecutionConfigs []LoadExecutionConfig
+}
+
+type LoadExecutionState struct {
+	gorm.Model
+	LoadEnvID       uint
+	LoadTestKey     string
+	ExecutionStatus constant.ExecutionStatus
+}
+
+type LoadExecutionConfig struct {
+	gorm.Model
+	LoadEnvID   uint
+	LoadTestKey string `json:"loadTestKey"`
+	Threads     string `json:"threads"`
+	RampTime    string `json:"rampTime"`
+	LoopCount   string `json:"loopCount"`
+	Https       []LoadExecutionHttp
+}
+
+type LoadExecutionHttp struct {
+	gorm.Model
+	LoadExecutionConfigID uint
+	Method                string `json:"method"`
+	Protocol              string `json:"protocol"`
+	Hostname              string `json:"hostname"`
+	Port                  string `json:"port"`
+	Path                  string `json:"path"`
+	BodyData              string `json:"bodyData"`
 }
 
 type AgentInfo struct {
