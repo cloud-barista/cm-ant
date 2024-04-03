@@ -90,6 +90,16 @@ func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (uint, string, uin
 }
 
 func StopLoadTest(loadTestReq api.LoadExecutionConfigReq) error {
+	loadExecutionState, err := repository.GetLoadExecutionState(loadTestReq.EnvId, loadTestReq.LoadTestKey)
+
+	if err != nil {
+		return nil
+	}
+
+	if loadExecutionState.ExecutionStatus != constant.Process {
+		return nil
+	}
+
 	var env api.LoadEnvReq
 	if loadTestReq.EnvId != "" {
 		loadEnv, err := repository.GetEnvironment(loadTestReq.EnvId)
@@ -111,7 +121,7 @@ func StopLoadTest(loadTestReq api.LoadExecutionConfigReq) error {
 	log.Printf("[%s] stop load test", loadTestReq.LoadTestKey)
 	loadTestManager := managers.NewLoadTestManager()
 
-	err := loadTestManager.Stop(loadTestReq)
+	err = loadTestManager.Stop(loadTestReq)
 
 	if err != nil {
 		log.Printf("Error while execute load test; %v\n", err)
