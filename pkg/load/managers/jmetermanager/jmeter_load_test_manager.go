@@ -3,11 +3,6 @@ package jmetermanager
 import (
 	"context"
 	"fmt"
-	"github.com/cloud-barista/cm-ant/pkg/load/api"
-	"github.com/cloud-barista/cm-ant/pkg/load/constant"
-	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
-	"github.com/cloud-barista/cm-ant/pkg/outbound"
-	"github.com/melbahja/goph"
 	"log"
 	"math"
 	"os"
@@ -15,6 +10,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cloud-barista/cm-ant/pkg/load/api"
+	"github.com/cloud-barista/cm-ant/pkg/load/constant"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
+	"github.com/cloud-barista/cm-ant/pkg/outbound"
+	"github.com/melbahja/goph"
 
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	"github.com/cloud-barista/cm-ant/pkg/utils"

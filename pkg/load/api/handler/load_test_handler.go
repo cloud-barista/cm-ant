@@ -1,12 +1,16 @@
 package handler
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
-	"github.com/cloud-barista/cm-ant/pkg/load/api"
-	"github.com/labstack/echo/v4"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/cloud-barista/cm-ant/pkg/load/api"
+	"github.com/labstack/echo/v4"
 
 	"github.com/cloud-barista/cm-ant/pkg/load/services"
 )
@@ -31,11 +35,42 @@ func GetLoadTestResultHandler() echo.HandlerFunc {
 				"message": "sorry, internal server error while getting load test result;",
 			})
 		}
+		var marBuf bytes.Buffer
 
-		return c.JSON(http.StatusOK, map[string]any{
-			"status": "ok",
-			"result": result,
-		})
+		enc := json.NewEncoder(&marBuf)
+
+		if err := enc.Encode(result); err != nil {
+			return err
+		}
+
+		resultBytes := marBuf.Bytes()
+
+		header := c.Response().Header()
+
+		header.Set("Content-Type", "application/json")
+		header.Set("Content-Encoding", "gzip")
+
+		var gzBuf bytes.Buffer
+
+		gz := gzip.NewWriter(&gzBuf)
+
+		if _, err := gz.Write(resultBytes); err != nil {
+			log.Printf("sorry, internal server error while getting load test result; %s\n", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+				"message": "sorry, internal server error while getting load test result;",
+			})
+		}
+		if err := gz.Close(); err != nil {
+			log.Printf("sorry, internal server error while getting load test result; %s\n", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+				"message": "sorry, internal server error while getting load test result;",
+			})
+		}
+
+		c.Response().WriteHeader(http.StatusOK)
+		c.Response().Write(gzBuf.Bytes())
+
+		return nil
 	}
 }
 
