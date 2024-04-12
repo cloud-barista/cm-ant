@@ -304,33 +304,79 @@ func downloadIfNotExist(loadEnv *model.LoadEnv, resultFilePath, tempFolderPath, 
 	copiedFilePath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
 
 	if exist := utils.ExistCheck(copiedFilePath); !exist {
-		var auth goph.Auth
-		var err error
+		auth, err := getAuthForSsh(loadEnv)
 
-		if loadEnv.RemoteConnectionType == constant.PrivateKey {
-			auth, err = goph.Key(loadEnv.Cert, "")
-			if err != nil {
-				return "", err
-			}
-		} else if loadEnv.RemoteConnectionType == constant.Password {
-			auth = goph.Password(loadEnv.Cert)
-			if err != nil {
-				return "", err
-			}
+		if err != nil {
+			return "", nil
 		}
 
 		client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
 
+		if err != nil {
+			return "", nil
+		}
+
 		defer client.Close()
+
 		err = client.Download(resultFilePath, copiedFilePath)
 
 		if err != nil {
 			return "", err
 		}
+
 		return copiedFilePath, nil
+	} else if exist {
+		currentTime := time.Now()
+		currentTimestamp := currentTime.UnixMilli()
+
+		standardMilliSec := int64(5 * 60 * 1000)
+		time := utils.GetFirstPart(fileName, "-")
+		timestamp, _ := strconv.Atoi(time)
+
+		if currentTimestamp-int64(timestamp) > standardMilliSec {
+			os.Remove(copiedFilePath)
+
+			auth, err := getAuthForSsh(loadEnv)
+
+			if err != nil {
+				return "", nil
+			}
+
+			client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
+
+			if err != nil {
+				return "", nil
+			}
+
+			defer client.Close()
+
+			err = client.Download(resultFilePath, copiedFilePath)
+
+			if err != nil {
+				return "", err
+			}
+
+			return copiedFilePath, nil
+		}
 	}
 
 	return copiedFilePath, nil
+}
+
+func getAuthForSsh(loadEnv *model.LoadEnv) (goph.Auth, error) {
+	if loadEnv.RemoteConnectionType == constant.PrivateKey {
+		keyAuth, err := goph.Key(loadEnv.Cert, "")
+		if err != nil {
+			return nil, err
+		}
+
+		return keyAuth, nil
+	} else if loadEnv.RemoteConnectionType == constant.Password {
+		passAuth := goph.Password(loadEnv.Cert)
+		return passAuth, nil
+	}
+
+	return nil, fmt.Errorf("not matching proper key")
 }
 
 func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {

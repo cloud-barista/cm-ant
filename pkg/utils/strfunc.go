@@ -2,10 +2,12 @@ package utils
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"strconv"
+	"strings"
 	"time"
 	"unicode"
+
+	"github.com/google/uuid"
 )
 
 func CreateUniqIdBaseOnUnixTime() string {
@@ -35,4 +37,9 @@ func InterfaceToString(value interface{}) string {
 	default:
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+func GetFirstPart(input, delim string) string {
+	parts := strings.Split(input, delim)
+	return parts[0]
 }

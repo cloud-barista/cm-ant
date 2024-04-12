@@ -2,12 +2,13 @@ package services
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/repository"
 	"github.com/cloud-barista/cm-ant/pkg/load/managers"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
-	"log"
 )
 
 func InstallLoadGenerator(installReq *api.LoadEnvReq) (uint, error) {
@@ -95,11 +96,11 @@ func StopLoadTest(loadTestReq api.LoadExecutionConfigReq) error {
 	loadExecutionState, err := repository.GetLoadExecutionState(loadTestReq.EnvId, loadTestReq.LoadTestKey)
 
 	if err != nil {
-		return nil
+		return err
 	}
 
-	if loadExecutionState.ExecutionStatus != constant.Process {
-		return nil
+	if loadExecutionState.IsFinished() {
+		return fmt.Errorf("load test is already finished")
 	}
 
 	var env api.LoadEnvReq
@@ -134,6 +135,16 @@ func StopLoadTest(loadTestReq api.LoadExecutionConfigReq) error {
 }
 
 func GetLoadTestResult(envId, testKey, format string) (interface{}, error) {
+	loadExecutionState, err := repository.GetLoadExecutionState(envId, testKey)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !loadExecutionState.IsFinished() {
+		return nil, fmt.Errorf("load test is under executing")
+	}
+
 	loadEnv, err := repository.GetEnvironment(envId)
 	if err != nil {
 		return nil, err

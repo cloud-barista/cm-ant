@@ -23,6 +23,10 @@ type LoadExecutionState struct {
 	ExecutionStatus constant.ExecutionStatus
 }
 
+func (l *LoadExecutionState) IsFinished() bool {
+	return l.ExecutionStatus != constant.Process
+}
+
 type LoadExecutionConfig struct {
 	gorm.Model
 	LoadEnvID          uint

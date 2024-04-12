@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -72,7 +71,7 @@ func (w *tempFileRemoveWorker) Action() {
 	standardMilliSec := int64(10 * 60 * 1000)
 	for _, file := range files {
 		folderName := file.Name()
-		time := getFirstPart(folderName)
+		time := GetFirstPart(folderName, "-")
 		timestamp, _ := strconv.Atoi(time)
 
 		if err == nil && file.IsDir() && currentTimestamp-int64(timestamp) > standardMilliSec {
@@ -80,9 +79,4 @@ func (w *tempFileRemoveWorker) Action() {
 			log.Printf("%s folder deleted in temp directory.\n", folderName)
 		}
 	}
-}
-
-func getFirstPart(input string) string {
-	parts := strings.Split(input, "-")
-	return parts[0]
 }
