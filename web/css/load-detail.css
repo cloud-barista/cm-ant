@@ -1,0 +1,77 @@
+.load-test-details-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.load-test-details-buttons {
+    /* If you want the buttons to be closer to the title */
+    display: flex;
+    align-items: center;
+}
+
+#add-load-test-detail,
+#remove-load-test-detail {
+    background: #f0f0f0;
+    border: 1px solid #dcdcdc;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    margin-left: 5px;
+    /* Adjust spacing between buttons */
+}
+
+#add-load-test-detail:hover,
+#remove-load-test-detail:hover {
+    background-color: #e0e0e0;
+}
+
+
+.load-execution-http-req-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.load-execution-http-req {
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+button {
+    padding: 10px 15px;
+    margin-top: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #e6e6e6;
+}
+
+.form-group {
+    margin-bottom: 10px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.form-group input[type="text"],
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+.form-group textarea {
+    height: 100px;
+    resize: vertical;
+}

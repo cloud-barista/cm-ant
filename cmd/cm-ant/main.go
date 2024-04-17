@@ -2,18 +2,29 @@ package main
 
 import (
 	"fmt"
-	"github.com/cloud-barista/cm-ant/pkg/load/api/handler"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/pkg/load/api/handler"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
 )
 
 var once sync.Once
+
+type Template struct {
+	templates *template.Template
+}
+
+func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	return t.templates.ExecuteTemplate(w, name, data)
+}
 
 func main() {
 
@@ -31,7 +42,10 @@ func main() {
 func InitRouter() *echo.Echo {
 	e := echo.New()
 
-	e.Static("/web/templates", configuration.RootPath()+"/web/template")
+	e.Static("/web/templates", configuration.RootPath()+"/web/templates")
+	e.Static("/css", configuration.RootPath()+"/web/css")
+	e.Static("/js", configuration.RootPath()+"/web/js")
+
 	e.Use(middleware.Logger(), middleware.Recover(), middleware.RequestID())
 	e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
 		Skipper:      middleware.DefaultSkipper,
@@ -42,9 +56,19 @@ func InitRouter() *echo.Echo {
 		Timeout: 120 * time.Second,
 	}))
 
+	t := &Template{
+		templates: template.Must(template.ParseGlob(configuration.RootPath() + "/web/templates/*.html")),
+	}
+
+	e.Renderer = t
+
 	antRouter := e.Group("/ant")
 
 	{
+
+		antRouter.GET("/", func(c echo.Context) error {
+			return c.Render(http.StatusOK, "index.html", nil)
+		})
 
 		antRouter.GET("/health", func(c echo.Context) error {
 			return c.JSON(http.StatusOK, map[string]string{

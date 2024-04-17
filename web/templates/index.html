@@ -1,405 +1,176 @@
-<!DOCTYPE html5>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JMeter Load Test</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: row;
-        }
+    <title>Load Test Configuration</title>
+    <link rel="stylesheet" href="/css/test-name.css">
+    <link rel="stylesheet" href="/css/load-configuration.css">
+    <link rel="stylesheet" href="/css/load-detail.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-        #left {
-            width: 30%;
-            padding: 20px;
-        }
-
-        #right {
-            width: 70%;
-            padding: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 10px;
-        }
-
-        .toggle-container {
-            display: inline-block;
-            cursor: pointer;
-        }
-
-        .toggle-container input[type="checkbox"] {
-            display: none;
-        }
-
-        .toggle-slider {
-            width: 50px;
-            height: 20px;
-            background-color: #ccc;
-            position: relative;
-            border-radius: 20px;
-        }
-
-        .toggle-slider:before {
-            content: '';
-            position: absolute;
-            width: 18px;
-            height: 18px;
-            background-color: white;
-            border-radius: 50%;
-            top: 50%;
-            transform: translateY(-50%);
-            left: 2px;
-            transition: 0.4s;
-        }
-
-        .toggle-container input[type="checkbox"]:checked+.toggle-slider:before {
-            transform: translateX(28px) translateY(-50%);
-        }
-    </style>
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.min.js"
-        integrity="sha512-L0Shl7nXXzIlBSUUPpxrokqq4ojqgZFQczTYlGjzONGTDAcLremjwaWv5A+EDLnxhQzY5xUZPWLOLqYRkY0Cbw=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
 </head>
 
 <body>
-    <div id="left">
-        <div>
-            <h2>Http Request Configuration</h2>
-            <div class="form-group">
-                <label for="protocol">Protocol: </label>
-                <input type="text" id="protocol" name="protocol" value="http" placeholder="http/https">
+    <div class="container">
+        <div class="test-name">
+            <div class="test-name-container">
+                <label for="test-name-input">Test Name:</label>
+                <input type="text" id="test-name-input" name="testName" placeholder="Enter Test Name">
+                <button type="button" id="local-button" class="toggle-button active">Local</button>
+                <button type="button" id="remote-button" class="toggle-button">Remote</button>
             </div>
-            <div class="form-group">
-                <label for="hostname">Hostname: </label>
-                <input type="text" id="hostname" name="hostname" placeholder="target domain / ip">
+            <div id="remote-config-form" class="remote-config-form" style="display: none;">
+                <div class="form-group">
+                    <label for="remote-connection-type">Connection Type:</label>
+                    <select id="remote-connection-type" name="remoteConnectionType">
+                        <option value="">Select Connection Type</option>
+                        <option value="password">Password</option>
+                        <option value="privateKey">Private Key</option>
+                        <option value="builtIn">Built-In</option>
+                    </select>
+                </div>
+
+                <!-- Container for Password/Private Key inputs -->
+                <div id="auth-container" style="display: none;">
+                    <div class="form-group">
+                        <label for="public-id">Public ID:</label>
+                        <input type="text" id="public-id" name="publicId" placeholder="Enter Public ID">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="username">Username:</label>
+                        <input type="text" id="username" name="username" placeholder="Enter Username">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cert">Cert:</label>
+                        <input type="text" id="cert" name="cert" placeholder="Enter Cert">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="port">Port:</label>
+                        <input type="text" id="port" name="port" placeholder="Enter Port">
+                    </div>
+                </div>
+
+                <!-- Container for Built-In inputs -->
+                <div id="built-in-container" style="display: none;">
+                    <div class="form-group">
+                        <label for="ns-id">NS ID:</label>
+                        <input type="text" id="ns-id" name="nsId" placeholder="Enter NS ID">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mcis-id">MCIS ID:</label>
+                        <input type="text" id="mcis-id" name="mcisId" placeholder="Enter MCIS ID">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="username-built-in">Username:</label>
+                        <input type="text" id="username-built-in" name="usernameBuiltIn" placeholder="Enter Username">
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="port">Port: </label>
-                <input type="number" id="port" name="port" min="1000" max="65535" placeholder="Enter port number">
+
+
+        </div>
+
+        <div class="load-configuration-wrapper">
+            <div class="load-configuration">
+                <h2>Load Configuration</h2>
+                <form id="load-configuration-form">
+                    <div class="form-group">
+                        <label for="virtual-users">Virtual Users:</label>
+                        <input type="range" id="virtual-users" name="virtualUsers" min="1" max="30" value="10" step="1">
+                        <span id="virtual-users-value"></span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="duration">Duration (seconds):</label>
+                        <input type="range" id="duration" name="duration" min="10" max="300" value="30" step="10">
+                        <span id="duration-value"></span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ramp-up-time">Ramp Up Time (seconds):</label>
+                        <input type="range" id="ramp-up-time" name="rampUpTime" min="10" max="60" value="10" step="2">
+                        <span id="ramp-up-time-value"></span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ramp-up-steps">Ramp Up Steps:</label>
+                        <input type="range" id="ramp-up-steps" name="rampUpSteps" min="1" max="10" value="3" step="1">
+                        <span id="ramp-up-steps-value"></span>
+                    </div>
+                </form>
+
             </div>
-            <div class="form-group">
-                <label for="path">Path: </label>
-                <input type="text" id="path" name="path" placeholder="/enter/your/endpoint">
-            </div>
-            <div class="form-group">
-                <label for="bodyData">Body Data: </label>
-                <textarea id="bodyData" name="bodyData" placeholder="{key:value}"></textarea>
+            <div class="chart-container">
+                <canvas id="load-chart"></canvas>
             </div>
         </div>
-        <div>
-            <h2>Thread Group Configuration</h2>
-            <div class="form-group">
-                <label for="threads">Threads: </label>
-                <input type="range" id="threads" name="threads" min="1" max="50" onchange="updateRangeValue(this.id)"
-                    value="1">
-                <span id="threadsValue">1</span>
+
+        <div class="load-test-details-header">
+            <h2>Load Test Details</h2>
+            <div class="load-test-details-buttons">
+                <button type="button" id="add-load-test-detail" aria-label="Add load test detail">+</button>
+                <button type="button" id="remove-load-test-detail" aria-label="Remove load test detail">-</button>
             </div>
-            <div class="form-group">
-                <label for="rampTime">Ramp Time: </label>
-                <input type="range" id="rampTime" name="rampTime" min="1" max="60" onchange="updateRangeValue(this.id)"
-                    value="0">
-                <span id="rampTimeValue">1</span>
-            </div>
-            <div class="form-group">
-                <label for="loopCount">Loop Count: </label>
-                <input type="range" id="loopCount" name="loopCount" min="1" max="50"
-                    onchange="updateRangeValue(this.id)" value="1">
-                <span id="loopCountValue">1</span>
-            </div>
-            <!-- <div class="form-group">
-                <label for="scheduled" class="toggle-container">Scheduled: </label>
-                <input type="checkbox" id="scheduled" name="scheduled">
-            </div>
-            <div class="form-group">
-                <label for="duration">Duration: </label>
-                <input type="text" id="duration" name="duration" placeholder="if Scheduled True then enter">
-            </div> -->
         </div>
-        <div>
-            <button id="executeLoadTest" onclick="executeLoadTest()">execute</button>
+
+        <div class="load-execution-http-req-container">
+            <div class="load-execution-http-req" id="load-execution-http-req-template">
+                <div class="form-group">
+                    <label for="method">Method:</label>
+                    <select id="method" name="method">
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="DELETE">DELETE</option>
+                        <option value="PATCH">PATCH</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="protocol">Protocol:</label>
+                    <select id="protocol" name="protocol">
+                        <option value="http">HTTP</option>
+                        <option value="https">HTTPS</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="hostname">Hostname:</label>
+                    <input type="text" id="hostname" name="hostname" placeholder="Enter Hostname">
+                </div>
+
+                <div class="form-group">
+                    <label for="port">Port:</label>
+                    <input type="text" id="port" name="port" placeholder="Enter Port">
+                </div>
+
+                <div class="form-group">
+                    <label for="path">Path:</label>
+                    <input type="text" id="path" name="path" placeholder="Enter Path">
+                </div>
+
+                <div class="form-group">
+                    <label for="body-data">Body Data:</label>
+                    <textarea id="body-data" name="bodyData" placeholder="Enter Body Data"></textarea>
+                </div>
+            </div>
+
+
         </div>
+
+
+        <button id="execute-test">Execute Test</button>
     </div>
 
-    <div id="right">
-        <h2>Load Test Results </h2>
-        <div id="testIdBox" style="display: none;">
-            <h3 id="testId"></h3>
-            <button id="fetchResult" onclick="getLoadTestResult()">fetch result</button>
-            <br />
-            <textarea id="testResult" cols="100" rows="50"></textarea>
-        </div>
-    </div>
 
-    <div>
-        <div class="agent-form-group">
-            <label for="agent-hostname">Host Hostname: </label>
-            <input type="text" id="agent-hostname" name="agent-hostname" placeholder="target domain / ip">
-        </div>
-        <div class="agent-form-group">
-            <label for="agent-username">Host username: </label>
-            <input type="text" id="agent-username" name="agent-username" placeholder="Enter username">
-        </div>
-        <div class="agent-form-group">
-            <label for="agent-tcp-port">Agent TCP Port: </label>
-            <input type="number" id="agent-tcp-port" name="agent-tcp-port" min="1000" max="65535"
-                placeholder="agent tcp port you want to open">
-        </div>
-        <div class="agent-form-group">
-            <label for="agent-shutdown" class="toggle-container">Shutdown after test done: </label>
-            <input type="checkbox" id="agent-shutdown" name="agent-shutdown" checked>
-        </div>
-        <div id="agent-info-box" style="display: none;">
-            <h3 id="agent-id"></h3>
-        </div>
-        <div>
-            <button id="agent-install-btn" onclick="installServerAgent()">설치</button>
-        </div>
-        <div>
-            <button id="agent-start-btn" onclick="startServerAgent()">시작</button>
-        </div>
-        <div>
-            <button id="agent-stop-btn" onclick="stopServerAgent()">멈춤</button>
-        </div>
-        <div>
-            <button id="agent-remove-btn" onclick="removeServerAgent()">삭제</button>
-        </div>
-    </div>
-
-    <script>
-
-        function installServerAgent() {
-            const agentHostname = document.getElementById("agent-hostname").value;
-            const agentUsername = document.getElementById("agent-username").value;
-            const agentTcpPort = document.getElementById("agent-tcp-port").value;
-            const agentShutdown = document.getElementById("agent-shutdown").checked;
-
-            const requestData = {
-                hostname: agentHostname,
-                username: agentUsername,
-                tcpPort: agentTcpPort,
-                shutdown: agentShutdown,
-            };
-
-            fetch('http://localhost:8080/agent/install', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            })
-                .then(response => response.json())
-                .then(data => {
-                    console.log(data);
-                    const agentId = data.agentId;
-                    const status = data.status;
-
-                    console.log(agentId, status);
-
-                    const agentIdHeader = document.getElementById("agent-id");
-                    agentIdHeader.textContent = agentId;
-
-                    const agentInfoBox = document.getElementById("agent-info-box");
-                    agentInfoBox.style.display = "block";
-
-                })
-                .catch(error => {
-                    console.error('Error:', error)
-                    alert(error)
-                });
-        }
-
-        function startServerAgent() {
-            const agentId = document.getElementById("agent-id").textContent;
-            const params = {
-                agentId: agentId,
-            };
-
-            const queryString = new URLSearchParams(params).toString();
-            const url = `http://localhost:8080/agent/start?${queryString}`;
-
-
-            console.log(url);
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            })
-                .then(data => {
-                    console.log(data)
-
-                })
-                .catch(error => {
-                    console.error('Error:', error)
-                    alert(error)
-                });
-        }
-
-        function stopServerAgent() {
-            const agentId = document.getElementById("agent-id").textContent;
-            const params = {
-                agentId: agentId,
-            };
-
-            const queryString = new URLSearchParams(params).toString();
-            const url = `http://localhost:8080/agent/stop?${queryString}`;
-
-
-            console.log(url);
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            })
-                .then(data => {
-                    console.log(data)
-
-                })
-                .catch(error => {
-                    console.error('Error:', error)
-                    alert(error)
-                });
-        }
-
-        function removeServerAgent() {
-            const agentId = document.getElementById("agent-id").textContent;
-            const params = {
-                agentId: agentId,
-            };
-
-            const queryString = new URLSearchParams(params).toString();
-            const url = `http://localhost:8080/agent/remove?${queryString}`;
-
-
-            console.log(url);
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            })
-                .then(data => {
-                    console.log(data)
-
-                })
-                .catch(error => {
-                    console.error('Error:', error)
-                    alert(error)
-                });
-        }
-
-
-        function executeLoadTest() {
-            const testResult = document.getElementById("testResult");
-            testResult.textContent = "";
-
-            const testIdHeader = document.getElementById("testId");
-            testIdHeader.textContent = "";
-
-            const testIdBox = document.getElementById("testIdBox");
-            testIdBox.style.display = "none";
-
-            const executeLoadTestButton = document.getElementById("executeLoadTest");
-            executeLoadTestButton.style.display = "none";
-
-            const protocol = document.getElementById("protocol").value;
-            const hostname = document.getElementById("hostname").value;
-            const port = document.getElementById("port").value;
-            const path = document.getElementById("path").value;
-            const bodyData = document.getElementById("bodyData").value;
-
-
-            const threads = document.getElementById("threads").value;
-            const rampTime = document.getElementById("rampTime").value;
-            const loopCount = document.getElementById("loopCount").value;
-            // const scheduled = document.getElementById("scheduled").checked;
-            // const duration = document.getElementById("duration").value;
-
-            const requestData = {
-                protocol: protocol,
-                hostname: hostname,
-                port: port,
-                path: path,
-                bodyData: bodyData,
-
-                threads: threads,
-                rampTime: rampTime,
-                loopCount: loopCount,
-                // scheduled: scheduled,
-                // duration: duration,
-
-            };
-
-            fetch('http://localhost:8080/load-test', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            })
-                .then(response => response.json())
-                .then(data => {
-                    const testId = data.testId
-                    const status = data.status
-
-                    console.log(testId, status)
-                    executeLoadTestButton.style.display = "block";
-                    testIdBox.style.display = "block";
-                    testIdHeader.textContent = testId;
-                })
-                .catch(error => {
-                    console.error('Error:', error)
-                    alert(error)
-                    executeLoadTestButton.style.display = "block";
-                });
-        }
-
-        function getLoadTestResult() {
-            const testResult = document.getElementById("testResult");
-            testResult.textContent = "";
-
-            const executeLoadTestButton = document.getElementById("executeLoadTest");
-            executeLoadTestButton.style.display = "none";
-
-            const fetchResult = document.getElementById("fetchResult");
-            fetchResult.style.display = "none";
-
-            const testId = document.getElementById("testId").textContent;
-
-
-            const params = {
-                testId: testId,
-            };
-
-            const queryString = new URLSearchParams(params).toString();
-            const url = `http://localhost:8080/load-test?${queryString}`;
-
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    const result = data.result
-                    testResult.textContent = result;
-                    executeLoadTestButton.style.display = "block";
-                    fetchResult.style.display = "block";
-                })
-                .catch(error => {
-                    console.error('Error:', error)
-                    alert(error)
-                    executeLoadTestButton.style.display = "block";
-                    fetchResult.style.display = "block";
-                });
-        }
-
-        function updateRangeValue(inputId) {
-            var rangeValue = document.getElementById(inputId).value;
-            document.getElementById(inputId + "Value").textContent = rangeValue;
-        }
-    </script>
+    <script src="/js/script.js"></script>
 </body>
 
 </html>
