@@ -14,13 +14,13 @@
     <hashTree>
       <com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup guiclass="com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroupGui" testclass="com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup" testname="{{.TestName}} Thread Group" enabled="true">
         <elementProp name="ThreadGroup.main_controller" elementType="com.blazemeter.jmeter.control.VirtualUserController"/>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <stringProp name="Hold">{{.Duration}}</stringProp>
         <stringProp name="Steps">{{.RampUpSteps}}</stringProp>
         <stringProp name="RampUp">{{.RampUpTime}}</stringProp>
         <stringProp name="TargetLevel">{{.VirtualUsers}}</stringProp>
         <stringProp name="Iterations">0</stringProp>
         <stringProp name="Unit">S</stringProp>
-        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
       </com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup>
       <hashTree>
         {{.HttpRequests}}
@@ -50,12 +50,12 @@
         <boolProp name="CookieManager.controlledByThreadGroup">false</boolProp>
       </CookieManager>
       <hashTree/>
-      <CacheManager guiclass="CacheManagerGui" testclass="CacheManager" testname="HTTP Cache Manager" enabled="true">
+      <!-- <CacheManager guiclass="CacheManagerGui" testclass="CacheManager" testname="HTTP Cache Manager" enabled="true">
         <boolProp name="clearEachIteration">false</boolProp>
         <boolProp name="useExpires">true</boolProp>
         <boolProp name="CacheManager.controlledByThread">false</boolProp>
       </CacheManager>
-      <hashTree/>
+      <hashTree/> -->
     </hashTree>
   </hashTree>
 </jmeterTestPlan>

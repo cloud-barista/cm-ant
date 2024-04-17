@@ -270,7 +270,7 @@ func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, testKey, forma
 				return nil, err
 			}
 
-			copiedFilePath, err := downloadIfNotExist(loadEnv, resultFilePath, tempFolderPath, fileName)
+			copiedFilePath, err := downloadResultIfNotExist(loadEnv, resultFilePath, tempFolderPath, fileName)
 
 			if err != nil {
 				return nil, err
@@ -300,7 +300,7 @@ func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, testKey, forma
 	return formattedDate, nil
 }
 
-func downloadIfNotExist(loadEnv *model.LoadEnv, resultFilePath, tempFolderPath, fileName string) (string, error) {
+func downloadResultIfNotExist(loadEnv *model.LoadEnv, resultFilePath, tempFolderPath, fileName string) (string, error) {
 	copiedFilePath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
 
 	if exist := utils.ExistCheck(copiedFilePath); !exist {
@@ -528,20 +528,20 @@ func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadExecutionConfigReq) err
 }
 
 func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) error {
-	testFolderSetupScript := configuration.JoinRootPathWith("/script/pre-execute-jmeter.sh")
-	testPlanName := "test_plan_1.jmx"
+	checkPrerequisition := configuration.JoinRootPathWith("/script/pre-execute-jmeter.sh")
+	testPlanName := fmt.Sprintf("%s.jmx", loadTestReq.LoadTestKey)
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
 	jmeterVersion := configuration.Get().Load.JMeter.Version
 	loadEnv := loadTestReq.LoadEnvReq
 
 	// TODO code cloud test using tumblebug
 	if loadEnv.InstallLocation == constant.Remote {
-		preRequirementCmd, err := readAndParseScript(testFolderSetupScript)
+		preRequirementCmd, err := readAndParseScript(checkPrerequisition)
 		if err != nil {
 			log.Println("file doesn't exist on correct path")
 			return err
 		}
-		preRequirementCmd = strings.Replace(preRequirementCmd, "${TEST_PLAN_NAME:=\"test_plan_1.jmx\"}", testPlanName, 1)
+		preRequirementCmd = strings.Replace(preRequirementCmd, "${TEST_PLAN_NAME}", testPlanName, 1)
 
 		switch loadEnv.RemoteConnectionType {
 		case constant.BuiltIn:
@@ -590,21 +590,41 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 				}
 			} else if loadEnv.RemoteConnectionType == constant.Password {
 				auth = goph.Password(loadEnv.Cert)
-				if err != nil {
-					return err
-				}
 			}
 
-			// 1. ssh client connection
-			client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
+			// 1. ssh sshClient connection
+			sshClient, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
 			if err != nil {
 				return err
 			}
 
-			defer client.Close()
+			defer sshClient.Close()
 
-			// 2. check pre-requisition
-			out, err := client.RunContext(context.Background(), preRequirementCmd)
+			// 2. upload test file from ant to remote
+			err = createTestPlanJmx(configuration.RootPath(), loadTestReq)
+			if err != nil {
+				return err
+			}
+
+			defer func() {
+				err := tearDown(configuration.RootPath(), loadTestReq.LoadTestKey)
+				if err == nil {
+					out, err := sshClient.RunContext(context.Background(), fmt.Sprintf("rm %s/test_plan/%s", jmeterPath, testPlanName))
+
+					if err != nil {
+						log.Println(string(out))
+					}
+				}
+			}()
+
+			err = sshClient.Upload(fmt.Sprintf("%s/test_plan/%s", configuration.RootPath(), testPlanName), fmt.Sprintf("%s/test_plan/%s", jmeterPath, testPlanName))
+
+			if err != nil {
+				return err
+			}
+
+			// 3. check pre-requisition
+			out, err := sshClient.RunContext(context.Background(), preRequirementCmd)
 
 			if err != nil {
 				log.Println(string(out))
@@ -613,9 +633,9 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 
 			log.Println(string(out))
 
-			// 3. execute jmeter test
-			jmeterTestCommand := executionCmdGen(loadTestReq, testPlanName, fmt.Sprintf("%s_result.csv", loadTestReq.LoadTestKey))
-			out, err = client.RunContext(context.Background(), jmeterTestCommand)
+			// 4. execute jmeter test
+			jmeterTestCommand := executionCmd(testPlanName, fmt.Sprintf("%s_result.csv", loadTestReq.LoadTestKey))
+			out, err = sshClient.RunContext(context.Background(), jmeterTestCommand)
 
 			if err != nil {
 				log.Println(string(out))
@@ -653,8 +673,9 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 
 		defer tearDown(jmeterPath, loadTestReq.LoadTestKey)
 
-		err = utils.Script(testFolderSetupScript, []string{
-			fmt.Sprintf("TEST_PLAN_NAME=%s", loadTestReq.LoadTestKey+".jmx"),
+		// 3. check pre requirement
+		err = utils.Script(checkPrerequisition, []string{
+			fmt.Sprintf("TEST_PLAN_NAME=%s", testPlanName),
 			fmt.Sprintf("JMETER_WORK_DIR=%s", jmeterPath),
 			fmt.Sprintf("JMETER_VERSION=%s", jmeterVersion),
 		})
@@ -664,7 +685,8 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 			return err
 		}
 
-		jmeterTestCommand := executionCmd(loadTestReq.LoadTestKey+".jmx", fmt.Sprintf("%s_result.csv", loadTestReq.LoadTestKey))
+		// 4. execution jmeter test
+		jmeterTestCommand := executionCmd(testPlanName, fmt.Sprintf("%s_result.csv", loadTestReq.LoadTestKey))
 		err = utils.InlineCmd(jmeterTestCommand)
 
 		if err != nil {

@@ -129,8 +129,8 @@ var jmxHttpSamplerTemplate = map[string]string{
 		<boolProp name="HTTPSampler.use_keepalive">true</boolProp>
 		<boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
 		<stringProp name="HTTPSampler.embedded_url_re"></stringProp>
-		<stringProp name="HTTPSampler.connect_timeout">30</stringProp>
-		<stringProp name="HTTPSampler.response_timeout">30</stringProp>
+		<stringProp name="HTTPSampler.connect_timeout">60000</stringProp>
+		<stringProp name="HTTPSampler.response_timeout">60000</stringProp>
 	</HTTPSamplerProxy>
 	<hashTree/>
 	`,
@@ -157,17 +157,17 @@ var jmxHttpSamplerTemplate = map[string]string{
 		<boolProp name="HTTPSampler.use_keepalive">true</boolProp>
 		<boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
 		<stringProp name="HTTPSampler.embedded_url_re"></stringProp>
-		<stringProp name="HTTPSampler.connect_timeout">30</stringProp>
-		<stringProp name="HTTPSampler.response_timeout">30</stringProp>
+		<stringProp name="HTTPSampler.connect_timeout">60000</stringProp>
+		<stringProp name="HTTPSampler.response_timeout">60000</stringProp>
 	</HTTPSamplerProxy>
 	`,
 }
 
-func tearDown(jmeterPath, loadTestKey string) {
-	os.Remove(fmt.Sprintf("%s/test_plan/%s.jmx", jmeterPath, loadTestKey))
+func tearDown(jmeterPath, loadTestKey string) error {
+	return os.Remove(fmt.Sprintf("%s/test_plan/%s.jmx", jmeterPath, loadTestKey))
 }
 
-func createTestPlanJmx(jmeterPath string, loadTestReq *api.LoadExecutionConfigReq) error {
+func createTestPlanJmx(createdPath string, loadTestReq *api.LoadExecutionConfigReq) error {
 
 	httpRequests, err := httpReqParseToJmx(loadTestReq.HttpReqs)
 
@@ -189,7 +189,7 @@ func createTestPlanJmx(jmeterPath string, loadTestReq *api.LoadExecutionConfigRe
 		return err
 	}
 
-	outputFile, err := os.Create(fmt.Sprintf("%s/test_plan/%s.jmx", jmeterPath, loadTestReq.LoadTestKey))
+	outputFile, err := os.Create(fmt.Sprintf("%s/test_plan/%s.jmx", createdPath, loadTestReq.LoadTestKey))
 	if err != nil {
 		return err
 	}
