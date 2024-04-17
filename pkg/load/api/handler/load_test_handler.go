@@ -88,7 +88,7 @@ func StopLoadTestHandler() echo.HandlerFunc {
 		if loadTestReq.LoadTestKey == "" || loadTestReq.EnvId == "" {
 			log.Println("error while execute [StopLoadTestHandler()]; no passing propertiesId")
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": fmt.Sprintf("pass propertiesId if you want to stop test"),
+				"message": "pass propertiesId if you want to stop test",
 			})
 		}
 
@@ -97,7 +97,7 @@ func StopLoadTestHandler() echo.HandlerFunc {
 		if err != nil {
 			log.Printf("error while executing load test; %+v\n", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-				"message": fmt.Sprintf("sorry, internal server error while executing load test;"),
+				"message": "sorry, internal server error while executing load test;",
 			})
 
 		}
@@ -121,7 +121,7 @@ func RunLoadTestHandler() echo.HandlerFunc {
 
 		if loadTestReq.LoadEnvReq.Validate() != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": fmt.Sprintf("load test environment is not correct"),
+				"message": "load test environment is not correct",
 			})
 		}
 
@@ -130,7 +130,7 @@ func RunLoadTestHandler() echo.HandlerFunc {
 		if err != nil {
 			log.Printf("error while executing load test; %+v\n", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-				"message": fmt.Sprintf("sorry, internal server error while executing load test;"),
+				"message": "sorry, internal server error while executing load test;",
 			})
 		}
 
@@ -159,7 +159,7 @@ func InstallLoadGeneratorHandler() echo.HandlerFunc {
 		if err := loadEnvReq.Validate(); err != nil {
 			log.Printf("error while execute [InstallLoadGeneratorHandler()]; %s\n", err)
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": fmt.Sprintf("if you install on remote, pass nsId, mcisId and username"),
+				"message": "if you install on remote, pass nsId, mcisId and username",
 			})
 		}
 
