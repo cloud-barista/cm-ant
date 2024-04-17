@@ -140,6 +140,7 @@ func RunLoadTestHandler() echo.HandlerFunc {
 			"loadExecutionConfigId": loadExecutionConfigId,
 			"message":               "success",
 		})
+
 	}
 }
 

@@ -1,11 +1,12 @@
 package repository
 
 import (
+	"strconv"
+
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
-	"strconv"
 )
 
 func SaveLoadTestExecution(loadTestReq *api.LoadExecutionConfigReq) (uint, error) {
@@ -37,17 +38,17 @@ func SaveLoadTestExecution(loadTestReq *api.LoadExecutionConfigReq) (uint, error
 	loadExecutionConfig := model.LoadExecutionConfig{
 		LoadEnvID:   uint(loadEnvId),
 		LoadTestKey: loadTestReq.LoadTestKey,
-		Threads:     loadTestReq.Threads,
-		RampTime:    loadTestReq.RampTime,
-		LoopCount:   loadTestReq.LoopCount,
+		Threads:     loadTestReq.VirtualUsers,
+		RampTime:    loadTestReq.Duration,
+		LoopCount:   loadTestReq.RampUpTime,
 		LoadExecutionHttps: []model.LoadExecutionHttp{
 			{
-				Method:   loadTestReq.HttpReqs.Method,
-				Protocol: loadTestReq.HttpReqs.Protocol,
-				Hostname: loadTestReq.HttpReqs.Hostname,
-				Port:     loadTestReq.HttpReqs.Port,
-				Path:     loadTestReq.HttpReqs.Path,
-				BodyData: loadTestReq.HttpReqs.BodyData,
+				Method:   loadTestReq.HttpReqs[0].Method,
+				Protocol: loadTestReq.HttpReqs[0].Protocol,
+				Hostname: loadTestReq.HttpReqs[0].Hostname,
+				Port:     loadTestReq.HttpReqs[0].Port,
+				Path:     loadTestReq.HttpReqs[0].Path,
+				BodyData: loadTestReq.HttpReqs[0].BodyData,
 			},
 		},
 	}

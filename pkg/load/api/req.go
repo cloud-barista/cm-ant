@@ -2,9 +2,33 @@ package api
 
 import (
 	"errors"
+
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 )
 
+type LoadExecutionConfigReq struct {
+	LoadTestKey string `json:"loadTestKey,omitempty"`
+	EnvId       string `json:"envId,omitempty"`
+	TestName    string `json:"testName"`
+
+	VirtualUsers string `json:"virtualUsers"`
+	Duration     string `json:"duration"`
+	RampUpTime   string `json:"rampUpTime"`
+	RampUpSteps  string `json:"rampUpSteps"`
+
+	HttpReqs []LoadExecutionHttpReq `json:"httpReqs,omitempty"`
+
+	LoadEnvReq LoadEnvReq `json:"loadEnvReq,omitempty"`
+}
+
+type LoadExecutionHttpReq struct {
+	Method   string `json:"method"`
+	Protocol string `json:"protocol"`
+	Hostname string `json:"hostname"`
+	Port     string `json:"port"`
+	Path     string `json:"path,omitempty"`
+	BodyData string `json:"bodyData,omitempty"`
+}
 
 type LoadEnvReq struct {
 	InstallLocation      constant.InstallLocation      `json:"installLocation,omitempty"`
@@ -42,27 +66,4 @@ func (l LoadEnvReq) Validate() error {
 	}
 
 	return nil
-}
-
-type LoadExecutionHttpReq struct {
-	Method   string `json:"method"`
-	Protocol string `json:"protocol"`
-	Hostname string `json:"hostname"`
-	Port     string `json:"port"`
-	Path     string `json:"path"`
-	BodyData string `json:"bodyData"`
-}
-
-type LoadExecutionConfigReq struct {
-	LoadTestKey string `json:"loadTestKey"`
-
-	EnvId string `json:"envId"`
-
-	Threads   string `json:"threads"`
-	RampTime  string `json:"rampTime"`
-	LoopCount string `json:"loopCount"`
-
-	HttpReqs LoadExecutionHttpReq `json:"httpReqs"`
-
-	LoadEnvReq LoadEnvReq `json:"loadEnvReq"`
 }

@@ -82,7 +82,7 @@ const loadChart = new Chart(ctx, {
                 position: 'bottom',
                 title: {
                     display: true,
-                    text: 'Duration (s)'
+                    text: 'Total Duration (s)'
                 }
             },
             y: {
@@ -184,15 +184,15 @@ const removeButton = document.getElementById('remove-load-test-detail');
 const container = document.querySelector('.load-execution-http-req-container');
 
 addButton.addEventListener('click', function () {
-    // Clone the template
-    const template = document.getElementById('load-execution-http-req-template');
-    const clone = template.cloneNode(true);
+    const allReqs = container.querySelectorAll('.load-execution-http-req');
+    if (allReqs.length < 5) {
+        const template = document.getElementById('load-execution-http-req-template');
+        const clone = template.cloneNode(true);
 
-    // Remove the id from the cloned element to avoid duplicate ids
-    clone.removeAttribute('id');
+        clone.removeAttribute('id');
 
-    // Append the cloned template to the container
-    container.appendChild(clone);
+        container.appendChild(clone);
+    }
 });
 
 removeButton.addEventListener('click', function () {
@@ -210,7 +210,7 @@ document.getElementById('execute-test').addEventListener('click', function () {
     var installLocation = getInstallLocation();
 
     var remoteConnectionType = document.getElementById('remote-connection-type').value;
-    var username = document.getElementById('remote-config-form').style.display !== 'none'
+    var username = remoteConnectionType !== 'builtIn'
         ? document.getElementById('username').value
         : document.getElementById('username-built-in').value;
     var publicId = document.getElementById('public-id').value;
@@ -263,18 +263,18 @@ document.getElementById('execute-test').addEventListener('click', function () {
         },
         body: JSON.stringify(loadExecutionConfigReq)
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Load test execution started:', data);
-    })
-    .catch(error => {
-        console.error('Error starting load test:', error);
-    });
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Load test execution started:', data);
+        })
+        .catch(error => {
+            console.error('Error starting load test:', error);
+        });
 });
 
 
