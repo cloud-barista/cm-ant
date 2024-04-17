@@ -627,8 +627,9 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 
 	} else if loadEnv.InstallLocation == constant.Local {
 
-		log.Printf("[%s] Do load test on local", loadTestReq.LoadTestKey)
+		log.Printf("[%s] do load test on local", loadTestReq.LoadTestKey)
 
+		// 1. jmeter installation check
 		exist := utils.ExistCheck(jmeterPath)
 
 		if !exist {
@@ -644,8 +645,16 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 			}
 		}
 
-		err := utils.Script(testFolderSetupScript, []string{
-			fmt.Sprintf("TEST_PLAN_NAME=%s", testPlanName),
+		// 2. jmx file create
+		err := createTestPlanJmx(jmeterPath, loadTestReq)
+		if err != nil {
+			return err
+		}
+
+		defer tearDown(jmeterPath, loadTestReq.LoadTestKey)
+
+		err = utils.Script(testFolderSetupScript, []string{
+			fmt.Sprintf("TEST_PLAN_NAME=%s", loadTestReq.LoadTestKey+".jmx"),
 			fmt.Sprintf("JMETER_WORK_DIR=%s", jmeterPath),
 			fmt.Sprintf("JMETER_VERSION=%s", jmeterVersion),
 		})
@@ -655,7 +664,7 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 			return err
 		}
 
-		jmeterTestCommand := executionCmdGen(loadTestReq, testPlanName, fmt.Sprintf("%s_result.csv", loadTestReq.LoadTestKey))
+		jmeterTestCommand := executionCmd(loadTestReq.LoadTestKey+".jmx", fmt.Sprintf("%s_result.csv", loadTestReq.LoadTestKey))
 		err = utils.InlineCmd(jmeterTestCommand)
 
 		if err != nil {
@@ -664,6 +673,21 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 		}
 	}
 	return nil
+}
+
+func executionCmd(testPlanName, resultFileName string) string {
+	jmeterConf := configuration.Get().Load.JMeter
+
+	var builder strings.Builder
+	testPath := fmt.Sprintf("%s/test_plan/%s", jmeterConf.WorkDir, testPlanName)
+	resultPath := fmt.Sprintf("%s/result/%s", jmeterConf.WorkDir, resultFileName)
+
+	builder.WriteString(fmt.Sprintf("%s/apache-jmeter-%s/bin/jmeter.sh", jmeterConf.WorkDir, jmeterConf.Version))
+	builder.WriteString(" -n -f")
+	builder.WriteString(fmt.Sprintf(" -t=%s", testPath))
+	builder.WriteString(fmt.Sprintf(" -l=%s", resultPath))
+
+	return builder.String()
 }
 
 func executionCmdGen(p *api.LoadExecutionConfigReq, testPlanName, resultFileName string) string {

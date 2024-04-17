@@ -2,16 +2,17 @@ package configuration
 
 import (
 	"fmt"
-	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
-	"github.com/spf13/viper"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 	"log"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
+	"github.com/spf13/viper"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var (
@@ -163,8 +164,8 @@ func connectSqliteDB(dbPath string) (*gorm.DB, error) {
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r", log.LstdFlags),
 		logger.Config{
-			SlowThreshold:             time.Second,
-			LogLevel:                  logger.Info,
+			SlowThreshold: time.Second,
+			// LogLevel:                  logger.Info,
 			IgnoreRecordNotFoundError: true,
 			ParameterizedQueries:      true,
 			Colorful:                  true,

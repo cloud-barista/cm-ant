@@ -20,10 +20,12 @@ if [ ! -e "${RESULT_PATH}" ]; then
   echo "result path folder created"
 fi
 
-TEST_PLAN_NAME=${TEST_PLAN_NAME:="test_plan_1.jmx"}
+TEST_PLAN_NAME=${TEST_PLAN_NAME}
 
-echo "[Step 3] Test plan '${TEST_PLAN_NAME}' downloaded to ${TEST_PLAN_PATH}"
+echo "[Step 3] Test plan '${TEST_PLAN_NAME}' check in ${TEST_PLAN_PATH}"
 if [ ! -e "${TEST_PLAN_PATH}/${TEST_PLAN_NAME}" ]; then
-  wget "https://github.com/MZC-CSC/cm-ant/raw/feature-performance-test-sehyeong/test_plan/${TEST_PLAN_NAME}" -P "${TEST_PLAN_PATH}"
-  echo "test plan downloaded to ${TEST_PLAN_PATH}/${TEST_PLAN_NAME}"
+  # wget "https://github.com/MZC-CSC/cm-ant/raw/feature-performance-test-sehyeong/test_plan/${TEST_PLAN_NAME}" -P "${TEST_PLAN_PATH}"
+  # echo "test plan downloaded to ${TEST_PLAN_PATH}/${TEST_PLAN_NAME}"
+  echo "@@@@@@@@@@@@@@ test plan file does not exist"
+  exit 1
 fi

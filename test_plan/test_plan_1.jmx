@@ -29,29 +29,6 @@
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="HTTP Get Request" enabled="true">
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
             <collectionProp name="Arguments.arguments"/>
-<!--            <collectionProp name="Arguments.arguments">-->
-<!--              <elementProp name="a" elementType="HTTPArgument">-->
-<!--                <boolProp name="HTTPArgument.always_encode">false</boolProp>-->
-<!--                <stringProp name="Argument.value">a value</stringProp>-->
-<!--                <stringProp name="Argument.metadata">=</stringProp>-->
-<!--                <boolProp name="HTTPArgument.use_equals">true</boolProp>-->
-<!--                <stringProp name="Argument.name">a</stringProp>-->
-<!--              </elementProp>-->
-<!--              <elementProp name="b" elementType="HTTPArgument">-->
-<!--                <boolProp name="HTTPArgument.always_encode">false</boolProp>-->
-<!--                <stringProp name="Argument.value">b value</stringProp>-->
-<!--                <stringProp name="Argument.metadata">=</stringProp>-->
-<!--                <boolProp name="HTTPArgument.use_equals">true</boolProp>-->
-<!--                <stringProp name="Argument.name">b</stringProp>-->
-<!--              </elementProp>-->
-<!--              <elementProp name="c" elementType="HTTPArgument">-->
-<!--                <boolProp name="HTTPArgument.always_encode">false</boolProp>-->
-<!--                <stringProp name="Argument.value">c value</stringProp>-->
-<!--                <stringProp name="Argument.metadata">=</stringProp>-->
-<!--                <boolProp name="HTTPArgument.use_equals">true</boolProp>-->
-<!--                <stringProp name="Argument.name">c</stringProp>-->
-<!--              </elementProp>-->
-<!--            </collectionProp>-->
           </elementProp>
           <stringProp name="HTTPSampler.domain">${hostname}</stringProp>
           <stringProp name="HTTPSampler.port">${port}</stringProp>

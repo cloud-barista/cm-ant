@@ -10,8 +10,14 @@ JMETER_FOLDER="apache-jmeter-${JMETER_VERSION}"
 JMETER_FULL_PATH="${JMETER_WORK_DIR}/${JMETER_FOLDER}"
 JMETER_INSTALL_URL="https://archive.apache.org/dist/jmeter/binaries/${JMETER_FOLDER}.tgz"
 
-echo "${JMETER_WORK_DIR}"
-echo ${JMETER_FOLDER}
+echo "This is jmeter working directory >>>>>>>>>>>>>>>>> ${JMETER_WORK_DIR}"
+echo "This is jmeter folder name >>>>>>>>>>>>>>>>>>>>>>> ${JMETER_FOLDER}"
+
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
 
 mkdir -p "${JMETER_WORK_DIR}"
 mkdir -p "${JMETER_WORK_DIR}/result"
@@ -24,6 +30,14 @@ unzip_jmeter() {
   sudo tar -xf "${JMETER_FULL_PATH}.tgz" -C "${JMETER_WORK_DIR}" && sudo rm "${JMETER_FULL_PATH}.tgz"
   sudo rm -rf "${JMETER_FULL_PATH}/docs" "${JMETER_FULL_PATH}/printable_docs"
 }
+
+
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+
 
 echo "[CM-ANT] [Step 2/6] Downloading and Extracting Apache JMeter..."
 if [ -d "${JMETER_FULL_PATH}" ]; then
@@ -41,6 +55,13 @@ fi
 # give permission to user
 sudo chmod -R 777 ${JMETER_WORK_DIR}
 
+
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+
 # install cmd runner
 echo "[CM-ANT] [Step 3/6] Download CMD Runner to install plugins..."
 CMD_RUNNER_VERSION="2.2.1"
@@ -50,6 +71,13 @@ if [ ! -e "$CMD_RUNNER_JAR" ]; then
     wget "https://repo1.maven.org/maven2/kg/apc/cmdrunner/$CMD_RUNNER_VERSION/$CMD_RUNNER_JAR"
     echo "[CB-ANT] Installed cmd runner."
 fi
+
+
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
 
 
 # install plugin manager
@@ -63,13 +91,26 @@ if [ ! -e "$PLUGIN_MANAGER_JAR" ]; then
 fi
 
 sudo mv $CMD_RUNNER_JAR "$JMETER_FULL_PATH/lib/"
-sudo mv $PLUGIN_MANAGER_JAR "$JMETER_FULL_PATH/lib/ext/"
+sudo mv $PLUGIN_MANAGER_JAR "$JMETER_FULL_PATH/lib/ext/" 
+
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
+
 
 # install perfmon plugin
 echo "[CM-ANT] [Step 5/6] Install required plugins to do load test..."
 java -jar "$JMETER_FULL_PATH/lib/$CMD_RUNNER_JAR" --tool org.jmeterplugins.repository.PluginManagerCMD install jpgc-casutg
 echo "[CB-ANT] Installed required plugins."
 
+
+echo ""
+echo ""
+echo ""
+echo ""
+echo ""
 
 echo "[CM-ANT] [Step 6/6] Configuring JMeter..."
 sudo chmod +x "${JMETER_FULL_PATH}/bin/jmeter.sh"
