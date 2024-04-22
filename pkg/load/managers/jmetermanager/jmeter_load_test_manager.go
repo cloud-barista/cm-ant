@@ -269,12 +269,14 @@ func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, testKey, forma
 			if err != nil {
 				return nil, err
 			}
+			copiedFilePath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
 
-			copiedFilePath, err := downloadResultIfNotExist(loadEnv, resultFilePath, tempFolderPath, fileName)
+			err = downloadResultFromRemote(loadEnv, resultFilePath, copiedFilePath)
 
 			if err != nil {
 				return nil, err
 			}
+
 			processedData, err = makeLocalProcessedData(copiedFilePath)
 			if err != nil {
 				return nil, err
@@ -300,67 +302,29 @@ func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, testKey, forma
 	return formattedDate, nil
 }
 
-func downloadResultIfNotExist(loadEnv *model.LoadEnv, resultFilePath, tempFolderPath, fileName string) (string, error) {
-	copiedFilePath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
+func downloadResultFromRemote(loadEnv *model.LoadEnv, resultFilePath, copiedFilePath string) error {
 
-	if exist := utils.ExistCheck(copiedFilePath); !exist {
-		auth, err := getAuthForSsh(loadEnv)
+	auth, err := getAuthForSsh(loadEnv)
 
-		if err != nil {
-			return "", nil
-		}
-
-		client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
-
-		if err != nil {
-			return "", nil
-		}
-
-		defer client.Close()
-
-		err = client.Download(resultFilePath, copiedFilePath)
-
-		if err != nil {
-			return "", err
-		}
-
-		return copiedFilePath, nil
-	} else if exist {
-		currentTime := time.Now()
-		currentTimestamp := currentTime.UnixMilli()
-
-		standardMilliSec := int64(5 * 60 * 1000)
-		time := utils.GetFirstPart(fileName, "-")
-		timestamp, _ := strconv.Atoi(time)
-
-		if currentTimestamp-int64(timestamp) > standardMilliSec {
-			os.Remove(copiedFilePath)
-
-			auth, err := getAuthForSsh(loadEnv)
-
-			if err != nil {
-				return "", nil
-			}
-
-			client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
-
-			if err != nil {
-				return "", nil
-			}
-
-			defer client.Close()
-
-			err = client.Download(resultFilePath, copiedFilePath)
-
-			if err != nil {
-				return "", err
-			}
-
-			return copiedFilePath, nil
-		}
+	if err != nil {
+		return err
 	}
 
-	return copiedFilePath, nil
+	client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
+
+	if err != nil {
+		return err
+	}
+
+	defer client.Close()
+
+	err = client.Download(resultFilePath, copiedFilePath)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func getAuthForSsh(loadEnv *model.LoadEnv) (goph.Auth, error) {

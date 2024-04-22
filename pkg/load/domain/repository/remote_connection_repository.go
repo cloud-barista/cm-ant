@@ -6,7 +6,7 @@ import (
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 )
 
-func GetAllEnvironment() ([]model.LoadEnv, error) {
+func GetAllLoadEnvironments() ([]model.LoadEnv, error) {
 	db := configuration.DB()
 
 	var loadEnvs []model.LoadEnv

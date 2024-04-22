@@ -79,7 +79,7 @@ func InitRouter() *echo.Echo {
 		connectionRouter := antRouter.Group("/env")
 
 		{
-			connectionRouter.GET("", handler.GetAllRemoteConnection())
+			connectionRouter.GET("", handler.GetAllLoadEnvironments())
 		}
 
 		loadRouter := antRouter.Group("/load")

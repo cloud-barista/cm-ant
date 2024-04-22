@@ -2,12 +2,13 @@ package services
 
 import (
 	"fmt"
+
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/repository"
 )
 
-func GetAllRemoteConnection() ([]api.LoadEnvRes, error) {
-	result, err := repository.GetAllEnvironment()
+func GetAllLoadEnvironments() ([]api.LoadEnvRes, error) {
+	result, err := repository.GetAllLoadEnvironments()
 
 	if err != nil {
 		return nil, err
@@ -32,7 +33,7 @@ func GetAllRemoteConnection() ([]api.LoadEnvRes, error) {
 	return responseEnv, nil
 }
 
-func DeleteRemoteConnection(envId string) error {
+func DeleteLoadEnvironment(envId string) error {
 	fmt.Println("asdf")
 	return nil
 }

@@ -117,10 +117,35 @@ func GetLoadExecutionConfigById(configId string) (model.LoadExecutionConfig, err
 	return loadExecutionConfig, nil
 }
 
+func GetLoadExecutionConfigByTestKey(testKey string) (model.LoadExecutionConfig, error) {
+	db := configuration.DB()
+	var loadExecutionConfig model.LoadExecutionConfig
+	if err := db.Preload("LoadExecutionHttps").
+		Where("load_test_key = ?", testKey).
+		First(&loadExecutionConfig).
+		Error; err != nil {
+		return loadExecutionConfig, err
+	}
+
+	return loadExecutionConfig, nil
+}
+
 func GetLoadExecutionState(envId, loadTestKey string) (model.LoadExecutionState, error) {
 	db := configuration.DB()
 	var loadExecutionState model.LoadExecutionState
 	if err := db.Where("load_env_id = ? AND load_test_key = ?", envId, loadTestKey).
+		First(&loadExecutionState).
+		Error; err != nil {
+		return loadExecutionState, err
+	}
+
+	return loadExecutionState, nil
+}
+
+func GetLoadExecutionStateByLoadTestKey(loadTestKey string) (model.LoadExecutionState, error) {
+	db := configuration.DB()
+	var loadExecutionState model.LoadExecutionState
+	if err := db.Where("load_test_key = ?", loadTestKey).
 		First(&loadExecutionState).
 		Error; err != nil {
 		return loadExecutionState, err

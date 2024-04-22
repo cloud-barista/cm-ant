@@ -10,7 +10,7 @@ type LoadTestManager interface {
 	Install(*api.LoadEnvReq) error
 	Stop(api.LoadExecutionConfigReq) error
 	Run(*api.LoadExecutionConfigReq) error
-	GetResult(*model.LoadEnv, string, string) (interface{}, error)
+	GetResult(loadEnv *model.LoadEnv, loadTestKey string, format string) (interface{}, error)
 }
 
 func NewLoadTestManager() LoadTestManager {

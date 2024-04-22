@@ -9,6 +9,7 @@ require (
 	github.com/spf13/viper v1.18.2
 	gorm.io/driver/sqlite v1.5.5
 	gorm.io/gorm v1.25.8
+	github.com/melbahja/goph v1.4.0
 )
 
 require (
@@ -24,7 +25,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
-	github.com/melbahja/goph v1.4.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

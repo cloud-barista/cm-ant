@@ -143,18 +143,15 @@ func StopLoadTest(loadTestReq api.LoadExecutionConfigReq) error {
 	return nil
 }
 
-func GetLoadTestResult(envId, testKey, format string) (interface{}, error) {
-	loadExecutionState, err := repository.GetLoadExecutionState(envId, testKey)
-
+func GetLoadTestResult(testKey, format string) (interface{}, error) {
+	loadExecutionState, err := repository.GetLoadExecutionStateByLoadTestKey(testKey)
 	if err != nil {
 		return nil, err
 	}
 
-	if !loadExecutionState.IsFinished() {
-		return nil, fmt.Errorf("load test is under executing")
-	}
+	loadEnvId := fmt.Sprintf("%d", loadExecutionState.LoadEnvID)
 
-	loadEnv, err := repository.GetEnvironment(envId)
+	loadEnv, err := repository.GetEnvironment(loadEnvId)
 	if err != nil {
 		return nil, err
 	}

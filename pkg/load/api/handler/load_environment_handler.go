@@ -1,16 +1,17 @@
 package handler
 
 import (
-	"github.com/cloud-barista/cm-ant/pkg/load/services"
-	"github.com/labstack/echo/v4"
 	"log"
 	"net/http"
+
+	"github.com/cloud-barista/cm-ant/pkg/load/services"
+	"github.com/labstack/echo/v4"
 )
 
-func GetAllRemoteConnection() echo.HandlerFunc {
+func GetAllLoadEnvironments() echo.HandlerFunc {
 	return func(c echo.Context) error {
 
-		result, err := services.GetAllRemoteConnection()
+		result, err := services.GetAllLoadEnvironments()
 
 		if err != nil {
 			log.Println(err)
@@ -27,7 +28,7 @@ func GetAllRemoteConnection() echo.HandlerFunc {
 	}
 }
 
-func DeleteRemoteConnection() echo.HandlerFunc {
+func DeleteLoadEnvironments() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		envId := c.Param("envId")
 
@@ -37,7 +38,7 @@ func DeleteRemoteConnection() echo.HandlerFunc {
 			})
 		}
 
-		err := services.DeleteRemoteConnection(envId)
+		err := services.DeleteLoadEnvironment(envId)
 
 		if err != nil {
 			log.Println(err)

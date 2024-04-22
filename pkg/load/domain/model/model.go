@@ -30,7 +30,7 @@ func (l *LoadExecutionState) IsFinished() bool {
 type LoadExecutionConfig struct {
 	gorm.Model
 	LoadEnvID          uint
-	LoadTestKey        string              `json:"loadTestKey"`
+	LoadTestKey        string              `gorm:"unique_index;not null" json:"loadTestKey"`
 	TestName           string              `json:"testName"`
 	VirtualUsers       string              `json:"virtualUsers"`
 	Duration           string              `json:"duration"`
