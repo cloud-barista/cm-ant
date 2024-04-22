@@ -6,6 +6,7 @@ import (
 
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/repository"
 	"github.com/cloud-barista/cm-ant/pkg/load/managers"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
@@ -14,17 +15,60 @@ import (
 func InstallLoadGenerator(installReq *api.LoadEnvReq) (uint, error) {
 	loadTestManager := managers.NewLoadTestManager()
 
-	err := loadTestManager.Install(installReq)
-	if err != nil {
-		return 0, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
+	if err := loadTestManager.Install(installReq); err != nil {
+		return 0, fmt.Errorf("failed to install load generator: %w", err)
 	}
 
 	createdEnvId, err := repository.SaveLoadTestInstallEnv(installReq)
 	if err != nil {
-		return 0, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
+		return 0, fmt.Errorf("failed to save load test installation environment: %w", err)
 	}
-	log.Println(createdEnvId, " load test env object is created")
+	log.Printf("Environment ID %d for load test is successfully created", createdEnvId)
+
 	return createdEnvId, nil
+}
+
+func prepareEnvironment(loadTestReq *api.LoadExecutionConfigReq) error {
+	if loadTestReq.EnvId == "" {
+		return nil
+	}
+
+	loadEnv, err := repository.GetEnvironment(loadTestReq.EnvId)
+	if err != nil {
+		return fmt.Errorf("failed to get environment: %w", err)
+	}
+
+	if loadEnv != nil && loadTestReq.LoadEnvReq.InstallLocation == "" {
+		loadTestReq.LoadEnvReq = convertToLoadEnvReq(loadEnv)
+	}
+
+	return nil
+}
+
+func convertToLoadEnvReq(loadEnv *model.LoadEnv) api.LoadEnvReq {
+	return api.LoadEnvReq{
+		InstallLocation:      loadEnv.InstallLocation,
+		RemoteConnectionType: loadEnv.RemoteConnectionType,
+		Username:             loadEnv.Username,
+		PublicIp:             loadEnv.PublicIp,
+		Cert:                 loadEnv.Cert,
+		NsId:                 loadEnv.NsId,
+		McisId:               loadEnv.McisId,
+	}
+}
+
+func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.LoadExecutionConfigReq, loadTestKey string) {
+	log.Printf("[%s] start load test", loadTestKey)
+	if err := loadTestManager.Run(loadTestReq); err != nil {
+		log.Printf("Error during load test: %v", err)
+		if updateErr := repository.UpdateLoadExecutionState(loadTestReq.EnvId, loadTestKey, constant.Failed); updateErr != nil {
+			log.Println(updateErr)
+		}
+	} else {
+		if updateErr := repository.UpdateLoadExecutionState(loadTestReq.EnvId, loadTestKey, constant.Success); updateErr != nil {
+			log.Println(updateErr)
+		}
+	}
 }
 
 func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (uint, string, uint, error) {
@@ -32,24 +76,8 @@ func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (uint, string, uin
 	loadTestReq.LoadTestKey = loadTestKey
 
 	// check env
-	if loadTestReq.EnvId != "" {
-		loadEnv, err := repository.GetEnvironment(loadTestReq.EnvId)
-		if err != nil {
-			return 0, "", 0, err
-		}
-
-		if loadEnv != nil && loadTestReq.LoadEnvReq.InstallLocation == "" {
-			var env api.LoadEnvReq
-			env.InstallLocation = (*loadEnv).InstallLocation
-			env.RemoteConnectionType = (*loadEnv).RemoteConnectionType
-			env.Username = (*loadEnv).Username
-			env.PublicIp = (*loadEnv).PublicIp
-			env.Cert = (*loadEnv).Cert
-			env.NsId = (*loadEnv).NsId
-			env.McisId = (*loadEnv).McisId
-
-			loadTestReq.LoadEnvReq = env
-		}
+	if err := prepareEnvironment(loadTestReq); err != nil {
+		return 0, "", 0, err
 	}
 
 	// installation jmeter
@@ -63,26 +91,7 @@ func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (uint, string, uin
 	log.Printf("[%s] start load test", loadTestKey)
 	loadTestManager := managers.NewLoadTestManager()
 
-	go func() {
-		err = loadTestManager.Run(loadTestReq)
-		if err != nil {
-			err = repository.UpdateLoadExecutionState(loadTestReq.EnvId, loadTestKey, constant.Failed)
-			if err != nil {
-				return
-			}
-			return
-		}
-
-		err = repository.UpdateLoadExecutionState(loadTestReq.EnvId, loadTestKey, constant.Success)
-		if err != nil {
-			log.Println(err)
-		}
-	}()
-
-	if err != nil {
-		log.Printf("Error while execute load test; %v\n", err)
-		return 0, "", 0, fmt.Errorf("service - execute load test error; %w", err)
-	}
+	go runLoadTest(loadTestManager, loadTestReq, loadTestKey)
 
 	loadExecutionConfigId, err := repository.SaveLoadTestExecution(loadTestReq)
 	if err != nil {
@@ -199,9 +208,9 @@ func GetLoadExecutionConfigById(configId string) (interface{}, error) {
 	res := api.LoadExecutionRes{
 		LoadExecutionConfigId: loadExecutionConfig.ID,
 		LoadTestKey:           loadExecutionConfig.LoadTestKey,
-		Threads:               loadExecutionConfig.Threads,
-		RampTime:              loadExecutionConfig.RampTime,
-		LoopCount:             loadExecutionConfig.LoopCount,
+		Threads:               loadExecutionConfig.VirtualUsers,
+		RampTime:              loadExecutionConfig.Duration,
+		LoopCount:             loadExecutionConfig.RampUpTime,
 		LoadEnv:               load,
 		LoadExecutionHttp:     loadExecutionHttps,
 	}

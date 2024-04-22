@@ -35,22 +35,35 @@ func SaveLoadTestExecution(loadTestReq *api.LoadExecutionConfigReq) (uint, error
 		return 0, err
 	}
 
+	loadExecutionHttps := []model.LoadExecutionHttp{}
+
+	for _, loadExecutionHttp := range loadTestReq.HttpReqs {
+		leh := model.LoadExecutionHttp{
+			Method:   loadExecutionHttp.Method,
+			Protocol: loadExecutionHttp.Protocol,
+			Hostname: loadExecutionHttp.Hostname,
+			Port:     loadExecutionHttp.Port,
+			Path:     loadExecutionHttp.Path,
+			BodyData: loadExecutionHttp.BodyData,
+		}
+
+		loadExecutionHttps = append(loadExecutionHttps, leh)
+	}
+
+	if len(loadExecutionHttps) < 1 {
+		tx.Rollback()
+		return 0, err
+	}
+
 	loadExecutionConfig := model.LoadExecutionConfig{
-		LoadEnvID:   uint(loadEnvId),
-		LoadTestKey: loadTestReq.LoadTestKey,
-		Threads:     loadTestReq.VirtualUsers,
-		RampTime:    loadTestReq.Duration,
-		LoopCount:   loadTestReq.RampUpTime,
-		LoadExecutionHttps: []model.LoadExecutionHttp{
-			{
-				Method:   loadTestReq.HttpReqs[0].Method,
-				Protocol: loadTestReq.HttpReqs[0].Protocol,
-				Hostname: loadTestReq.HttpReqs[0].Hostname,
-				Port:     loadTestReq.HttpReqs[0].Port,
-				Path:     loadTestReq.HttpReqs[0].Path,
-				BodyData: loadTestReq.HttpReqs[0].BodyData,
-			},
-		},
+		LoadEnvID:          uint(loadEnvId),
+		LoadTestKey:        loadTestReq.LoadTestKey,
+		TestName:           loadTestReq.TestName,
+		VirtualUsers:       loadTestReq.VirtualUsers,
+		Duration:           loadTestReq.Duration,
+		RampUpTime:         loadTestReq.RampUpTime,
+		RampUpSteps:        loadTestReq.RampUpSteps,
+		LoadExecutionHttps: loadExecutionHttps,
 	}
 
 	if err := tx.Create(&loadExecutionConfig).Error; err != nil {

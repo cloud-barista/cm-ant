@@ -31,9 +31,11 @@ type LoadExecutionConfig struct {
 	gorm.Model
 	LoadEnvID          uint
 	LoadTestKey        string              `json:"loadTestKey"`
-	Threads            string              `json:"threads"`
-	RampTime           string              `json:"rampTime"`
-	LoopCount          string              `json:"loopCount"`
+	TestName           string              `json:"testName"`
+	VirtualUsers       string              `json:"virtualUsers"`
+	Duration           string              `json:"duration"`
+	RampUpTime         string              `json:"rampUpTime"`
+	RampUpSteps        string              `json:"rampUpSteps"`
 	LoadExecutionHttps []LoadExecutionHttp `gorm:"constraint:OnUpdate:CASCADE"`
 }
 
@@ -59,20 +61,6 @@ type AgentInfo struct {
 
 func NewAgentInfo() AgentInfo {
 	return AgentInfo{}
-}
-
-type LoadTest struct {
-	TestId string `json:"testId" form:"TestId,omitempty"`
-
-	Protocol string `json:"protocol" form:"protocol,omitempty"`
-	Hostname string `json:"hostname" form:"hostname,omitempty"`
-	Port     string `json:"port" form:"port,omitempty"`
-	Path     string `json:"path" form:"port,omitempty"`
-	BodyData string `json:"bodyData" form:"bodyData,omitempty"`
-
-	Threads   string `json:"threads" form:"threads,omitempty"`
-	RampTime  string `json:"rampTime" form:"rampTime,omitempty"`
-	LoopCount string `json:"loopCount" form:"loopCount,omitempty"`
 }
 
 type LoadTestStatistics struct {
