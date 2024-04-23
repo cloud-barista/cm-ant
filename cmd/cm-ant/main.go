@@ -13,7 +13,9 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
+	_ "github.com/cloud-barista/cm-ant/docs"
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 var once sync.Once
@@ -25,6 +27,11 @@ type Template struct {
 func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
 	return t.templates.ExecuteTemplate(w, name, data)
 }
+
+// @title CM-ANT API
+// @version 0.1
+// @description 
+// @BasePath /ant
 
 func main() {
 
@@ -66,6 +73,7 @@ func InitRouter() *echo.Echo {
 
 	{
 
+		antRouter.GET("/swagger/*", echoSwagger.WrapHandler)
 		antRouter.GET("/", func(c echo.Context) error {
 			return c.Render(http.StatusOK, "index.html", nil)
 		})

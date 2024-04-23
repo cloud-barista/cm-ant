@@ -101,8 +101,8 @@ func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (uint, string, uin
 	return envId, loadTestKey, loadExecutionConfigId, nil
 }
 
-func StopLoadTest(loadTestReq api.LoadExecutionConfigReq) error {
-	loadExecutionState, err := repository.GetLoadExecutionState(loadTestReq.EnvId, loadTestReq.LoadTestKey)
+func StopLoadTest(loadTestKeyReq api.LoadTestKeyReq) error {
+	loadExecutionState, err := repository.GetLoadExecutionStateByLoadTestKey(loadTestKeyReq.LoadTestKey)
 
 	if err != nil {
 		return err
@@ -110,6 +110,12 @@ func StopLoadTest(loadTestReq api.LoadExecutionConfigReq) error {
 
 	if loadExecutionState.IsFinished() {
 		return fmt.Errorf("load test is already finished")
+	}
+	envId := fmt.Sprintf("%d", loadExecutionState.LoadEnvID)
+
+	loadTestReq := api.LoadExecutionConfigReq{
+		LoadTestKey: loadTestKeyReq.LoadTestKey,
+		EnvId:       envId,
 	}
 
 	var env api.LoadEnvReq
@@ -130,7 +136,7 @@ func StopLoadTest(loadTestReq api.LoadExecutionConfigReq) error {
 		loadTestReq.LoadEnvReq = env
 	}
 
-	log.Printf("[%s] stop load test", loadTestReq.LoadTestKey)
+	log.Printf("[%s] stop load test", loadTestKeyReq.LoadTestKey)
 	loadTestManager := managers.NewLoadTestManager()
 
 	err = loadTestManager.Stop(loadTestReq)

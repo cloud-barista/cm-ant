@@ -1,0 +1,297 @@
+basePath: /ant
+definitions:
+  api.LoadEnvReq:
+    properties:
+      cert:
+        type: string
+      installLocation:
+        $ref: '#/definitions/constant.InstallLocation'
+      mcisId:
+        type: string
+      nsId:
+        type: string
+      publicIp:
+        type: string
+      remoteConnectionType:
+        $ref: '#/definitions/constant.RemoteConnectionType'
+      username:
+        type: string
+    type: object
+  api.LoadEnvRes:
+    properties:
+      cert:
+        type: string
+      installLocation:
+        $ref: '#/definitions/constant.InstallLocation'
+      loadEnvId:
+        type: integer
+      mcisId:
+        type: string
+      nsId:
+        type: string
+      publicIp:
+        type: string
+      remoteConnectionType:
+        $ref: '#/definitions/constant.RemoteConnectionType'
+      username:
+        type: string
+    type: object
+  api.LoadExecutionConfigReq:
+    properties:
+      duration:
+        type: string
+      envId:
+        type: string
+      httpReqs:
+        items:
+          $ref: '#/definitions/api.LoadExecutionHttpReq'
+        type: array
+      loadEnvReq:
+        $ref: '#/definitions/api.LoadEnvReq'
+      loadTestKey:
+        type: string
+      rampUpSteps:
+        type: string
+      rampUpTime:
+        type: string
+      testName:
+        type: string
+      virtualUsers:
+        type: string
+    type: object
+  api.LoadExecutionHttpReq:
+    properties:
+      bodyData:
+        type: string
+      hostname:
+        type: string
+      method:
+        type: string
+      path:
+        type: string
+      port:
+        type: string
+      protocol:
+        type: string
+    type: object
+  api.LoadExecutionStateRes:
+    properties:
+      executionDate:
+        type: string
+      executionStatus:
+        $ref: '#/definitions/constant.ExecutionStatus'
+      loadEnvID:
+        type: integer
+      loadExecutionStateId:
+        type: integer
+      loadTestKey:
+        type: string
+    type: object
+  api.LoadTestKeyReq:
+    properties:
+      loadTestKey:
+        type: string
+    type: object
+  constant.ExecutionStatus:
+    enum:
+    - process
+    - success
+    - failed
+    type: string
+    x-enum-varnames:
+    - Process
+    - Success
+    - Failed
+  constant.InstallLocation:
+    enum:
+    - local
+    - remote
+    type: string
+    x-enum-varnames:
+    - Local
+    - Remote
+  constant.RemoteConnectionType:
+    enum:
+    - password
+    - privateKey
+    - builtIn
+    type: string
+    x-enum-varnames:
+    - Password
+    - PrivateKey
+    - BuiltIn
+info:
+  contact: {}
+  title: CM-ANT API
+  version: "0.1"
+paths:
+  /ant/env:
+    get:
+      consumes:
+      - application/json
+      description: Get all of the load test environments
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.LoadEnvRes'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Get the list of load test environments
+      tags:
+      - '[Load Environment]'
+  /ant/load/install:
+    post:
+      consumes:
+      - application/json
+      description: Install load generation tools in the delivered load test environment
+      parameters:
+      - description: load test environment request
+        in: body
+        name: loadEnvReq
+        required: true
+        schema:
+          $ref: '#/definitions/api.LoadEnvReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: load test environment is not correct
+          schema:
+            type: string
+        "500":
+          description: sorry, internal server error while executing load test;
+          schema:
+            type: string
+      summary: Install load test tool
+      tags:
+      - '[Load Test]'
+  /ant/load/result:
+    get:
+      consumes:
+      - application/json
+      description: After start load test, get the result of load test.
+      parameters:
+      - description: load test key
+        in: query
+        name: testKey
+        required: true
+        type: string
+      - description: format of load test result aggregate
+        in: query
+        name: format
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: testKey must be passed
+          schema:
+            type: string
+        "500":
+          description: sorry, internal server error while getting load test result;
+          schema:
+            type: string
+      summary: Get the the result of single load test result
+      tags:
+      - '[Load Test]'
+  /ant/load/start:
+    post:
+      consumes:
+      - application/json
+      description: Start load test. Load Environment Id must be passed or Load Environment
+        must be defined.
+      parameters:
+      - description: load test execution configuration request
+        in: body
+        name: loadTestReq
+        required: true
+        schema:
+          $ref: '#/definitions/api.LoadExecutionConfigReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: load test environment is not correct
+          schema:
+            type: string
+        "500":
+          description: sorry, internal server error while executing load test;
+          schema:
+            type: string
+      summary: Start load test
+      tags:
+      - '[Load Test]'
+  /ant/load/state:
+    get:
+      consumes:
+      - application/json
+      description: Get all the load test execution state.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.LoadExecutionStateRes'
+        "500":
+          description: something went wrong.try again.
+          schema:
+            type: string
+      summary: Get all load execution state
+      tags:
+      - '[Load Test]'
+  /ant/load/stop:
+    post:
+      consumes:
+      - application/json
+      description: After start load test, stop the load test by passing the load test
+        key.
+      parameters:
+      - description: load test key
+        in: body
+        name: loadTestKeyReq
+        required: true
+        schema:
+          $ref: '#/definitions/api.LoadTestKeyReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            type: string
+        "400":
+          description: pass propertiesId if you want to stop test
+          schema:
+            type: string
+        "500":
+          description: sorry, internal server error while executing load test;
+          schema:
+            type: string
+      summary: Stop load test
+      tags:
+      - '[Load Test]'
+swagger: "2.0"

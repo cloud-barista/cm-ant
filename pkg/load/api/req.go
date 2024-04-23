@@ -6,6 +6,10 @@ import (
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 )
 
+type LoadTestKeyReq struct {
+	LoadTestKey string `json:"loadTestKey,omitempty"`
+}
+
 type LoadExecutionConfigReq struct {
 	LoadTestKey string `json:"loadTestKey,omitempty"`
 	EnvId       string `json:"envId,omitempty"`

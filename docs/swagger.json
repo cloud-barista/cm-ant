@@ -1,0 +1,446 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "CM-ANT API",
+        "contact": {},
+        "version": "0.1"
+    },
+    "basePath": "/ant",
+    "paths": {
+        "/ant/env": {
+            "get": {
+                "description": "Get all of the load test environments",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Environment]"
+                ],
+                "summary": "Get the list of load test environments",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.LoadEnvRes"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/load/install": {
+            "post": {
+                "description": "Install load generation tools in the delivered load test environment",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test]"
+                ],
+                "summary": "Install load test tool",
+                "parameters": [
+                    {
+                        "description": "load test environment request",
+                        "name": "loadEnvReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadEnvReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "load test environment is not correct",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "sorry, internal server error while executing load test;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/load/result": {
+            "get": {
+                "description": "After start load test, get the result of load test.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test]"
+                ],
+                "summary": "Get the the result of single load test result",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "load test key",
+                        "name": "testKey",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "format of load test result aggregate",
+                        "name": "format",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "testKey must be passed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "sorry, internal server error while getting load test result;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/load/start": {
+            "post": {
+                "description": "Start load test. Load Environment Id must be passed or Load Environment must be defined.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test]"
+                ],
+                "summary": "Start load test",
+                "parameters": [
+                    {
+                        "description": "load test execution configuration request",
+                        "name": "loadTestReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadExecutionConfigReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "load test environment is not correct",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "sorry, internal server error while executing load test;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/load/state": {
+            "get": {
+                "description": "Get all the load test execution state.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test]"
+                ],
+                "summary": "Get all load execution state",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadExecutionStateRes"
+                        }
+                    },
+                    "500": {
+                        "description": "something went wrong.try again.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/load/stop": {
+            "post": {
+                "description": "After start load test, stop the load test by passing the load test key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test]"
+                ],
+                "summary": "Stop load test",
+                "parameters": [
+                    {
+                        "description": "load test key",
+                        "name": "loadTestKeyReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadTestKeyReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "pass propertiesId if you want to stop test",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "sorry, internal server error while executing load test;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "api.LoadEnvReq": {
+            "type": "object",
+            "properties": {
+                "cert": {
+                    "type": "string"
+                },
+                "installLocation": {
+                    "$ref": "#/definitions/constant.InstallLocation"
+                },
+                "mcisId": {
+                    "type": "string"
+                },
+                "nsId": {
+                    "type": "string"
+                },
+                "publicIp": {
+                    "type": "string"
+                },
+                "remoteConnectionType": {
+                    "$ref": "#/definitions/constant.RemoteConnectionType"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadEnvRes": {
+            "type": "object",
+            "properties": {
+                "cert": {
+                    "type": "string"
+                },
+                "installLocation": {
+                    "$ref": "#/definitions/constant.InstallLocation"
+                },
+                "loadEnvId": {
+                    "type": "integer"
+                },
+                "mcisId": {
+                    "type": "string"
+                },
+                "nsId": {
+                    "type": "string"
+                },
+                "publicIp": {
+                    "type": "string"
+                },
+                "remoteConnectionType": {
+                    "$ref": "#/definitions/constant.RemoteConnectionType"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadExecutionConfigReq": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "type": "string"
+                },
+                "envId": {
+                    "type": "string"
+                },
+                "httpReqs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.LoadExecutionHttpReq"
+                    }
+                },
+                "loadEnvReq": {
+                    "$ref": "#/definitions/api.LoadEnvReq"
+                },
+                "loadTestKey": {
+                    "type": "string"
+                },
+                "rampUpSteps": {
+                    "type": "string"
+                },
+                "rampUpTime": {
+                    "type": "string"
+                },
+                "testName": {
+                    "type": "string"
+                },
+                "virtualUsers": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadExecutionHttpReq": {
+            "type": "object",
+            "properties": {
+                "bodyData": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadExecutionStateRes": {
+            "type": "object",
+            "properties": {
+                "executionDate": {
+                    "type": "string"
+                },
+                "executionStatus": {
+                    "$ref": "#/definitions/constant.ExecutionStatus"
+                },
+                "loadEnvID": {
+                    "type": "integer"
+                },
+                "loadExecutionStateId": {
+                    "type": "integer"
+                },
+                "loadTestKey": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadTestKeyReq": {
+            "type": "object",
+            "properties": {
+                "loadTestKey": {
+                    "type": "string"
+                }
+            }
+        },
+        "constant.ExecutionStatus": {
+            "type": "string",
+            "enum": [
+                "process",
+                "success",
+                "failed"
+            ],
+            "x-enum-varnames": [
+                "Process",
+                "Success",
+                "Failed"
+            ]
+        },
+        "constant.InstallLocation": {
+            "type": "string",
+            "enum": [
+                "local",
+                "remote"
+            ],
+            "x-enum-varnames": [
+                "Local",
+                "Remote"
+            ]
+        },
+        "constant.RemoteConnectionType": {
+            "type": "string",
+            "enum": [
+                "password",
+                "privateKey",
+                "builtIn"
+            ],
+            "x-enum-varnames": [
+                "Password",
+                "PrivateKey",
+                "BuiltIn"
+            ]
+        }
+    }
+}
