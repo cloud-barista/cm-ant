@@ -2,6 +2,7 @@ package repository
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
@@ -17,18 +18,28 @@ func SaveLoadTestExecution(loadTestReq *api.LoadExecutionConfigReq) (uint, error
 		tx.Rollback()
 		return 0, err
 	}
+	durationSec, err := strconv.Atoi(loadTestReq.Duration)
+	if err != nil {
+		return 0, err
+	}
+
+	rampUpSec, err := strconv.Atoi(loadTestReq.RampUpTime)
+	if err != nil {
+		return 0, err
+	}
+
+	totalSec := durationSec + rampUpSec
 
 	loadExecutionState := model.LoadExecutionState{
 		LoadEnvID:       uint(loadEnvId),
 		LoadTestKey:     loadTestReq.LoadTestKey,
 		ExecutionStatus: constant.Process,
+		StartAt:         time.Now(),
+		TotalSec:        uint(totalSec),
 	}
 
-	if err := tx.Model(model.LoadExecutionState{}).
-		Where(
-			"load_env_id = ? AND load_test_key = ?",
-			loadTestReq.EnvId, loadTestReq.LoadTestKey,
-		).
+	if err := tx.
+		Where("load_test_key = ?", loadTestReq.LoadTestKey).
 		FirstOrCreate(&loadExecutionState).
 		Error; err != nil {
 		tx.Rollback()
@@ -76,24 +87,14 @@ func SaveLoadTestExecution(loadTestReq *api.LoadExecutionConfigReq) (uint, error
 	return loadExecutionConfig.Model.ID, nil
 }
 
-func UpdateLoadExecutionState(envId, loadTestKey string, state constant.ExecutionStatus) error {
+func UpdateLoadExecutionState(loadTestKey string, status constant.ExecutionStatus) error {
 	db := configuration.DB()
 	tx := db.Begin()
 
-	loadEnvId, err := strconv.ParseUint(envId, 10, 64)
-
-	if err != nil {
-		return err
-	}
-
-	err = tx.Model(&model.LoadExecutionState{}).
-		Where("load_env_id = ? AND load_test_key = ?", envId, loadTestKey).
-		FirstOrCreate(&model.LoadExecutionState{
-			LoadEnvID:       uint(loadEnvId),
-			LoadTestKey:     loadTestKey,
-			ExecutionStatus: state,
-		}).
-		Update("execution_status", state).
+	now := time.Now()
+	err := tx.Model(&model.LoadExecutionState{}).
+		Where("load_test_key = ?", loadTestKey).
+		Updates(map[string]interface{}{"execution_status": status, "end_at": &now}).
 		Error
 
 	if err != nil {
@@ -105,19 +106,19 @@ func UpdateLoadExecutionState(envId, loadTestKey string, state constant.Executio
 	return nil
 }
 
-func GetLoadExecutionConfigById(configId string) (model.LoadExecutionConfig, error) {
+func GetAllLoadExecutionConfig() ([]model.LoadExecutionConfig, error) {
 	db := configuration.DB()
-	var loadExecutionConfig model.LoadExecutionConfig
+	var loadExecutionConfigs []model.LoadExecutionConfig
 	if err := db.Preload("LoadExecutionHttps").
-		First(&loadExecutionConfig, configId).
+		Find(&loadExecutionConfigs).
 		Error; err != nil {
-		return loadExecutionConfig, err
+		return loadExecutionConfigs, err
 	}
 
-	return loadExecutionConfig, nil
+	return loadExecutionConfigs, nil
 }
 
-func GetLoadExecutionConfigByTestKey(testKey string) (model.LoadExecutionConfig, error) {
+func GetLoadExecutionConfig(testKey string) (model.LoadExecutionConfig, error) {
 	db := configuration.DB()
 	var loadExecutionConfig model.LoadExecutionConfig
 	if err := db.Preload("LoadExecutionHttps").
@@ -130,19 +131,7 @@ func GetLoadExecutionConfigByTestKey(testKey string) (model.LoadExecutionConfig,
 	return loadExecutionConfig, nil
 }
 
-func GetLoadExecutionState(envId, loadTestKey string) (model.LoadExecutionState, error) {
-	db := configuration.DB()
-	var loadExecutionState model.LoadExecutionState
-	if err := db.Where("load_env_id = ? AND load_test_key = ?", envId, loadTestKey).
-		First(&loadExecutionState).
-		Error; err != nil {
-		return loadExecutionState, err
-	}
-
-	return loadExecutionState, nil
-}
-
-func GetLoadExecutionStateByLoadTestKey(loadTestKey string) (model.LoadExecutionState, error) {
+func GetLoadExecutionState(loadTestKey string) (model.LoadExecutionState, error) {
 	db := configuration.DB()
 	var loadExecutionState model.LoadExecutionState
 	if err := db.Where("load_test_key = ?", loadTestKey).

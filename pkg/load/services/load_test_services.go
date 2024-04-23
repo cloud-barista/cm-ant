@@ -61,11 +61,13 @@ func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.Load
 	log.Printf("[%s] start load test", loadTestKey)
 	if err := loadTestManager.Run(loadTestReq); err != nil {
 		log.Printf("Error during load test: %v", err)
-		if updateErr := repository.UpdateLoadExecutionState(loadTestReq.EnvId, loadTestKey, constant.Failed); updateErr != nil {
+		if updateErr := repository.UpdateLoadExecutionState(loadTestKey, constant.Failed); updateErr != nil {
 			log.Println(updateErr)
 		}
 	} else {
-		if updateErr := repository.UpdateLoadExecutionState(loadTestReq.EnvId, loadTestKey, constant.Success); updateErr != nil {
+		log.Printf("load test complete!")
+
+		if updateErr := repository.UpdateLoadExecutionState(loadTestKey, constant.Success); updateErr != nil {
 			log.Println(updateErr)
 		}
 	}
@@ -102,7 +104,7 @@ func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (uint, string, uin
 }
 
 func StopLoadTest(loadTestKeyReq api.LoadTestKeyReq) error {
-	loadExecutionState, err := repository.GetLoadExecutionStateByLoadTestKey(loadTestKeyReq.LoadTestKey)
+	loadExecutionState, err := repository.GetLoadExecutionState(loadTestKeyReq.LoadTestKey)
 
 	if err != nil {
 		return err
@@ -111,11 +113,10 @@ func StopLoadTest(loadTestKeyReq api.LoadTestKeyReq) error {
 	if loadExecutionState.IsFinished() {
 		return fmt.Errorf("load test is already finished")
 	}
-	envId := fmt.Sprintf("%d", loadExecutionState.LoadEnvID)
 
 	loadTestReq := api.LoadExecutionConfigReq{
 		LoadTestKey: loadTestKeyReq.LoadTestKey,
-		EnvId:       envId,
+		EnvId:       fmt.Sprintf("%d", loadExecutionState.LoadEnvID),
 	}
 
 	var env api.LoadEnvReq
@@ -136,7 +137,7 @@ func StopLoadTest(loadTestKeyReq api.LoadTestKeyReq) error {
 		loadTestReq.LoadEnvReq = env
 	}
 
-	log.Printf("[%s] stop load test", loadTestKeyReq.LoadTestKey)
+	log.Printf("[%s] stop load test. %+v\n", loadTestKeyReq.LoadTestKey, loadTestReq)
 	loadTestManager := managers.NewLoadTestManager()
 
 	err = loadTestManager.Stop(loadTestReq)
@@ -150,7 +151,7 @@ func StopLoadTest(loadTestKeyReq api.LoadTestKeyReq) error {
 }
 
 func GetLoadTestResult(testKey, format string) (interface{}, error) {
-	loadExecutionState, err := repository.GetLoadExecutionStateByLoadTestKey(testKey)
+	loadExecutionState, err := repository.GetLoadExecutionState(testKey)
 	if err != nil {
 		return nil, err
 	}
@@ -171,18 +172,87 @@ func GetLoadTestResult(testKey, format string) (interface{}, error) {
 	return result, nil
 }
 
-func GetLoadExecutionConfigById(configId string) (interface{}, error) {
-	loadExecutionConfig, err := repository.GetLoadExecutionConfigById(configId)
+func GetAllLoadExecutionConfig() ([]api.LoadExecutionRes, error) {
+	loadExecutionConfigs, err := repository.GetAllLoadExecutionConfig()
 	if err != nil {
 		return nil, err
+	}
+
+	var loadExecutionConfigResponses []api.LoadExecutionRes
+	for _, v := range loadExecutionConfigs {
+		loadEnvId := fmt.Sprintf("%d", v.LoadEnvID)
+		loadEnv, err := repository.GetEnvironment(loadEnvId)
+		if err != nil {
+			return nil, err
+		}
+		state, err := repository.GetLoadExecutionState(v.LoadTestKey)
+		if err != nil {
+			return nil, err
+		}
+		var load api.LoadEnvRes
+		load.LoadEnvId = loadEnv.ID
+		load.InstallLocation = loadEnv.InstallLocation
+		load.RemoteConnectionType = loadEnv.RemoteConnectionType
+		load.Username = loadEnv.Username
+		load.PublicIp = loadEnv.PublicIp
+		load.Cert = loadEnv.Cert
+		load.NsId = loadEnv.NsId
+		load.McisId = loadEnv.McisId
+
+		loadExecutionHttps := make([]api.LoadExecutionHttpRes, 0)
+
+		for _, v := range v.LoadExecutionHttps {
+			loadHttp := api.LoadExecutionHttpRes{
+				LoadExecutionHttpId: v.LoadExecutionConfigID,
+				Method:              v.Method,
+				Protocol:            v.Protocol,
+				Hostname:            v.Hostname,
+				Port:                v.Port,
+				Path:                v.Path,
+				BodyData:            v.BodyData,
+			}
+			loadExecutionHttps = append(loadExecutionHttps, loadHttp)
+		}
+		res := api.LoadExecutionRes{
+			LoadExecutionConfigId: v.ID,
+			LoadTestKey:           v.LoadTestKey,
+			VirtualUsers:          v.VirtualUsers,
+			Duration:              v.Duration,
+			RampUpTime:            v.RampUpTime,
+			RampUpSteps:           v.RampUpSteps,
+			LoadEnv:               load,
+			LoadExecutionHttp:     loadExecutionHttps,
+			TestName:              v.TestName,
+			LoadExecutionState: api.LoadExecutionStateRes{
+				LoadExecutionStateId: state.ID,
+				LoadTestKey:          state.LoadTestKey,
+				ExecutionStatus:      state.ExecutionStatus,
+				StartAt:              state.StartAt,
+				EndAt:                state.EndAt,
+			},
+		}
+
+		loadExecutionConfigResponses = append(loadExecutionConfigResponses, res)
+	}
+
+	return loadExecutionConfigResponses, nil
+}
+
+func GetLoadExecutionConfig(loadTestKey string) (api.LoadExecutionRes, error) {
+	loadExecutionConfig, err := repository.GetLoadExecutionConfig(loadTestKey)
+	if err != nil {
+		return api.LoadExecutionRes{}, err
 	}
 
 	loadEnvId := fmt.Sprintf("%d", loadExecutionConfig.LoadEnvID)
 	loadEnv, err := repository.GetEnvironment(loadEnvId)
 	if err != nil {
-		return nil, err
+		return api.LoadExecutionRes{}, err
 	}
-
+	state, err := repository.GetLoadExecutionState(loadTestKey)
+	if err != nil {
+		return api.LoadExecutionRes{}, err
+	}
 	var load api.LoadEnvRes
 	load.LoadEnvId = loadEnv.ID
 	load.InstallLocation = loadEnv.InstallLocation
@@ -211,11 +281,20 @@ func GetLoadExecutionConfigById(configId string) (interface{}, error) {
 	res := api.LoadExecutionRes{
 		LoadExecutionConfigId: loadExecutionConfig.ID,
 		LoadTestKey:           loadExecutionConfig.LoadTestKey,
-		Threads:               loadExecutionConfig.VirtualUsers,
-		RampTime:              loadExecutionConfig.Duration,
-		LoopCount:             loadExecutionConfig.RampUpTime,
+		VirtualUsers:          loadExecutionConfig.VirtualUsers,
+		Duration:              loadExecutionConfig.Duration,
+		RampUpTime:            loadExecutionConfig.RampUpTime,
+		RampUpSteps:           loadExecutionConfig.RampUpSteps,
+		TestName:              loadExecutionConfig.TestName,
 		LoadEnv:               load,
 		LoadExecutionHttp:     loadExecutionHttps,
+		LoadExecutionState: api.LoadExecutionStateRes{
+			LoadExecutionStateId: state.ID,
+			LoadTestKey:          state.LoadTestKey,
+			ExecutionStatus:      state.ExecutionStatus,
+			StartAt:              state.StartAt,
+			EndAt:                state.EndAt,
+		},
 	}
 
 	return res, nil
@@ -232,10 +311,10 @@ func GetAllLoadExecutionState() (interface{}, error) {
 	for _, v := range loadExecutionStates {
 		loadExecutionStateRes := api.LoadExecutionStateRes{
 			LoadExecutionStateId: v.ID,
-			LoadEnvID:            v.LoadEnvID,
 			LoadTestKey:          v.LoadTestKey,
 			ExecutionStatus:      v.ExecutionStatus,
-			ExecutionDate:        v.CreatedAt,
+			StartAt:              v.StartAt,
+			EndAt:                v.EndAt,
 		}
 
 		responseStates = append(responseStates, loadExecutionStateRes)

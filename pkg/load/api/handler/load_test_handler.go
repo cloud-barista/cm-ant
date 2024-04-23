@@ -228,18 +228,38 @@ func InstallLoadGeneratorHandler() echo.HandlerFunc {
 	}
 }
 
+func GetAllLoadConfigHandler() echo.HandlerFunc {
+	return func(c echo.Context) error {
+
+		result, err := services.GetAllLoadExecutionConfig()
+
+		if err != nil {
+			log.Printf("error while get load test execution config; %+v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+				"message": "something went wrong.try again.",
+			})
+
+		}
+
+		return c.JSON(http.StatusOK, map[string]any{
+			"message": "success",
+			"result":  result,
+		})
+	}
+}
+
 func GetLoadConfigHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		configId := c.Param("configId")
+		loadTestKey := c.Param("loadTestKey")
 
-		if configId == "" {
+		if loadTestKey == "" {
 			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
 				"message": "execution config id is not set",
 			})
 
 		}
 
-		result, err := services.GetLoadExecutionConfigById(configId)
+		result, err := services.GetLoadExecutionConfig(loadTestKey)
 
 		if err != nil {
 			log.Printf("error while get load test execution config; %+v", err)

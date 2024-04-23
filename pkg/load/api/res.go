@@ -1,8 +1,9 @@
 package api
 
 import (
-	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"time"
+
+	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 )
 
 type LoadEnvRes struct {
@@ -21,12 +22,16 @@ type LoadEnvRes struct {
 type LoadExecutionRes struct {
 	LoadExecutionConfigId uint   `json:"loadExecutionConfigId"`
 	LoadTestKey           string `json:"loadTestKey"`
-	Threads               string `json:"threads"`
-	RampTime              string `json:"rampTime"`
-	LoopCount             string `json:"loopCount"`
+	TestName              string `json:"testName"`
 
-	LoadEnv           LoadEnvRes             `json:"loadEnv"`
-	LoadExecutionHttp []LoadExecutionHttpRes `json:"loadExecutionHttp"`
+	VirtualUsers string `json:"virtualUsers"`
+	Duration     string `json:"duration"`
+	RampUpTime   string `json:"rampUpTime"`
+	RampUpSteps  string `json:"rampUpSteps"`
+
+	LoadEnv            LoadEnvRes             `json:"loadEnv"`
+	LoadExecutionHttp  []LoadExecutionHttpRes `json:"loadExecutionHttp,omitempty"`
+	LoadExecutionState LoadExecutionStateRes  `json:"loadExecutionState,omitempty"`
 }
 
 type LoadExecutionHttpRes struct {
@@ -41,8 +46,8 @@ type LoadExecutionHttpRes struct {
 
 type LoadExecutionStateRes struct {
 	LoadExecutionStateId uint
-	LoadEnvID            uint
 	LoadTestKey          string
 	ExecutionStatus      constant.ExecutionStatus
-	ExecutionDate        time.Time
+	StartAt              time.Time
+	EndAt                *time.Time
 }

@@ -419,8 +419,7 @@ func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 }
 
 func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadExecutionConfigReq) error {
-
-	killCmd := killCmdGen(loadTestReq)
+	killCmd := killCmdGen(loadTestReq.LoadTestKey)
 
 	// TODO code cloud test using tumblebug
 	loadEnv := loadTestReq.LoadEnvReq
@@ -454,9 +453,6 @@ func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadExecutionConfigReq) err
 				}
 			} else if loadEnv.RemoteConnectionType == constant.Password {
 				auth = goph.Password(loadEnv.Cert)
-				if err != nil {
-					return err
-				}
 			}
 
 			// 1. ssh client connection
@@ -470,7 +466,7 @@ func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadExecutionConfigReq) err
 			out, err := client.RunContext(context.Background(), killCmd)
 
 			if err != nil {
-				log.Println(string(out))
+				log.Println("error while kill cmd", string(out), err)
 				return err
 			}
 
@@ -701,8 +697,8 @@ func executionCmdGen(p *api.LoadExecutionConfigReq, testPlanName, resultFileName
 	return builder.String()
 }
 
-func killCmdGen(p api.LoadExecutionConfigReq) string {
-	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*-JpropertiesId=%s'", p.LoadTestKey)
+func killCmdGen(loadTestKey string) string {
+	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*%s'", loadTestKey)
 
 	return fmt.Sprintf("kill -9 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
 }

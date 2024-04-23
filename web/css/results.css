@@ -1,0 +1,33 @@
+body {
+    font-family: 'Arial', sans-serif; /* 전체 폰트 스타일 */
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4; /* 배경 색 */
+    color: #333; /* 글자 색 */
+}
+table {
+    width: 95%; /* 테이블 너비 */
+    margin: 20px auto; /* 중앙 정렬 및 마진 조정 */
+    border-collapse: collapse; /* 테이블 선 겹치기 제거 */
+    box-shadow: 0 0 20px rgba(0,0,0,0.15); /* 그림자 효과 */
+}
+th, td {
+    padding: 12px 15px; /* 셀 패딩 */
+    text-align: left; /* 텍스트 왼쪽 정렬 */
+    border-bottom: 1px solid #ddd; /* 하단 테두리 선 */
+}
+th {
+    background-color: #4CAF50; /* 헤더 배경 색 */
+    color: white; /* 헤더 글자 색 */
+}
+tr:hover {
+    background-color: #f5f5f5; /* 마우스 오버 시 행 배경 색 변경 */
+}
+tr:nth-child(even) {
+    background-color: #f9f9f9; /* 짝수 행 배경 색 */
+}
+@media screen and (max-width: 600px) {
+    table {
+        width: 100%; /* 모바일 화면에서 테이블 너비 조정 */
+    }
+}

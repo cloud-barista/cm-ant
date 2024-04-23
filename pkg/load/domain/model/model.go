@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"gorm.io/gorm"
 )
@@ -19,8 +21,11 @@ type LoadEnv struct {
 type LoadExecutionState struct {
 	gorm.Model
 	LoadEnvID       uint
-	LoadTestKey     string
+	LoadTestKey     string `gorm:"unique_index;not null"`
 	ExecutionStatus constant.ExecutionStatus
+	StartAt         time.Time
+	EndAt           *time.Time
+	TotalSec        uint
 }
 
 func (l *LoadExecutionState) IsFinished() bool {

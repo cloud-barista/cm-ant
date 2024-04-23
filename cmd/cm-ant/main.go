@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cloud-barista/cm-ant/pkg/load/api/handler"
+	"github.com/cloud-barista/cm-ant/pkg/load/services"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
@@ -78,7 +79,17 @@ func InitRouter() *echo.Echo {
 		})
 
 		antRouter.GET("/results", func(c echo.Context) error {
-			return c.Render(http.StatusOK, "results.page.tmpl", nil)
+			result, err := services.GetAllLoadExecutionConfig()
+
+			if err != nil {
+				log.Printf("error while get load test execution config; %+v", err)
+				return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+					"message": "something went wrong.try again.",
+				})
+
+			}
+
+			return c.Render(http.StatusOK, "results.page.tmpl", result)
 		})
 
 		antRouter.GET("/health", func(c echo.Context) error {
@@ -100,7 +111,8 @@ func InitRouter() *echo.Echo {
 			loadRouter.POST("/start", handler.RunLoadTestHandler())
 			loadRouter.POST("/stop", handler.StopLoadTestHandler())
 			loadRouter.GET("/result", handler.GetLoadTestResultHandler())
-			loadRouter.GET("/config/:configId", handler.GetLoadConfigHandler())
+			loadRouter.GET("/config", handler.GetAllLoadConfigHandler())
+			loadRouter.GET("/config/:loadTestKey", handler.GetLoadConfigHandler())
 			loadRouter.GET("/state", handler.GetAllLoadExecutionStateHandler())
 		}
 	}
