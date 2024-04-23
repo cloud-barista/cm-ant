@@ -30,7 +30,7 @@ func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Con
 
 // @title CM-ANT API
 // @version 0.1
-// @description 
+// @description
 // @BasePath /ant
 
 func main() {
@@ -63,19 +63,22 @@ func InitRouter() *echo.Echo {
 		Timeout: 120 * time.Second,
 	}))
 
-	t := &Template{
-		templates: template.Must(template.ParseGlob(configuration.RootPath() + "/web/templates/*.html")),
-	}
+	// config template
+	tmpl := configuration.NewTemplate()
 
-	e.Renderer = t
+	e.Renderer = tmpl
 
 	antRouter := e.Group("/ant")
 
 	{
 
 		antRouter.GET("/swagger/*", echoSwagger.WrapHandler)
-		antRouter.GET("/", func(c echo.Context) error {
-			return c.Render(http.StatusOK, "index.html", nil)
+		antRouter.GET("", func(c echo.Context) error {
+			return c.Render(http.StatusOK, "home.page.tmpl", nil)
+		})
+
+		antRouter.GET("/results", func(c echo.Context) error {
+			return c.Render(http.StatusOK, "results.page.tmpl", nil)
 		})
 
 		antRouter.GET("/health", func(c echo.Context) error {

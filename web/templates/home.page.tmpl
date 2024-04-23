@@ -1,18 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
+{{template "base" .}}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Load Test Configuration</title>
-    <link rel="stylesheet" href="/css/test-name.css">
-    <link rel="stylesheet" href="/css/load-configuration.css">
-    <link rel="stylesheet" href="/css/load-detail.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-</head>
-
-<body>
+{{define "content"}}
     <div class="container">
         <div class="test-name">
             <div class="test-name-container">
@@ -161,8 +149,5 @@
         <button id="execute-test">Execute Test</button>
     </div>
 
-
     <script src="/js/script.js"></script>
-</body>
-
-</html>
+{{end}}

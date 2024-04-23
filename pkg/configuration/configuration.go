@@ -136,8 +136,6 @@ func initDatabase() error {
 		}
 
 		db = sqliteDB
-	} else if ds.Driver == "mysql" {
-
 	}
 	log.Println(">>>> complete initDatabase()")
 	return nil
