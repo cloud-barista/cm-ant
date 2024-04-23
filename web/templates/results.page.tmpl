@@ -1,7 +1,7 @@
 {{template "base" .}}
 
 {{define "content"}}
-    <div>
+    <div class="list-of-results">
         <table>
             <tr>
                 <th>Test Number</th>
@@ -31,5 +31,39 @@
             {{end}}
         </table>
     </div>
+    <div class="centered">
+        <button id="refresh-chart">Refresh</button>
+    </div>
     
+    <div id="statisticsDiv" style="display: none;">
+        <table id="statisticsTable">
+            <thead>
+                <tr>
+                    <th>Label</th>
+                    <th>Requests</th>
+                    <th>Avg Time</th>
+                    <th>Median Time</th>
+                    <th>90% Line</th>
+                    <th>95% Line</th>
+                    <th>99% Line</th>
+                    <th>Min Time</th>
+                    <th>Max Time</th>
+                    <th>Error %</th>
+                    <th>Throughput</th>
+                    <th>Received KB/s</th>
+                    <th>Sent KB/s</th>
+                </tr>
+            </thead>
+            <tbody id="statsBody">
+            
+            </tbody>
+        </table>
+    </div>
+    <div id="chartDiv" style="display: none;">
+        <canvas id="loadTestChart"></canvas>
+        <br/>
+        
+    </div>
+    
+    <script src="/js/results.js"></script>
 {{end}}

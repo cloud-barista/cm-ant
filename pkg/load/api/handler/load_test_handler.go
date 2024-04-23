@@ -22,24 +22,24 @@ import (
 // @Tags			[Load Test]
 // @Accept			json
 // @Produce			json
-// @Param			testKey query 		string true 	"load test key"
+// @Param			loadTestKey query 		string true 	"load test key"
 // @Param			format 	query 		string false 	"format of load test result aggregate"
 // @Success			200	{object}		interface{}
-// @Failure			400	{object}		string			"testKey must be passed"
+// @Failure			400	{object}		string			"loadTestKey must be passed"
 // @Failure			500	{object}		string			"sorry, internal server error while getting load test result;"
 // @Router			/ant/load/result 	[get]
 func GetLoadTestResultHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		testKey := c.QueryParam("testKey")
+		loadTestKey := c.QueryParam("loadTestKey")
 		format := c.QueryParam("format")
 
-		if strings.TrimSpace(testKey) == "" {
+		if strings.TrimSpace(loadTestKey) == "" {
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
 				"status":  "bad request",
 				"message": "",
 			})
 		}
-		result, err := services.GetLoadTestResult(testKey, format)
+		result, err := services.GetLoadTestResult(loadTestKey, format)
 
 		if err != nil {
 			log.Printf("sorry, internal server error while getting load test result; %s\n", err)

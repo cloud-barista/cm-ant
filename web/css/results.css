@@ -1,33 +1,61 @@
 body {
-    font-family: 'Arial', sans-serif; /* 전체 폰트 스타일 */
+    font-family: 'Arial', sans-serif;
     margin: 0;
-    padding: 0;
-    background-color: #f4f4f4; /* 배경 색 */
-    color: #333; /* 글자 색 */
+    padding: 20px;
+    background-color: #f4f4f4;
+    color: #333; 
 }
 table {
-    width: 95%; /* 테이블 너비 */
-    margin: 20px auto; /* 중앙 정렬 및 마진 조정 */
-    border-collapse: collapse; /* 테이블 선 겹치기 제거 */
-    box-shadow: 0 0 20px rgba(0,0,0,0.15); /* 그림자 효과 */
+    width: 95%;
+    margin: 20px auto;
+    border-collapse: collapse; 
+    box-shadow: 0 0 20px rgba(0,0,0,0.15); 
 }
 th, td {
-    padding: 12px 15px; /* 셀 패딩 */
-    text-align: left; /* 텍스트 왼쪽 정렬 */
-    border-bottom: 1px solid #ddd; /* 하단 테두리 선 */
+    padding: 12px 15px; 
+    text-align: left; 
+    border-bottom: 1px solid #ddd; 
 }
 th {
-    background-color: #4CAF50; /* 헤더 배경 색 */
-    color: white; /* 헤더 글자 색 */
+    background-color: #4CAF50; 
+    color: white; 
 }
 tr:hover {
-    background-color: #f5f5f5; /* 마우스 오버 시 행 배경 색 변경 */
+    background-color: #f5f5f5; 
 }
 tr:nth-child(even) {
-    background-color: #f9f9f9; /* 짝수 행 배경 색 */
+    background-color: #f9f9f9;
 }
 @media screen and (max-width: 600px) {
     table {
-        width: 100%; /* 모바일 화면에서 테이블 너비 조정 */
+        width: 100%;
     }
+}
+
+#chartDiv {
+    width: 80%;
+    margin: 20px auto;
+}
+
+#loadTestChart {
+    width: 100%;
+    min-height: 400px;
+}
+
+.centered {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-height: 100px;
+}
+
+button#refresh-chart {
+    padding: 10px 20px;
+    font-size: 16px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 60%;
 }
