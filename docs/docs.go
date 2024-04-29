@@ -16,7 +16,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/ant/env": {
+        "/ant/api/v1/env": {
             "get": {
                 "description": "Get all of the load test environments",
                 "consumes": [
@@ -26,10 +26,10 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Environment]"
+                    "[Load Test Environment]"
                 ],
                 "summary": "Get the list of load test environments",
-                "operationId": "LoadEnvs",
+                "operationId": "LoadEnvironments",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -49,7 +49,79 @@ const docTemplate = `{
                 }
             }
         },
-        "/ant/load/install": {
+        "/ant/api/v1/load/config": {
+            "get": {
+                "description": "Get all the load test execution configurations.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Configuration]"
+                ],
+                "summary": "Get all load execution config",
+                "operationId": "LoadExecutionConfigs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.LoadExecutionRes"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "something went wrong.try again.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/config/{loadTestKey}": {
+            "get": {
+                "description": "Get a load test execution config by load test key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Configuration]"
+                ],
+                "summary": "Get load execution config",
+                "operationId": "LoadExecutionConfig",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "load test eky",
+                        "name": "loadTestKey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadExecutionRes"
+                        }
+                    },
+                    "500": {
+                        "description": "something went wrong. try again.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/install": {
             "post": {
                 "description": "Install load test tools in the delivered load test environment",
                 "consumes": [
@@ -59,7 +131,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Test]"
+                    "[Load Tester]"
                 ],
                 "summary": "Install load test tool",
                 "operationId": "InstallLoadTester",
@@ -99,7 +171,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/ant/load/result": {
+        "/ant/api/v1/load/result": {
             "get": {
                 "description": "After start load test, get the result of load test.",
                 "consumes": [
@@ -109,7 +181,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Test]"
+                    "[Load Test Result]"
                 ],
                 "summary": "Get the the result of single load test result",
                 "operationId": "LoadTestResult",
@@ -150,7 +222,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/ant/load/start": {
+        "/ant/api/v1/load/start": {
             "post": {
                 "description": "Start load test. Load Environment Id must be passed or Load Environment must be defined.",
                 "consumes": [
@@ -160,7 +232,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Test]"
+                    "[Load Tester]"
                 ],
                 "summary": "Start load test",
                 "operationId": "StartLoadTest",
@@ -200,7 +272,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/ant/load/state": {
+        "/ant/api/v1/load/state": {
             "get": {
                 "description": "Get all the load test execution state.",
                 "consumes": [
@@ -210,7 +282,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Test]"
+                    "[Load Test State]"
                 ],
                 "summary": "Get all load execution state",
                 "operationId": "LoadExecutionStates",
@@ -218,7 +290,10 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api.LoadExecutionStateRes"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.LoadExecutionStateRes"
+                            }
                         }
                     },
                     "500": {
@@ -230,7 +305,46 @@ const docTemplate = `{
                 }
             }
         },
-        "/ant/load/stop": {
+        "/ant/api/v1/load/state/{loadTestKey}": {
+            "get": {
+                "description": "Get a load test execution state by load test key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test State]"
+                ],
+                "summary": "Get load execution state",
+                "operationId": "LoadExecutionState",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "load test key",
+                        "name": "loadTestKey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadExecutionStateRes"
+                        }
+                    },
+                    "500": {
+                        "description": "something went wrong. try again.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/stop": {
             "post": {
                 "description": "After start load test, stop the load test by passing the load test key.",
                 "consumes": [
@@ -240,7 +354,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Test]"
+                    "[Load Tester]"
                 ],
                 "summary": "Stop load test",
                 "operationId": "StopLoadTest",
@@ -392,6 +506,70 @@ const docTemplate = `{
                 }
             }
         },
+        "api.LoadExecutionHttpRes": {
+            "type": "object",
+            "properties": {
+                "bodyData": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "loadExecutionHttpId": {
+                    "type": "integer"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadExecutionRes": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "type": "string"
+                },
+                "loadEnv": {
+                    "$ref": "#/definitions/api.LoadEnvRes"
+                },
+                "loadExecutionConfigId": {
+                    "type": "integer"
+                },
+                "loadExecutionHttp": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.LoadExecutionHttpRes"
+                    }
+                },
+                "loadExecutionState": {
+                    "$ref": "#/definitions/api.LoadExecutionStateRes"
+                },
+                "loadTestKey": {
+                    "type": "string"
+                },
+                "rampUpSteps": {
+                    "type": "string"
+                },
+                "rampUpTime": {
+                    "type": "string"
+                },
+                "testName": {
+                    "type": "string"
+                },
+                "virtualUsers": {
+                    "type": "string"
+                }
+            }
+        },
         "api.LoadExecutionStateRes": {
             "type": "object",
             "properties": {
@@ -464,7 +642,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "0.1",
 	Host:             "",
-	BasePath:         "/ant",
+	BasePath:         "",
 	Schemes:          []string{},
 	Title:            "CM-ANT API",
 	Description:      "",

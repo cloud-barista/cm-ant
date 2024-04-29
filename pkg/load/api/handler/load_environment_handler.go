@@ -12,12 +12,12 @@ import (
 // @Id 				LoadEnvironments
 // @Summary			Get the list of load test environments
 // @Description		Get all of the load test environments
-// @Tags			[Load Environment]
+// @Tags			[Load Test Environment]
 // @Accept			json
 // @Produce			json
 // @Success			200	{object}	[]api.LoadEnvRes
 // @Failure			500	{object}	string
-// @Router			/ant/env [get]
+// @Router			/ant/api/v1/env [get]
 func GetAllLoadEnvironments() echo.HandlerFunc {
 	return func(c echo.Context) error {
 

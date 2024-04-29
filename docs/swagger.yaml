@@ -1,4 +1,3 @@
-basePath: /ant
 definitions:
   api.LoadEnvReq:
     properties:
@@ -74,6 +73,48 @@ definitions:
       protocol:
         type: string
     type: object
+  api.LoadExecutionHttpRes:
+    properties:
+      bodyData:
+        type: string
+      hostname:
+        type: string
+      loadExecutionHttpId:
+        type: integer
+      method:
+        type: string
+      path:
+        type: string
+      port:
+        type: string
+      protocol:
+        type: string
+    type: object
+  api.LoadExecutionRes:
+    properties:
+      duration:
+        type: string
+      loadEnv:
+        $ref: '#/definitions/api.LoadEnvRes'
+      loadExecutionConfigId:
+        type: integer
+      loadExecutionHttp:
+        items:
+          $ref: '#/definitions/api.LoadExecutionHttpRes'
+        type: array
+      loadExecutionState:
+        $ref: '#/definitions/api.LoadExecutionStateRes'
+      loadTestKey:
+        type: string
+      rampUpSteps:
+        type: string
+      rampUpTime:
+        type: string
+      testName:
+        type: string
+      virtualUsers:
+        type: string
+    type: object
   api.LoadExecutionStateRes:
     properties:
       endAt:
@@ -125,12 +166,12 @@ info:
   title: CM-ANT API
   version: "0.1"
 paths:
-  /ant/env:
+  /ant/api/v1/env:
     get:
       consumes:
       - application/json
       description: Get all of the load test environments
-      operationId: LoadEnvs
+      operationId: LoadEnvironments
       produces:
       - application/json
       responses:
@@ -146,8 +187,56 @@ paths:
             type: string
       summary: Get the list of load test environments
       tags:
-      - '[Load Environment]'
-  /ant/load/install:
+      - '[Load Test Environment]'
+  /ant/api/v1/load/config:
+    get:
+      consumes:
+      - application/json
+      description: Get all the load test execution configurations.
+      operationId: LoadExecutionConfigs
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.LoadExecutionRes'
+            type: array
+        "500":
+          description: something went wrong.try again.
+          schema:
+            type: string
+      summary: Get all load execution config
+      tags:
+      - '[Load Test Configuration]'
+  /ant/api/v1/load/config/{loadTestKey}:
+    get:
+      consumes:
+      - application/json
+      description: Get a load test execution config by load test key.
+      operationId: LoadExecutionConfig
+      parameters:
+      - description: load test eky
+        in: path
+        name: loadTestKey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.LoadExecutionRes'
+        "500":
+          description: something went wrong. try again.
+          schema:
+            type: string
+      summary: Get load execution config
+      tags:
+      - '[Load Test Configuration]'
+  /ant/api/v1/load/install:
     post:
       consumes:
       - application/json
@@ -179,8 +268,8 @@ paths:
             type: string
       summary: Install load test tool
       tags:
-      - '[Load Test]'
-  /ant/load/result:
+      - '[Load Tester]'
+  /ant/api/v1/load/result:
     get:
       consumes:
       - application/json
@@ -213,8 +302,8 @@ paths:
             type: string
       summary: Get the the result of single load test result
       tags:
-      - '[Load Test]'
-  /ant/load/start:
+      - '[Load Test Result]'
+  /ant/api/v1/load/start:
     post:
       consumes:
       - application/json
@@ -247,8 +336,8 @@ paths:
             type: string
       summary: Start load test
       tags:
-      - '[Load Test]'
-  /ant/load/state:
+      - '[Load Tester]'
+  /ant/api/v1/load/state:
     get:
       consumes:
       - application/json
@@ -260,15 +349,43 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.LoadExecutionStateRes'
+            items:
+              $ref: '#/definitions/api.LoadExecutionStateRes'
+            type: array
         "500":
           description: something went wrong.try again.
           schema:
             type: string
       summary: Get all load execution state
       tags:
-      - '[Load Test]'
-  /ant/load/stop:
+      - '[Load Test State]'
+  /ant/api/v1/load/state/{loadTestKey}:
+    get:
+      consumes:
+      - application/json
+      description: Get a load test execution state by load test key.
+      operationId: LoadExecutionState
+      parameters:
+      - description: load test key
+        in: path
+        name: loadTestKey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.LoadExecutionStateRes'
+        "500":
+          description: something went wrong. try again.
+          schema:
+            type: string
+      summary: Get load execution state
+      tags:
+      - '[Load Test State]'
+  /ant/api/v1/load/stop:
     post:
       consumes:
       - application/json
@@ -299,5 +416,5 @@ paths:
             type: string
       summary: Stop load test
       tags:
-      - '[Load Test]'
+      - '[Load Tester]'
 swagger: "2.0"

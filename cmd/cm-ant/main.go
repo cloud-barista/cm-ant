@@ -32,7 +32,6 @@ func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Con
 // @title CM-ANT API
 // @version 0.1
 // @description
-// @BasePath /ant
 
 func main() {
 
@@ -92,19 +91,23 @@ func InitRouter() *echo.Echo {
 			return c.Render(http.StatusOK, "results.page.tmpl", result)
 		})
 
-		antRouter.GET("/health", func(c echo.Context) error {
+		apiRouter := antRouter.Group("/api")
+
+		versionRouter := apiRouter.Group("/v1")
+
+		versionRouter.GET("/health", func(c echo.Context) error {
 			return c.JSON(http.StatusOK, map[string]string{
 				"message": "CM-Ant API server is running",
 			})
 		})
 
-		connectionRouter := antRouter.Group("/env")
+		connectionRouter := versionRouter.Group("/env")
 
 		{
 			connectionRouter.GET("", handler.GetAllLoadEnvironments())
 		}
 
-		loadRouter := antRouter.Group("/load")
+		loadRouter := versionRouter.Group("/load")
 
 		{
 			loadRouter.POST("/install", handler.InstallLoadTesterHandler())
@@ -114,6 +117,14 @@ func InitRouter() *echo.Echo {
 			loadRouter.GET("/config", handler.GetAllLoadConfigHandler())
 			loadRouter.GET("/config/:loadTestKey", handler.GetLoadConfigHandler())
 			loadRouter.GET("/state", handler.GetAllLoadExecutionStateHandler())
+			loadRouter.GET("/state/:loadTestKey", handler.GetLoadExecutionStateHandler())
+		}
+
+		agentRouter := versionRouter.Group("/agent")
+
+		{
+			agentRouter.POST("", handler.InstallAgent())
+			agentRouter.DELETE("", handler.InstallAgent())
 		}
 	}
 	return e

@@ -322,3 +322,21 @@ func GetAllLoadExecutionState() (interface{}, error) {
 
 	return responseStates, nil
 }
+
+func GetLoadExecutionState(loadTestKey string) (interface{}, error) {
+	loadExecutionState, err := repository.GetLoadExecutionState(loadTestKey)
+
+	if err != nil {
+		return nil, err
+	}
+
+	loadExecutionStateRes := api.LoadExecutionStateRes{
+		LoadExecutionStateId: loadExecutionState.ID,
+		LoadTestKey:          loadExecutionState.LoadTestKey,
+		ExecutionStatus:      loadExecutionState.ExecutionStatus,
+		StartAt:              loadExecutionState.StartAt,
+		EndAt:                loadExecutionState.EndAt,
+	}
+
+	return loadExecutionStateRes, nil
+}

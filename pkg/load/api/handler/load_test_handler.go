@@ -19,7 +19,7 @@ import (
 // @Id				LoadTestResult
 // @Summary			Get the the result of single load test result
 // @Description		After start load test, get the result of load test.
-// @Tags			[Load Test]
+// @Tags			[Load Test Result]
 // @Accept			json
 // @Produce			json
 // @Param			loadTestKey query 		string true 	"load test key"
@@ -27,7 +27,7 @@ import (
 // @Success			200	{object}		interface{}
 // @Failure			400	{object}		string			"loadTestKey must be passed"
 // @Failure			500	{object}		string			"sorry, internal server error while getting load test result;"
-// @Router			/ant/load/result 	[get]
+// @Router			/ant/api/v1/load/result 	[get]
 func GetLoadTestResultHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		loadTestKey := c.QueryParam("loadTestKey")
@@ -91,14 +91,14 @@ func GetLoadTestResultHandler() echo.HandlerFunc {
 // @Id				StopLoadTest
 // @Summary			Stop load test
 // @Description		After start load test, stop the load test by passing the load test key.
-// @Tags			[Load Test]
+// @Tags			[Load Tester]
 // @Accept			json
 // @Produce			json
 // @Param			loadTestKeyReq	body 	api.LoadTestKeyReq	true 	"load test key"
 // @Success			200	{object}			string					"success"
 // @Failure			400	{object}			string					"pass propertiesId if you want to stop test"
 // @Failure			500	{object}			string					"sorry, internal server error while executing load test;"
-// @Router			/ant/load/stop 			[post]
+// @Router			/ant/api/v1/load/stop 			[post]
 func StopLoadTestHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		loadTestKeyReq := api.LoadTestKeyReq{}
@@ -138,14 +138,14 @@ func StopLoadTestHandler() echo.HandlerFunc {
 // @Id				StartLoadTest
 // @Summary			Start load test
 // @Description		Start load test. Load Environment Id must be passed or Load Environment must be defined.
-// @Tags			[Load Test]
+// @Tags			[Load Tester]
 // @Accept			json
 // @Produce			json
 // @Param			loadTestReq 	body 	api.LoadExecutionConfigReq 			true 	"load test execution configuration request"
 // @Success			200	{object}			map[string]string					`{ "testKey": testKey, "envId": envId, "loadExecutionConfigId": loadExecutionConfigId, "message": "success" }`
 // @Failure			400	{object}			string								"load test environment is not correct"
 // @Failure			500	{object}			string								"sorry, internal server error while executing load test;"
-// @Router			/ant/load/start 		[post]
+// @Router			/ant/api/v1/load/start 		[post]
 func RunLoadTestHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		loadTestReq := api.LoadExecutionConfigReq{}
@@ -187,14 +187,14 @@ func RunLoadTestHandler() echo.HandlerFunc {
 // @Id				InstallLoadTester
 // @Summary			Install load test tool
 // @Description		Install load test tools in the delivered load test environment
-// @Tags			[Load Test]
+// @Tags			[Load Tester]
 // @Accept			json
 // @Produce			json
 // @Param			loadEnvReq 		body 	api.LoadEnvReq 			true 		"load test environment request"
 // @Success			200	{object}			map[string]string					`{ "message": "success", "result":  createdEnvId }`
 // @Failure			400	{object}			string								"load test environment is not correct"
 // @Failure			500	{object}			string								"sorry, internal server error while executing load test;"
-// @Router			/ant/load/install 		[post]
+// @Router			/ant/api/v1/load/install 		[post]
 func InstallLoadTesterHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		loadEnvReq := api.LoadEnvReq{}
@@ -231,6 +231,16 @@ func InstallLoadTesterHandler() echo.HandlerFunc {
 	}
 }
 
+// GetAllLoadExecutionConfig
+// @Id				LoadExecutionConfigs
+// @Summary			Get all load execution config
+// @Description		Get all the load test execution configurations.
+// @Tags			[Load Test Configuration]
+// @Accept			json
+// @Produce			json
+// @Success			200	{object}			[]api.LoadExecutionRes
+// @Failure			500	{object}			string								"something went wrong.try again."
+// @Router			/ant/api/v1/load/config 		[get]
 func GetAllLoadConfigHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 
@@ -251,13 +261,24 @@ func GetAllLoadConfigHandler() echo.HandlerFunc {
 	}
 }
 
+// GetLoadExecutionConfig
+// @Id				LoadExecutionConfig
+// @Summary			Get load execution config
+// @Description		Get a load test execution config by load test key.
+// @Tags			[Load Test Configuration]
+// @Accept			json
+// @Produce			json
+// @Param			loadTestKey 			path 					string 			true	"load test eky"
+// @Success			200	{object}			api.LoadExecutionRes
+// @Failure			500	{object}			string									"something went wrong. try again."
+// @Router			/ant/api/v1/load/config/{loadTestKey}		[get]
 func GetLoadConfigHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		loadTestKey := c.Param("loadTestKey")
 
 		if loadTestKey == "" {
 			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-				"message": "execution config id is not set",
+				"message": "load test key is not set",
 			})
 
 		}
@@ -283,12 +304,12 @@ func GetLoadConfigHandler() echo.HandlerFunc {
 // @Id				LoadExecutionStates
 // @Summary			Get all load execution state
 // @Description		Get all the load test execution state.
-// @Tags			[Load Test]
+// @Tags			[Load Test State]
 // @Accept			json
 // @Produce			json
-// @Success			200	{object}			api.LoadExecutionStateRes
+// @Success			200	{object}			[]api.LoadExecutionStateRes
 // @Failure			500	{object}			string								"something went wrong.try again."
-// @Router			/ant/load/state 		[get]
+// @Router			/ant/api/v1/load/state 		[get]
 func GetAllLoadExecutionStateHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		result, err := services.GetAllLoadExecutionState()
@@ -297,6 +318,44 @@ func GetAllLoadExecutionStateHandler() echo.HandlerFunc {
 			log.Printf("error while get load test execution config; %+v", err)
 			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
 				"message": "something went wrong.try again.",
+			})
+
+		}
+
+		return c.JSON(http.StatusOK, map[string]any{
+			"message": "success",
+			"result":  result,
+		})
+	}
+}
+
+// GetLoadExecutionState
+// @Id				LoadExecutionState
+// @Summary			Get load execution state
+// @Description		Get a load test execution state by load test key.
+// @Tags			[Load Test State]
+// @Accept			json
+// @Produce			json
+// @Param			loadTestKey 			path 					string 			true	"load test key"
+// @Success			200	{object}			api.LoadExecutionStateRes
+// @Failure			500	{object}			string								"something went wrong. try again."
+// @Router			/ant/api/v1/load/state/{loadTestKey} 		[get]
+func GetLoadExecutionStateHandler() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		loadTestKey := c.Param("loadTestKey")
+		if loadTestKey == "" {
+			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+				"message": "load test key is not set",
+			})
+
+		}
+
+		result, err := services.GetLoadExecutionState(loadTestKey)
+
+		if err != nil {
+			log.Printf("error while get load test execution state; %+v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+				"message": "something went wrong. try again.",
 			})
 
 		}
