@@ -29,6 +29,7 @@ const docTemplate = `{
                     "[Load Environment]"
                 ],
                 "summary": "Get the list of load test environments",
+                "operationId": "LoadEnvs",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -50,7 +51,7 @@ const docTemplate = `{
         },
         "/ant/load/install": {
             "post": {
-                "description": "Install load generation tools in the delivered load test environment",
+                "description": "Install load test tools in the delivered load test environment",
                 "consumes": [
                     "application/json"
                 ],
@@ -61,6 +62,7 @@ const docTemplate = `{
                     "[Load Test]"
                 ],
                 "summary": "Install load test tool",
+                "operationId": "InstallLoadTester",
                 "parameters": [
                     {
                         "description": "load test environment request",
@@ -110,11 +112,12 @@ const docTemplate = `{
                     "[Load Test]"
                 ],
                 "summary": "Get the the result of single load test result",
+                "operationId": "LoadTestResult",
                 "parameters": [
                     {
                         "type": "string",
                         "description": "load test key",
-                        "name": "testKey",
+                        "name": "loadTestKey",
                         "in": "query",
                         "required": true
                     },
@@ -133,7 +136,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "testKey must be passed",
+                        "description": "loadTestKey must be passed",
                         "schema": {
                             "type": "string"
                         }
@@ -160,6 +163,7 @@ const docTemplate = `{
                     "[Load Test]"
                 ],
                 "summary": "Start load test",
+                "operationId": "StartLoadTest",
                 "parameters": [
                     {
                         "description": "load test execution configuration request",
@@ -209,6 +213,7 @@ const docTemplate = `{
                     "[Load Test]"
                 ],
                 "summary": "Get all load execution state",
+                "operationId": "LoadExecutionStates",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -238,6 +243,7 @@ const docTemplate = `{
                     "[Load Test]"
                 ],
                 "summary": "Stop load test",
+                "operationId": "StopLoadTest",
                 "parameters": [
                     {
                         "description": "load test key",
@@ -389,19 +395,19 @@ const docTemplate = `{
         "api.LoadExecutionStateRes": {
             "type": "object",
             "properties": {
-                "executionDate": {
+                "endAt": {
                     "type": "string"
                 },
                 "executionStatus": {
                     "$ref": "#/definitions/constant.ExecutionStatus"
                 },
-                "loadEnvID": {
-                    "type": "integer"
-                },
                 "loadExecutionStateId": {
                     "type": "integer"
                 },
                 "loadTestKey": {
+                    "type": "string"
+                },
+                "startAt": {
                     "type": "string"
                 }
             }

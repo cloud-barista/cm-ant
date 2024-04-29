@@ -9,7 +9,7 @@ import (
 )
 
 // GetAllLoadEnvironments
-//
+// @Id 				LoadEnvironments
 // @Summary			Get the list of load test environments
 // @Description		Get all of the load test environments
 // @Tags			[Load Environment]

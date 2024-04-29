@@ -12,7 +12,7 @@ import (
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 )
 
-func InstallLoadGenerator(installReq *api.LoadEnvReq) (uint, error) {
+func InstallLoadTester(installReq *api.LoadEnvReq) (uint, error) {
 	loadTestManager := managers.NewLoadTestManager()
 
 	if err := loadTestManager.Install(installReq); err != nil {
@@ -83,7 +83,7 @@ func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (uint, string, uin
 	}
 
 	// installation jmeter
-	envId, err := InstallLoadGenerator(&loadTestReq.LoadEnvReq)
+	envId, err := InstallLoadTester(&loadTestReq.LoadEnvReq)
 	if err != nil {
 		return 0, "", 0, err
 	}

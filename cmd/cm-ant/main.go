@@ -107,7 +107,7 @@ func InitRouter() *echo.Echo {
 		loadRouter := antRouter.Group("/load")
 
 		{
-			loadRouter.POST("/install", handler.InstallLoadGeneratorHandler())
+			loadRouter.POST("/install", handler.InstallLoadTesterHandler())
 			loadRouter.POST("/start", handler.RunLoadTestHandler())
 			loadRouter.POST("/stop", handler.StopLoadTestHandler())
 			loadRouter.GET("/result", handler.GetLoadTestResultHandler())

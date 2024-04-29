@@ -76,15 +76,15 @@ definitions:
     type: object
   api.LoadExecutionStateRes:
     properties:
-      executionDate:
+      endAt:
         type: string
       executionStatus:
         $ref: '#/definitions/constant.ExecutionStatus'
-      loadEnvID:
-        type: integer
       loadExecutionStateId:
         type: integer
       loadTestKey:
+        type: string
+      startAt:
         type: string
     type: object
   api.LoadTestKeyReq:
@@ -130,6 +130,7 @@ paths:
       consumes:
       - application/json
       description: Get all of the load test environments
+      operationId: LoadEnvs
       produces:
       - application/json
       responses:
@@ -150,7 +151,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Install load generation tools in the delivered load test environment
+      description: Install load test tools in the delivered load test environment
+      operationId: InstallLoadTester
       parameters:
       - description: load test environment request
         in: body
@@ -183,10 +185,11 @@ paths:
       consumes:
       - application/json
       description: After start load test, get the result of load test.
+      operationId: LoadTestResult
       parameters:
       - description: load test key
         in: query
-        name: testKey
+        name: loadTestKey
         required: true
         type: string
       - description: format of load test result aggregate
@@ -201,7 +204,7 @@ paths:
           schema:
             type: object
         "400":
-          description: testKey must be passed
+          description: loadTestKey must be passed
           schema:
             type: string
         "500":
@@ -217,6 +220,7 @@ paths:
       - application/json
       description: Start load test. Load Environment Id must be passed or Load Environment
         must be defined.
+      operationId: StartLoadTest
       parameters:
       - description: load test execution configuration request
         in: body
@@ -249,6 +253,7 @@ paths:
       consumes:
       - application/json
       description: Get all the load test execution state.
+      operationId: LoadExecutionStates
       produces:
       - application/json
       responses:
@@ -269,6 +274,7 @@ paths:
       - application/json
       description: After start load test, stop the load test by passing the load test
         key.
+      operationId: StopLoadTest
       parameters:
       - description: load test key
         in: body

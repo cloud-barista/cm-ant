@@ -16,7 +16,7 @@ import (
 )
 
 // GetLoadTestResult by format
-//
+// @Id				LoadTestResult
 // @Summary			Get the the result of single load test result
 // @Description		After start load test, get the result of load test.
 // @Tags			[Load Test]
@@ -88,6 +88,7 @@ func GetLoadTestResultHandler() echo.HandlerFunc {
 
 // StopLoadTest
 //
+// @Id				StopLoadTest
 // @Summary			Stop load test
 // @Description		After start load test, stop the load test by passing the load test key.
 // @Tags			[Load Test]
@@ -134,6 +135,7 @@ func StopLoadTestHandler() echo.HandlerFunc {
 
 // StartLoadTest
 //
+// @Id				StartLoadTest
 // @Summary			Start load test
 // @Description		Start load test. Load Environment Id must be passed or Load Environment must be defined.
 // @Tags			[Load Test]
@@ -180,10 +182,11 @@ func RunLoadTestHandler() echo.HandlerFunc {
 	}
 }
 
-// InstallLoadGenerator
+// InstallLoadTester
 //
+// @Id				InstallLoadTester
 // @Summary			Install load test tool
-// @Description		Install load generation tools in the delivered load test environment
+// @Description		Install load test tools in the delivered load test environment
 // @Tags			[Load Test]
 // @Accept			json
 // @Produce			json
@@ -192,7 +195,7 @@ func RunLoadTestHandler() echo.HandlerFunc {
 // @Failure			400	{object}			string								"load test environment is not correct"
 // @Failure			500	{object}			string								"sorry, internal server error while executing load test;"
 // @Router			/ant/load/install 		[post]
-func InstallLoadGeneratorHandler() echo.HandlerFunc {
+func InstallLoadTesterHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		loadEnvReq := api.LoadEnvReq{}
 
@@ -211,7 +214,7 @@ func InstallLoadGeneratorHandler() echo.HandlerFunc {
 			})
 		}
 
-		createdEnvId, err := services.InstallLoadGenerator(&loadEnvReq)
+		createdEnvId, err := services.InstallLoadTester(&loadEnvReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v", err)
@@ -277,7 +280,7 @@ func GetLoadConfigHandler() echo.HandlerFunc {
 }
 
 // GetAllLoadExecutionState
-//
+// @Id				LoadExecutionStates
 // @Summary			Get all load execution state
 // @Description		Get all the load test execution state.
 // @Tags			[Load Test]
