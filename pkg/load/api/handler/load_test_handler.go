@@ -15,7 +15,7 @@ import (
 	"github.com/cloud-barista/cm-ant/pkg/load/services"
 )
 
-// GetLoadTestResult by format
+// GetLoadTestResultHandler
 // @Id				LoadTestResult
 // @Summary			Get the the result of single load test result
 // @Description		After start load test, get the result of load test.
@@ -86,12 +86,11 @@ func GetLoadTestResultHandler() echo.HandlerFunc {
 	}
 }
 
-// StopLoadTest
-//
+// StopLoadTestHandler
 // @Id				StopLoadTest
 // @Summary			Stop load test
 // @Description		After start load test, stop the load test by passing the load test key.
-// @Tags			[Load Tester]
+// @Tags			[Load Test Execution]
 // @Accept			json
 // @Produce			json
 // @Param			loadTestKeyReq	body 	api.LoadTestKeyReq	true 	"load test key"
@@ -133,12 +132,11 @@ func StopLoadTestHandler() echo.HandlerFunc {
 	}
 }
 
-// StartLoadTest
-//
+// RunLoadTestHandler
 // @Id				StartLoadTest
 // @Summary			Start load test
 // @Description		Start load test. Load Environment Id must be passed or Load Environment must be defined.
-// @Tags			[Load Tester]
+// @Tags			[Load Test Execution]
 // @Accept			json
 // @Produce			json
 // @Param			loadTestReq 	body 	api.LoadExecutionConfigReq 			true 	"load test execution configuration request"
@@ -182,19 +180,18 @@ func RunLoadTestHandler() echo.HandlerFunc {
 	}
 }
 
-// InstallLoadTester
-//
+// InstallLoadTesterHandler
 // @Id				InstallLoadTester
-// @Summary			Install load test tool
-// @Description		Install load test tools in the delivered load test environment
-// @Tags			[Load Tester]
+// @Summary			Install load test tester
+// @Description		Install load test tester in the delivered load test environment
+// @Tags			[Load Test Tester]
 // @Accept			json
 // @Produce			json
 // @Param			loadEnvReq 		body 	api.LoadEnvReq 			true 		"load test environment request"
 // @Success			200	{object}			map[string]string					`{ "message": "success", "result":  createdEnvId }`
 // @Failure			400	{object}			string								"load test environment is not correct"
 // @Failure			500	{object}			string								"sorry, internal server error while executing load test;"
-// @Router			/ant/api/v1/load/install 		[post]
+// @Router			/ant/api/v1/load/tester 		[post]
 func InstallLoadTesterHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		loadEnvReq := api.LoadEnvReq{}
@@ -231,7 +228,46 @@ func InstallLoadTesterHandler() echo.HandlerFunc {
 	}
 }
 
-// GetAllLoadExecutionConfig
+// UninstallLoadTesterHandler
+// @Id				UninstallLoadTester
+// @Summary			Uninstall load test tester
+// @Description		Uninstall load test tester in the delivered load test environment
+// @Tags			[Load Test Tester]
+// @Accept			json
+// @Produce			json
+// @Param			loadEnvIdReq 		body 	api.LoadEnvIdReq 			true 		"load test environment id"
+// @Success			200	{object}			map[string]string					`{ "message": "success" }`
+// @Failure			400	{object}			string								"pass me correct body;"
+// @Failure			500	{object}			string								"something went wrong.try again."
+// @Router			/ant/api/v1/load/tester 		[delete]
+func UninstallLoadTesterHandler() echo.HandlerFunc {
+	return func(c echo.Context) error {
+
+		loadEnvId := c.QueryParam("loadEnvId")
+
+		if strings.TrimSpace(loadEnvId) == "" {
+			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
+				"message": "pass me correct load environment id",
+			})
+		}
+
+		err := services.UninstallLoadTester(loadEnvId)
+
+		if err != nil {
+			log.Printf("error while uninstall load test tool; %+v", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+				"message": "something went wrong.try again.",
+			})
+
+		}
+
+		return c.JSON(http.StatusOK, map[string]any{
+			"message": "success",
+		})
+	}
+}
+
+// GetAllLoadConfigHandler
 // @Id				LoadExecutionConfigs
 // @Summary			Get all load execution config
 // @Description		Get all the load test execution configurations.
@@ -261,7 +297,7 @@ func GetAllLoadConfigHandler() echo.HandlerFunc {
 	}
 }
 
-// GetLoadExecutionConfig
+// GetLoadConfigHandler
 // @Id				LoadExecutionConfig
 // @Summary			Get load execution config
 // @Description		Get a load test execution config by load test key.
@@ -300,7 +336,7 @@ func GetLoadConfigHandler() echo.HandlerFunc {
 	}
 }
 
-// GetAllLoadExecutionState
+// GetAllLoadExecutionStateHandler
 // @Id				LoadExecutionStates
 // @Summary			Get all load execution state
 // @Description		Get all the load test execution state.
@@ -329,7 +365,7 @@ func GetAllLoadExecutionStateHandler() echo.HandlerFunc {
 	}
 }
 
-// GetLoadExecutionState
+// GetLoadExecutionStateHandler
 // @Id				LoadExecutionState
 // @Summary			Get load execution state
 // @Description		Get a load test execution state by load test key.

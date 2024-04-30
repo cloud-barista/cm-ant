@@ -8,6 +8,7 @@ import (
 
 type LoadTestManager interface {
 	Install(*api.LoadEnvReq) error
+	Uninstall(*api.LoadEnvReq) error
 	Stop(api.LoadExecutionConfigReq) error
 	Run(*api.LoadExecutionConfigReq) error
 	GetResult(loadEnv *model.LoadEnv, loadTestKey string, format string) (interface{}, error)

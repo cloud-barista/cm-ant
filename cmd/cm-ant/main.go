@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"html/template"
-	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -20,14 +18,6 @@ import (
 )
 
 var once sync.Once
-
-type Template struct {
-	templates *template.Template
-}
-
-func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	return t.templates.ExecuteTemplate(w, name, data)
-}
 
 // @title CM-ANT API
 // @version 0.1
@@ -110,7 +100,8 @@ func InitRouter() *echo.Echo {
 		loadRouter := versionRouter.Group("/load")
 
 		{
-			loadRouter.POST("/install", handler.InstallLoadTesterHandler())
+			loadRouter.POST("/tester", handler.InstallLoadTesterHandler())
+			loadRouter.DELETE("/tester", handler.UninstallLoadTesterHandler())
 			loadRouter.POST("/start", handler.RunLoadTestHandler())
 			loadRouter.POST("/stop", handler.StopLoadTestHandler())
 			loadRouter.GET("/result", handler.GetLoadTestResultHandler())
@@ -118,13 +109,8 @@ func InitRouter() *echo.Echo {
 			loadRouter.GET("/config/:loadTestKey", handler.GetLoadConfigHandler())
 			loadRouter.GET("/state", handler.GetAllLoadExecutionStateHandler())
 			loadRouter.GET("/state/:loadTestKey", handler.GetLoadExecutionStateHandler())
-		}
-
-		agentRouter := versionRouter.Group("/agent")
-
-		{
-			agentRouter.POST("", handler.InstallAgent())
-			agentRouter.DELETE("", handler.InstallAgent())
+			loadRouter.POST("/agent", handler.InstallAgent())
+			loadRouter.DELETE("/agent", handler.InstallAgent())
 		}
 	}
 	return e

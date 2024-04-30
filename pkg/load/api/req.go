@@ -10,6 +10,10 @@ type LoadTestKeyReq struct {
 	LoadTestKey string `json:"loadTestKey,omitempty"`
 }
 
+type LoadEnvIdReq struct {
+	LoadEnvId string `json:"loadEnvId,omitempty"`
+}
+
 type LoadExecutionConfigReq struct {
 	LoadTestKey string `json:"loadTestKey,omitempty"`
 	EnvId       string `json:"envId,omitempty"`

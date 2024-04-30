@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function () {
     })
 
     function fetchAggregate() {
-        return fetch(`/ant/load/result?loadTestKey=${loadTestKey}&format=aggregate`)
+        return fetch(`/ant/api/v1/load/result?loadTestKey=${loadTestKey}&format=aggregate`)
             .then(response => response.json())
             .then(data => {
                 updateTable(data);
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     function fetchListData() {
-        return fetch(`/ant/load/result?loadTestKey=${loadTestKey}`)
+        return fetch(`/ant/api/v1/load/result?loadTestKey=${loadTestKey}`)
             .then(response => response.json())
             .then(data => {
                 drawChart(data);

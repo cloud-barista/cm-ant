@@ -418,6 +418,78 @@ func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 	return nil
 }
 
+func (j *JMeterLoadTestManager) Uninstall(loadEnvReq *api.LoadEnvReq) error {
+	uninstallScriptPath := configuration.JoinRootPathWith("/script/uninstall-jmeter.sh")
+
+	if loadEnvReq.InstallLocation == constant.Remote {
+		uninstallCommand, err := readAndParseScript(uninstallScriptPath)
+		if err != nil {
+			log.Println("file doesn't exist on correct path")
+			return err
+		}
+
+		switch loadEnvReq.RemoteConnectionType {
+		case constant.BuiltIn:
+			tumblebugUrl := outbound.TumblebugHostWithPort()
+
+			commandReq := outbound.SendCommandReq{
+				Command:  []string{uninstallCommand},
+				UserName: loadEnvReq.Username,
+			}
+
+			stdout, err := outbound.SendCommandTo(tumblebugUrl, loadEnvReq.NsId, loadEnvReq.McisId, commandReq)
+
+			if err != nil {
+				log.Println(stdout)
+				return err
+			}
+
+			log.Println(stdout)
+		case constant.PrivateKey, constant.Password:
+			var auth goph.Auth
+			var err error
+
+			if loadEnvReq.RemoteConnectionType == constant.PrivateKey {
+				auth, err = goph.Key(loadEnvReq.Cert, "")
+				if err != nil {
+					return err
+				}
+			} else if loadEnvReq.RemoteConnectionType == constant.Password {
+				auth = goph.Password(loadEnvReq.Cert)
+			}
+
+			client, err := goph.New(loadEnvReq.Username, loadEnvReq.PublicIp, auth)
+			if err != nil {
+				return err
+			}
+
+			defer client.Close()
+
+			out, err := client.RunContext(context.Background(), uninstallCommand)
+
+			if err != nil {
+				log.Println(string(out))
+				return err
+			}
+
+			log.Println(string(out))
+		}
+
+	} else if loadEnvReq.InstallLocation == constant.Local {
+
+		err := utils.Script(uninstallScriptPath, []string{
+			fmt.Sprintf("JMETER_WORK_DIR=%s", configuration.Get().Load.JMeter.WorkDir),
+			fmt.Sprintf("JMETER_VERSION=%s", configuration.Get().Load.JMeter.Version),
+		})
+		if err != nil {
+			return fmt.Errorf("error while installing jmeter; %s", err)
+		}
+
+	}
+
+	return nil
+}
+
 func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadExecutionConfigReq) error {
 	killCmd := killCmdGen(loadTestReq.LoadTestKey)
 

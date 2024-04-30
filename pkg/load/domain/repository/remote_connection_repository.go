@@ -62,3 +62,20 @@ func SaveLoadTestInstallEnv(installReq *api.LoadEnvReq) (uint, error) {
 
 	return loadEnv.Model.ID, nil
 }
+
+func DeleteLoadTestInstallEnv(loadEnvId string) error {
+	db := configuration.DB()
+	tx := db.Begin()
+
+	if err := tx.
+		Delete(
+			&model.LoadEnv{}, loadEnvId,
+		).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	tx.Commit()
+
+	return nil
+}

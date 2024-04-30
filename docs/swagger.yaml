@@ -1,4 +1,9 @@
 definitions:
+  api.LoadEnvIdReq:
+    properties:
+      loadEnvId:
+        type: string
+    type: object
   api.LoadEnvReq:
     properties:
       cert:
@@ -236,39 +241,6 @@ paths:
       summary: Get load execution config
       tags:
       - '[Load Test Configuration]'
-  /ant/api/v1/load/install:
-    post:
-      consumes:
-      - application/json
-      description: Install load test tools in the delivered load test environment
-      operationId: InstallLoadTester
-      parameters:
-      - description: load test environment request
-        in: body
-        name: loadEnvReq
-        required: true
-        schema:
-          $ref: '#/definitions/api.LoadEnvReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: load test environment is not correct
-          schema:
-            type: string
-        "500":
-          description: sorry, internal server error while executing load test;
-          schema:
-            type: string
-      summary: Install load test tool
-      tags:
-      - '[Load Tester]'
   /ant/api/v1/load/result:
     get:
       consumes:
@@ -336,7 +308,7 @@ paths:
             type: string
       summary: Start load test
       tags:
-      - '[Load Tester]'
+      - '[Load Test Execution]'
   /ant/api/v1/load/state:
     get:
       consumes:
@@ -416,5 +388,70 @@ paths:
             type: string
       summary: Stop load test
       tags:
-      - '[Load Tester]'
+      - '[Load Test Execution]'
+  /ant/api/v1/load/tester:
+    delete:
+      consumes:
+      - application/json
+      description: Uninstall load test tools in the delivered load test environment
+      operationId: UninstallLoadTester
+      parameters:
+      - description: load test environment id
+        in: body
+        name: loadEnvIdReq
+        required: true
+        schema:
+          $ref: '#/definitions/api.LoadEnvIdReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: pass me correct body;
+          schema:
+            type: string
+        "500":
+          description: something went wrong.try again.
+          schema:
+            type: string
+      summary: Uninstall load test tool
+      tags:
+      - '[Load Test Tool]'
+    post:
+      consumes:
+      - application/json
+      description: Install load test tools in the delivered load test environment
+      operationId: InstallLoadTester
+      parameters:
+      - description: load test environment request
+        in: body
+        name: loadEnvReq
+        required: true
+        schema:
+          $ref: '#/definitions/api.LoadEnvReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: load test environment is not correct
+          schema:
+            type: string
+        "500":
+          description: sorry, internal server error while executing load test;
+          schema:
+            type: string
+      summary: Install load test tool
+      tags:
+      - '[Load Test Tool]'
 swagger: "2.0"

@@ -121,56 +121,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/ant/api/v1/load/install": {
-            "post": {
-                "description": "Install load test tools in the delivered load test environment",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Load Tester]"
-                ],
-                "summary": "Install load test tool",
-                "operationId": "InstallLoadTester",
-                "parameters": [
-                    {
-                        "description": "load test environment request",
-                        "name": "loadEnvReq",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.LoadEnvReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "load test environment is not correct",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "sorry, internal server error while executing load test;",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/ant/api/v1/load/result": {
             "get": {
                 "description": "After start load test, get the result of load test.",
@@ -232,7 +182,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Tester]"
+                    "[Load Test Execution]"
                 ],
                 "summary": "Start load test",
                 "operationId": "StartLoadTest",
@@ -354,7 +304,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Tester]"
+                    "[Load Test Execution]"
                 ],
                 "summary": "Stop load test",
                 "operationId": "StopLoadTest",
@@ -390,9 +340,115 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/ant/api/v1/load/tester": {
+            "post": {
+                "description": "Install load test tools in the delivered load test environment",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Tool]"
+                ],
+                "summary": "Install load test tool",
+                "operationId": "InstallLoadTester",
+                "parameters": [
+                    {
+                        "description": "load test environment request",
+                        "name": "loadEnvReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadEnvReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "load test environment is not correct",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "sorry, internal server error while executing load test;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Uninstall load test tools in the delivered load test environment",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Tool]"
+                ],
+                "summary": "Uninstall load test tool",
+                "operationId": "UninstallLoadTester",
+                "parameters": [
+                    {
+                        "description": "load test environment id",
+                        "name": "loadEnvIdReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadEnvIdReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "pass me correct body;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "something went wrong.try again.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "api.LoadEnvIdReq": {
+            "type": "object",
+            "properties": {
+                "loadEnvId": {
+                    "type": "string"
+                }
+            }
+        },
         "api.LoadEnvReq": {
             "type": "object",
             "properties": {

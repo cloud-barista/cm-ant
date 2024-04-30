@@ -20,8 +20,8 @@ func InlineCmd(cmdStr string) error {
 	return nil
 }
 
-func Script(shellScriptPath string, envs []string, args ...string) error {
-	cmd := exec.Command(shellScriptPath, args...)
+func Script(scriptPath string, envs []string, args ...string) error {
+	cmd := exec.Command(scriptPath, args...)
 
 	if len(envs) > 0 {
 		cmd.Env = os.Environ()

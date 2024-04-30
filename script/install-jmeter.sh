@@ -91,7 +91,7 @@ if [ ! -e "$PLUGIN_MANAGER_JAR" ]; then
 fi
 
 sudo mv $CMD_RUNNER_JAR "$JMETER_FULL_PATH/lib/"
-sudo mv $PLUGIN_MANAGER_JAR "$JMETER_FULL_PATH/lib/ext/" 
+sudo mv $PLUGIN_MANAGER_JAR "$JMETER_FULL_PATH/lib/ext/"
 
 echo ""
 echo ""
@@ -102,7 +102,7 @@ echo ""
 
 # install perfmon plugin
 echo "[CM-ANT] [Step 5/6] Install required plugins to do load test..."
-java -jar "$JMETER_FULL_PATH/lib/$CMD_RUNNER_JAR" --tool org.jmeterplugins.repository.PluginManagerCMD install jpgc-casutg
+java -jar "$JMETER_FULL_PATH/lib/$CMD_RUNNER_JAR" --tool org.jmeterplugins.repository.PluginManagerCMD install jpgc-perfmon,jpgc-casutg
 echo "[CB-ANT] Installed required plugins."
 
 

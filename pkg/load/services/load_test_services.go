@@ -16,7 +16,7 @@ func InstallLoadTester(installReq *api.LoadEnvReq) (uint, error) {
 	loadTestManager := managers.NewLoadTestManager()
 
 	if err := loadTestManager.Install(installReq); err != nil {
-		return 0, fmt.Errorf("failed to install load generator: %w", err)
+		return 0, fmt.Errorf("failed to install load tester: %w", err)
 	}
 
 	createdEnvId, err := repository.SaveLoadTestInstallEnv(installReq)
@@ -26,6 +26,39 @@ func InstallLoadTester(installReq *api.LoadEnvReq) (uint, error) {
 	log.Printf("Environment ID %d for load test is successfully created", createdEnvId)
 
 	return createdEnvId, nil
+}
+
+// UninstallLoadTester is uninstall load tester by loadEnvId
+func UninstallLoadTester(loadEnvId string) error {
+	loadTestManager := managers.NewLoadTestManager()
+
+	var loadEnvReq api.LoadEnvReq
+	if loadEnvId != "" {
+		loadEnv, err := repository.GetEnvironment(loadEnvId)
+		if err != nil {
+			return err
+		}
+
+		loadEnvReq.InstallLocation = (*loadEnv).InstallLocation
+		loadEnvReq.RemoteConnectionType = (*loadEnv).RemoteConnectionType
+		loadEnvReq.Username = (*loadEnv).Username
+		loadEnvReq.PublicIp = (*loadEnv).PublicIp
+		loadEnvReq.Cert = (*loadEnv).Cert
+		loadEnvReq.NsId = (*loadEnv).NsId
+		loadEnvReq.McisId = (*loadEnv).McisId
+	}
+
+	if err := loadTestManager.Uninstall(&loadEnvReq); err != nil {
+		return fmt.Errorf("failed to uninstall load tester: %w", err)
+	}
+
+	err := repository.DeleteLoadTestInstallEnv(loadEnvId)
+	if err != nil {
+		return fmt.Errorf("failed to delete load test installation environment: %w", err)
+	}
+	log.Println("load test environment is successfully deleted")
+
+	return nil
 }
 
 func prepareEnvironment(loadTestReq *api.LoadExecutionConfigReq) error {
