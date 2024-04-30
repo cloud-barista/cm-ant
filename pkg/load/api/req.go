@@ -75,3 +75,9 @@ func (l LoadEnvReq) Validate() error {
 
 	return nil
 }
+
+type AgentReq struct {
+	Username   string `json:"username,omitempty"`
+	PublicIp   string `json:"publicIp,omitempty"`
+	PemKeyPath string `json:"pemKeyPath,omitempty"`
+}

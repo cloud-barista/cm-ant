@@ -1,9 +1,9 @@
 spider:
-  host: 127.0.0.1
+  host: http://localhost
   port: 1024
 
 tumblebug:
-  host: 127.0.0.1
+  host: http://localhost
   port: 1323
   username: default
   password: default

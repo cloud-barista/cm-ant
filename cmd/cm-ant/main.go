@@ -109,8 +109,9 @@ func InitRouter() *echo.Echo {
 			loadRouter.GET("/config/:loadTestKey", handler.GetLoadConfigHandler())
 			loadRouter.GET("/state", handler.GetAllLoadExecutionStateHandler())
 			loadRouter.GET("/state/:loadTestKey", handler.GetLoadExecutionStateHandler())
-			loadRouter.POST("/agent", handler.InstallAgent())
-			loadRouter.DELETE("/agent", handler.InstallAgent())
+			loadRouter.POST("/mock/migrate", handler.MockMigration())
+			loadRouter.POST("/agent/install", handler.InstallAgent())
+			loadRouter.POST("/agent/uninstall", handler.UninstallAgent())
 		}
 	}
 	return e

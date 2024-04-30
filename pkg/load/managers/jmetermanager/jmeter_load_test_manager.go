@@ -355,14 +355,13 @@ func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 
 		switch loadEnvReq.RemoteConnectionType {
 		case constant.BuiltIn:
-			tumblebugUrl := outbound.TumblebugHostWithPort()
 
 			commandReq := outbound.SendCommandReq{
 				Command:  []string{installationCommand},
 				UserName: loadEnvReq.Username,
 			}
 
-			stdout, err := outbound.SendCommandTo(tumblebugUrl, loadEnvReq.NsId, loadEnvReq.McisId, commandReq)
+			stdout, err := outbound.SendCommandTo(loadEnvReq.NsId, loadEnvReq.McisId, commandReq)
 
 			if err != nil {
 				log.Println(stdout)
@@ -430,14 +429,12 @@ func (j *JMeterLoadTestManager) Uninstall(loadEnvReq *api.LoadEnvReq) error {
 
 		switch loadEnvReq.RemoteConnectionType {
 		case constant.BuiltIn:
-			tumblebugUrl := outbound.TumblebugHostWithPort()
-
 			commandReq := outbound.SendCommandReq{
 				Command:  []string{uninstallCommand},
 				UserName: loadEnvReq.Username,
 			}
 
-			stdout, err := outbound.SendCommandTo(tumblebugUrl, loadEnvReq.NsId, loadEnvReq.McisId, commandReq)
+			stdout, err := outbound.SendCommandTo(loadEnvReq.NsId, loadEnvReq.McisId, commandReq)
 
 			if err != nil {
 				log.Println(stdout)
@@ -499,14 +496,12 @@ func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadExecutionConfigReq) err
 
 		switch loadEnv.RemoteConnectionType {
 		case constant.BuiltIn:
-			tumblebugUrl := outbound.TumblebugHostWithPort()
-
 			commandReq := outbound.SendCommandReq{
 				Command:  []string{killCmd},
 				UserName: loadEnv.Username,
 			}
 
-			stdout, err := outbound.SendCommandTo(tumblebugUrl, loadEnv.NsId, loadEnv.McisId, commandReq)
+			stdout, err := outbound.SendCommandTo(loadEnv.NsId, loadEnv.McisId, commandReq)
 
 			if err != nil {
 				log.Println(stdout)
@@ -577,14 +572,13 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 
 		switch loadEnv.RemoteConnectionType {
 		case constant.BuiltIn:
-			tumblebugUrl := outbound.TumblebugHostWithPort()
 			commandReq := outbound.SendCommandReq{
 				Command:  []string{preRequirementCmd},
 				UserName: loadTestReq.LoadEnvReq.Username,
 			}
 
 			// 1. check pre-requisition
-			stdout, err := outbound.SendCommandTo(tumblebugUrl, loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, commandReq)
+			stdout, err := outbound.SendCommandTo(loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, commandReq)
 
 			if err != nil {
 				log.Printf("error occured; %s\n", err)
@@ -602,7 +596,7 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 				UserName: loadTestReq.LoadEnvReq.Username,
 			}
 
-			stdout, err = outbound.SendCommandTo(tumblebugUrl, loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, commandReq)
+			stdout, err = outbound.SendCommandTo(loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, commandReq)
 
 			if err != nil {
 				log.Printf("error occured; %s\n", err)
@@ -772,7 +766,7 @@ func executionCmdGen(p *api.LoadExecutionConfigReq, testPlanName, resultFileName
 func killCmdGen(loadTestKey string) string {
 	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*%s'", loadTestKey)
 
-	return fmt.Sprintf("kill -9 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
+	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
 }
 
 func readAndParseScript(scriptPath string) (string, error) {

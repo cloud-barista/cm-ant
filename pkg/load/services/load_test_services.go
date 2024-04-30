@@ -28,7 +28,6 @@ func InstallLoadTester(installReq *api.LoadEnvReq) (uint, error) {
 	return createdEnvId, nil
 }
 
-// UninstallLoadTester is uninstall load tester by loadEnvId
 func UninstallLoadTester(loadEnvId string) error {
 	loadTestManager := managers.NewLoadTestManager()
 
