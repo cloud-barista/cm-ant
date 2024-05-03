@@ -86,6 +86,64 @@ func GetLoadTestResultHandler() echo.HandlerFunc {
 	}
 }
 
+func GetLoadTestMetricsHandler() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		loadTestKey := c.QueryParam("loadTestKey")
+		format := c.QueryParam("format")
+
+		if strings.TrimSpace(loadTestKey) == "" {
+			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
+				"status":  "bad request",
+				"message": "",
+			})
+		}
+		result, err := services.GetLoadTestMetrics(loadTestKey, format)
+
+		if err != nil {
+			log.Printf("sorry, internal server error while getting load test result; %s\n", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+				"message": "sorry, internal server error while getting load test result;",
+			})
+		}
+		var marBuf bytes.Buffer
+
+		enc := json.NewEncoder(&marBuf)
+
+		if err := enc.Encode(result); err != nil {
+			return err
+		}
+
+		resultBytes := marBuf.Bytes()
+
+		header := c.Response().Header()
+
+		header.Set("Content-Type", "application/json")
+		header.Set("Content-Encoding", "gzip")
+
+		var gzBuf bytes.Buffer
+
+		gz := gzip.NewWriter(&gzBuf)
+
+		if _, err := gz.Write(resultBytes); err != nil {
+			log.Printf("sorry, internal server error while getting load test result; %s\n", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+				"message": "sorry, internal server error while getting load test result;",
+			})
+		}
+		if err := gz.Close(); err != nil {
+			log.Printf("sorry, internal server error while getting load test result; %s\n", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+				"message": "sorry, internal server error while getting load test result;",
+			})
+		}
+
+		c.Response().WriteHeader(http.StatusOK)
+		c.Response().Write(gzBuf.Bytes())
+
+		return nil
+	}
+}
+
 // StopLoadTestHandler
 // @Id				StopLoadTest
 // @Summary			Stop load test

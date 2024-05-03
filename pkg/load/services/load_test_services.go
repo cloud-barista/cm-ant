@@ -204,6 +204,28 @@ func GetLoadTestResult(testKey, format string) (interface{}, error) {
 	return result, nil
 }
 
+func GetLoadTestMetrics(testKey, format string) (interface{}, error) {
+	loadExecutionState, err := repository.GetLoadExecutionState(testKey)
+	if err != nil {
+		return nil, err
+	}
+
+	loadEnvId := fmt.Sprintf("%d", loadExecutionState.LoadEnvID)
+
+	loadEnv, err := repository.GetEnvironment(loadEnvId)
+	if err != nil {
+		return nil, err
+	}
+
+	loadTestManager := managers.NewLoadTestManager()
+
+	result, err := loadTestManager.GetMetrics(loadEnv, testKey, format)
+	if err != nil {
+		return nil, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
+	}
+	return result, nil
+}
+
 func GetAllLoadExecutionConfig() ([]api.LoadExecutionRes, error) {
 	loadExecutionConfigs, err := repository.GetAllLoadExecutionConfig()
 	if err != nil {

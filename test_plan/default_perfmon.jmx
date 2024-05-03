@@ -107,18 +107,6 @@
               <stringProp name="66952">CPU</stringProp>
               <stringProp name="1425215388">label=cpu_all_idle:idle</stringProp>
             </collectionProp>
-            <collectionProp name="1827811778">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="66952">CPU</stringProp>
-              <stringProp name="-1154965316">label=cpu_all_system:system</stringProp>
-            </collectionProp>
-            <collectionProp name="541231908">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="66952">CPU</stringProp>
-              <stringProp name="37941756">label=cpu_all_user:user</stringProp>
-            </collectionProp>
           </collectionProp>
         </kg.apc.jmeter.perfmon.PerfMonCollector>
         <hashTree/>
@@ -190,72 +178,6 @@
               <stringProp name="1468761134">{{.AgentPort}}</stringProp>
               <stringProp name="-1993889503">Memory</stringProp>
               <stringProp name="-1584769223">label=memory_all_free_kb:unit=kb:free</stringProp>
-            </collectionProp>
-          </collectionProp>
-        </kg.apc.jmeter.perfmon.PerfMonCollector>
-        <hashTree/>
-        <kg.apc.jmeter.perfmon.PerfMonCollector guiclass="kg.apc.jmeter.vizualizers.PerfMonGui" testclass="kg.apc.jmeter.perfmon.PerfMonCollector" testname="swap collector" enabled="true">
-          <boolProp name="ResultCollector.error_logging">false</boolProp>
-          <objProp>
-            <name>saveConfig</name>
-            <value class="SampleSaveConfiguration">
-              <time>true</time>
-              <latency>true</latency>
-              <timestamp>true</timestamp>
-              <success>true</success>
-              <label>true</label>
-              <code>true</code>
-              <message>true</message>
-              <threadName>true</threadName>
-              <dataType>true</dataType>
-              <encoding>false</encoding>
-              <assertions>true</assertions>
-              <subresults>true</subresults>
-              <responseData>false</responseData>
-              <samplerData>false</samplerData>
-              <xml>false</xml>
-              <fieldNames>true</fieldNames>
-              <responseHeaders>false</responseHeaders>
-              <requestHeaders>false</requestHeaders>
-              <responseDataOnError>false</responseDataOnError>
-              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
-              <assertionsResultsToSave>0</assertionsResultsToSave>
-              <bytes>true</bytes>
-              <sentBytes>true</sentBytes>
-              <url>true</url>
-              <threadCounts>true</threadCounts>
-              <idleTime>true</idleTime>
-              <connectTime>true</connectTime>
-            </value>
-          </objProp>
-          <stringProp name="TestPlan.comments">Plugin help available here: http://jmeter-plugins.org/wiki/PerfMon</stringProp>
-          <stringProp name="filename">{{.SwapResultPath}}</stringProp>
-          <longProp name="interval_grouping">1000</longProp>
-          <boolProp name="graph_aggregated">false</boolProp>
-          <stringProp name="include_sample_labels"></stringProp>
-          <stringProp name="exclude_sample_labels"></stringProp>
-          <stringProp name="start_offset"></stringProp>
-          <stringProp name="end_offset"></stringProp>
-          <boolProp name="include_checkbox_state">false</boolProp>
-          <boolProp name="exclude_checkbox_state">false</boolProp>
-          <collectionProp name="metricConnections">
-            <collectionProp name="-854706464">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="2590131">Swap</stringProp>
-              <stringProp name="739935979">label=swap_used_kb:unit=kb:used</stringProp>
-            </collectionProp>
-            <collectionProp name="-787760044">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="2590131">Swap</stringProp>
-              <stringProp name="479698505">label=swap_free_kb:unit=kb:free</stringProp>
-            </collectionProp>
-            <collectionProp name="526932871">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="2590131">Swap</stringProp>
-              <stringProp name="-1042071787">label=swap_total_kb:unit=kb:total</stringProp>
             </collectionProp>
           </collectionProp>
         </kg.apc.jmeter.perfmon.PerfMonCollector>
@@ -335,6 +257,18 @@
               <stringProp name="2112896831">Disks I/O</stringProp>
               <stringProp name="1897202208">label=disk_write_kb:unit=kb:writebytes</stringProp>
             </collectionProp>
+            <collectionProp name="-540984301">
+              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
+              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
+              <stringProp name="2112896831">Disks I/O</stringProp>
+              <stringProp name="1897202208">label=disk_use:useperc</stringProp>
+            </collectionProp>
+            <collectionProp name="-540984301">
+              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
+              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
+              <stringProp name="2112896831">Disks I/O</stringProp>
+              <stringProp name="1897202208">label=disk_total:total</stringProp>
+            </collectionProp>
           </collectionProp>
         </kg.apc.jmeter.perfmon.PerfMonCollector>
         <hashTree/>
@@ -400,72 +334,6 @@
               <stringProp name="1468761134">{{.AgentPort}}</stringProp>
               <stringProp name="-274342153">Network I/O</stringProp>
               <stringProp name="-116000678">label=network_speed:speed</stringProp>
-            </collectionProp>
-          </collectionProp>
-        </kg.apc.jmeter.perfmon.PerfMonCollector>
-        <hashTree/>
-        <kg.apc.jmeter.perfmon.PerfMonCollector guiclass="kg.apc.jmeter.vizualizers.PerfMonGui" testclass="kg.apc.jmeter.perfmon.PerfMonCollector" testname="tcp collector" enabled="true">
-          <boolProp name="ResultCollector.error_logging">false</boolProp>
-          <objProp>
-            <name>saveConfig</name>
-            <value class="SampleSaveConfiguration">
-              <time>true</time>
-              <latency>true</latency>
-              <timestamp>true</timestamp>
-              <success>true</success>
-              <label>true</label>
-              <code>true</code>
-              <message>true</message>
-              <threadName>true</threadName>
-              <dataType>true</dataType>
-              <encoding>false</encoding>
-              <assertions>true</assertions>
-              <subresults>true</subresults>
-              <responseData>false</responseData>
-              <samplerData>false</samplerData>
-              <xml>false</xml>
-              <fieldNames>true</fieldNames>
-              <responseHeaders>false</responseHeaders>
-              <requestHeaders>false</requestHeaders>
-              <responseDataOnError>false</responseDataOnError>
-              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
-              <assertionsResultsToSave>0</assertionsResultsToSave>
-              <bytes>true</bytes>
-              <sentBytes>true</sentBytes>
-              <url>true</url>
-              <threadCounts>true</threadCounts>
-              <idleTime>true</idleTime>
-              <connectTime>true</connectTime>
-            </value>
-          </objProp>
-          <stringProp name="TestPlan.comments">Plugin help available here: http://jmeter-plugins.org/wiki/PerfMon</stringProp>
-          <stringProp name="filename">{{.TcpResultPath}}</stringProp>
-          <longProp name="interval_grouping">1000</longProp>
-          <boolProp name="graph_aggregated">false</boolProp>
-          <stringProp name="include_sample_labels"></stringProp>
-          <stringProp name="exclude_sample_labels"></stringProp>
-          <stringProp name="start_offset"></stringProp>
-          <stringProp name="end_offset"></stringProp>
-          <boolProp name="include_checkbox_state">false</boolProp>
-          <boolProp name="exclude_checkbox_state">false</boolProp>
-          <collectionProp name="metricConnections">
-            <collectionProp name="-534276863">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="82881">TCP</stringProp>
-              <stringProp name="1914694233">label=tcp_est_conn:estab</stringProp>
-            </collectionProp>
-            <collectionProp name="518543515">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="82881">TCP</stringProp>
-              <stringProp name="503274573">label=tcp_time_wait:time_wait</stringProp>
-            </collectionProp>
-            <collectionProp name="1396126185">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="82881">TCP</stringProp>
-              <stringProp name="-961755981">label=tcp_close_wait:close_wait</stringProp>
             </collectionProp>
           </collectionProp>
         </kg.apc.jmeter.perfmon.PerfMonCollector>

@@ -100,18 +100,34 @@ func InitRouter() *echo.Echo {
 		loadRouter := versionRouter.Group("/load")
 
 		{
+			// load tester
 			loadRouter.POST("/tester", handler.InstallLoadTesterHandler())
 			loadRouter.DELETE("/tester", handler.UninstallLoadTesterHandler())
+			
+			// load test execution
 			loadRouter.POST("/start", handler.RunLoadTestHandler())
 			loadRouter.POST("/stop", handler.StopLoadTestHandler())
+			
+			// load test result
 			loadRouter.GET("/result", handler.GetLoadTestResultHandler())
+			loadRouter.GET("/result/metrics", handler.GetLoadTestMetricsHandler())
+
+			
+			// load test history
 			loadRouter.GET("/config", handler.GetAllLoadConfigHandler())
 			loadRouter.GET("/config/:loadTestKey", handler.GetLoadConfigHandler())
+			
+			// load test state
 			loadRouter.GET("/state", handler.GetAllLoadExecutionStateHandler())
 			loadRouter.GET("/state/:loadTestKey", handler.GetLoadExecutionStateHandler())
-			loadRouter.POST("/mock/migrate", handler.MockMigration())
-			loadRouter.POST("/agent/install", handler.InstallAgent())
+			
+			// load test metrics agent
+			loadRouter.POST("/agent", handler.InstallAgent())
 			loadRouter.DELETE("/agent/:agentId", handler.UninstallAgent())
+			
+			// TBD
+			loadRouter.POST("/mock/migrate", handler.MockMigration())
+			
 		}
 	}
 	return e
