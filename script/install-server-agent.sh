@@ -6,8 +6,9 @@ AGENT_VERSION="2.2.1"
 AGENT_FILE_NAME="ServerAgent-$AGENT_VERSION.zip"
 AGENT_DOWNLOAD_URL="https://github.com/undera/perfmon-agent/releases/download/$AGENT_VERSION/$AGENT_FILE_NAME"
 
-TCP_PORT="${TCP_PORT:=4444}"
-AUTO_SHUTDOWN="${AUTO_SHUTDOWN:=--auto-shutdown}"
+TCP_PORT="${TCP_PORT:=5555}"
+# AUTO_SHUTDOWN="${AUTO_SHUTDOWN:=--auto-shutdown}"
+AUTO_SHUTDOWN="${AUTO_SHUTDOWN:=""}"
 
 sudo mkdir -p "$AGENT_WORK_DIR"
 sudo apt-get update -y

@@ -19,10 +19,7 @@ type LoadExecutionConfigReq struct {
 
 	EnvId      string     `json:"envId,omitempty"`
 	LoadEnvReq LoadEnvReq `json:"loadEnvReq,omitempty"`
-
-	AgentId  string   `json:"agentId,omitempty"`
-	AgentReq AgentReq `json:"agentReq,omitempty"`
-
+	
 	TestName     string `json:"testName"`
 	VirtualUsers string `json:"virtualUsers"`
 	Duration     string `json:"duration"`
