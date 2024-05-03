@@ -4,7 +4,7 @@ echo "[CM-ANT] JMeter Uninstallation"
 set -e
 
 # Base setup
-JMETER_WORK_DIR=${JMETER_WORK_DIR:="${HOME}/jmeter"}
+JMETER_WORK_DIR=${JMETER_WORK_DIR:="/opt/ant/jmeter"}
 JMETER_VERSION=${JMETER_VERSION:="5.3"}
 JMETER_FOLDER="apache-jmeter-${JMETER_VERSION}"
 JMETER_FULL_PATH="${JMETER_WORK_DIR}/${JMETER_FOLDER}"

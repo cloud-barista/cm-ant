@@ -16,17 +16,20 @@ type LoadEnvIdReq struct {
 
 type LoadExecutionConfigReq struct {
 	LoadTestKey string `json:"loadTestKey,omitempty"`
-	EnvId       string `json:"envId,omitempty"`
-	TestName    string `json:"testName"`
 
+	EnvId      string     `json:"envId,omitempty"`
+	LoadEnvReq LoadEnvReq `json:"loadEnvReq,omitempty"`
+
+	AgentId  string   `json:"agentId,omitempty"`
+	AgentReq AgentReq `json:"agentReq,omitempty"`
+
+	TestName     string `json:"testName"`
 	VirtualUsers string `json:"virtualUsers"`
 	Duration     string `json:"duration"`
 	RampUpTime   string `json:"rampUpTime"`
 	RampUpSteps  string `json:"rampUpSteps"`
 
 	HttpReqs []LoadExecutionHttpReq `json:"httpReqs,omitempty"`
-
-	LoadEnvReq LoadEnvReq `json:"loadEnvReq,omitempty"`
 }
 
 type LoadExecutionHttpReq struct {

@@ -14,10 +14,6 @@ var (
 	homePath, _ = homedir.Dir()
 )
 
-func HomePath() string {
-	return homePath
-}
-
 func RootPath() string {
 	return rootPath
 }

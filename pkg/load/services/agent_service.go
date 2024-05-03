@@ -2,8 +2,10 @@ package services
 
 import (
 	"context"
+	"errors"
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain/repository"
 	"github.com/cloud-barista/cm-ant/pkg/outbound"
 	"github.com/melbahja/goph"
 	"log"
@@ -11,14 +13,14 @@ import (
 	"time"
 )
 
-func InstallAgent(agentInstallReq api.AgentReq) error {
+func InstallAgent(agentInstallReq api.AgentReq) (uint, error) {
 	auth, err := goph.Key(agentInstallReq.PemKeyPath, "")
 	if err != nil {
-		return err
+		return 0, err
 	}
 	client, err := goph.New(agentInstallReq.Username, agentInstallReq.PublicIp, auth)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	defer client.Close()
@@ -27,7 +29,7 @@ func InstallAgent(agentInstallReq api.AgentReq) error {
 
 	installScript, err := os.ReadFile(scriptPath)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -37,25 +39,35 @@ func InstallAgent(agentInstallReq api.AgentReq) error {
 	out, err := client.RunContext(ctx, string(installScript))
 
 	if err != nil {
-		if err == context.DeadlineExceeded {
-			return nil
+		if !errors.Is(err, context.DeadlineExceeded) {
+			log.Println(err)
+			log.Println(string(out))
+			return 0, err
 		}
-		log.Println(err)
-		log.Println(string(out))
-		return err
 	}
 
 	log.Println(string(out))
 
-	return nil
+	id, err := repository.SaveAgentInfo(&agentInstallReq)
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
 }
 
-func UninstallAgent(agentInstallReq api.AgentReq) error {
-	auth, err := goph.Key(agentInstallReq.PemKeyPath, "")
+func UninstallAgent(agentId string) error {
+	agentInfo, err := repository.GetAgentInfo(agentId)
+
 	if err != nil {
 		return err
 	}
-	client, err := goph.New(agentInstallReq.Username, agentInstallReq.PublicIp, auth)
+
+	auth, err := goph.Key(agentInfo.PemKeyPath, "")
+	if err != nil {
+		return err
+	}
+	client, err := goph.New(agentInfo.Username, agentInfo.PublicIp, auth)
 	if err != nil {
 		return err
 	}
@@ -77,6 +89,12 @@ func UninstallAgent(agentInstallReq api.AgentReq) error {
 	}
 
 	log.Println(string(out))
+
+	err = repository.DeleteAgentInfo(agentId)
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

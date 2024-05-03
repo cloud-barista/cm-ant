@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-AGENT_WORK_DIR="${AGENT_WORK_DIR:=/opt/perfmon-agent}"
+AGENT_WORK_DIR="${AGENT_WORK_DIR:="/opt/perfmon-agent"}"
 AGENT_VERSION="2.2.1"
 AGENT_FILE_NAME="ServerAgent-$AGENT_VERSION.zip"
 AGENT_DOWNLOAD_URL="https://github.com/undera/perfmon-agent/releases/download/$AGENT_VERSION/$AGENT_FILE_NAME"
@@ -10,7 +10,8 @@ TCP_PORT="${TCP_PORT:=4444}"
 AUTO_SHUTDOWN="${AUTO_SHUTDOWN:=--auto-shutdown}"
 
 sudo mkdir -p "$AGENT_WORK_DIR"
-sudo apt-get update -y | sudo apt-get install -y wget unzip default-jre
+sudo apt-get update -y
+sudo apt-get install -y wget unzip default-jre
 
 if [ -z "$(ls -A "$AGENT_WORK_DIR")" ]; then
     echo "[CM-ANT] perfmon server agent is installing"

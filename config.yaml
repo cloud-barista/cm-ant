@@ -10,7 +10,7 @@ tumblebug:
 
 load:
   jmeter:
-    workDir: "~/jmeter"
+    workDir: "/opt/ant/jmeter"
     version: 5.3
 
 server:

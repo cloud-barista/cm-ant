@@ -77,6 +77,26 @@ func prepareEnvironment(loadTestReq *api.LoadExecutionConfigReq) error {
 	return nil
 }
 
+func prepareAgentInfo(loadTestReq *api.LoadExecutionConfigReq) error {
+	if loadTestReq.AgentId == "" {
+		return nil
+	}
+
+	agentInfo, err := repository.GetAgentInfo(loadTestReq.AgentId)
+	if err != nil {
+		return fmt.Errorf("failed to get agentInfo: %w", err)
+	}
+
+	if agentInfo != nil &&
+		loadTestReq.AgentReq.Username == "" &&
+		loadTestReq.AgentReq.PemKeyPath == "" &&
+		loadTestReq.AgentReq.PublicIp == "" {
+		loadTestReq.AgentReq = convertToAgentReq(agentInfo)
+	}
+
+	return nil
+}
+
 func convertToLoadEnvReq(loadEnv *model.LoadEnv) api.LoadEnvReq {
 	return api.LoadEnvReq{
 		InstallLocation:      loadEnv.InstallLocation,
@@ -86,6 +106,14 @@ func convertToLoadEnvReq(loadEnv *model.LoadEnv) api.LoadEnvReq {
 		Cert:                 loadEnv.Cert,
 		NsId:                 loadEnv.NsId,
 		McisId:               loadEnv.McisId,
+	}
+}
+
+func convertToAgentReq(agentInfo *model.AgentInfo) api.AgentReq {
+	return api.AgentReq{
+		Username:   agentInfo.Username,
+		PublicIp:   agentInfo.PublicIp,
+		PemKeyPath: agentInfo.PemKeyPath,
 	}
 }
 
@@ -105,19 +133,24 @@ func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.Load
 	}
 }
 
-func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (uint, string, uint, error) {
+func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (string, error) {
 	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()
 	loadTestReq.LoadTestKey = loadTestKey
 
 	// check env
 	if err := prepareEnvironment(loadTestReq); err != nil {
-		return 0, "", 0, err
+		return "", err
+	}
+
+	// check agent info
+	if err := prepareAgentInfo(loadTestReq); err != nil {
+		return "", err
 	}
 
 	// installation jmeter
 	envId, err := InstallLoadTester(&loadTestReq.LoadEnvReq)
 	if err != nil {
-		return 0, "", 0, err
+		return "", err
 	}
 
 	loadTestReq.EnvId = fmt.Sprintf("%d", envId)
@@ -127,12 +160,12 @@ func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (uint, string, uin
 
 	go runLoadTest(loadTestManager, loadTestReq, loadTestKey)
 
-	loadExecutionConfigId, err := repository.SaveLoadTestExecution(loadTestReq)
+	_, err = repository.SaveLoadTestExecution(loadTestReq)
 	if err != nil {
-		return 0, "", 0, err
+		return "", err
 	}
 
-	return envId, loadTestKey, loadExecutionConfigId, nil
+	return loadTestKey, nil
 }
 
 func StopLoadTest(loadTestKeyReq api.LoadTestKeyReq) error {

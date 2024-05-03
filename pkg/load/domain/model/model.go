@@ -56,12 +56,10 @@ type LoadExecutionHttp struct {
 }
 
 type AgentInfo struct {
-	AgentId string `json:"agentId" form:"agentId,omitempty"`
-
-	Hostname string `json:"hostname" form:"hostname,omitempty"`
-	Username string `json:"username" form:"username,omitempty"`
-	TcpPort  string `json:"tcpPort" form:"tcpPort,omitempty"`
-	Shutdown bool   `json:"shutdown" form:"shutdown,omitempty"`
+	gorm.Model
+	Username   string `json:"username" form:"username,omitempty"`
+	PublicIp   string `json:"publicIp" form:"publicIp,omitempty"`
+	PemKeyPath string `json:"pemKeyPath" form:"pemKeyPath,omitempty"`
 }
 
 func NewAgentInfo() AgentInfo {

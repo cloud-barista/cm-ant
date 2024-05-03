@@ -111,8 +111,6 @@ func initAppConfig() error {
 	if err != nil {
 		return fmt.Errorf("fatal error config file: %w", err)
 	}
-
-	cfg.Load.JMeter.WorkDir = strings.Replace(cfg.Load.JMeter.WorkDir, "~", HomePath(), 1)
 	appConfig = &cfg
 	log.Println(">>>> completed initAppConfig()")
 
@@ -146,6 +144,7 @@ func migrateDB(defaultDb *gorm.DB) error {
 		&model.LoadExecutionConfig{},
 		&model.LoadExecutionState{},
 		&model.LoadExecutionHttp{},
+		&model.AgentInfo{},
 	)
 
 	if err != nil {

@@ -20,29 +20,32 @@ func InstallAgent() echo.HandlerFunc {
 
 		}
 
-		err := services.InstallAgent(agentReq)
+		agentId, err := services.InstallAgent(agentReq)
 
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
 				"message": fmt.Sprintln("something went wrong", err),
 			})
 		}
-		return nil
+		return c.JSON(http.StatusOK, map[string]any{
+			"agentId": agentId,
+			"message": "success",
+		})
 	}
 }
 
 func UninstallAgent() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		agentReq := api.AgentReq{}
+		agentId := c.Param("agentId")
 
-		if err := c.Bind(&agentReq); err != nil {
+		if agentId == "" {
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": fmt.Sprintf("pass me correct body; %v\n", agentReq),
+				"message": fmt.Sprintf("pass me correct agentId\n"),
 			})
 
 		}
 
-		err := services.UninstallAgent(agentReq)
+		err := services.UninstallAgent(agentId)
 
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{

@@ -161,7 +161,7 @@ func RunLoadTestHandler() echo.HandlerFunc {
 			})
 		}
 
-		envId, testKey, loadExecutionConfigId, err := services.ExecuteLoadTest(&loadTestReq)
+		loadTestKey, err := services.ExecuteLoadTest(&loadTestReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v\n", err)
@@ -171,10 +171,8 @@ func RunLoadTestHandler() echo.HandlerFunc {
 		}
 
 		return c.JSON(http.StatusOK, map[string]any{
-			"testKey":               testKey,
-			"envId":                 envId,
-			"loadExecutionConfigId": loadExecutionConfigId,
-			"message":               "success",
+			"loadTestKey": loadTestKey,
+			"message":     "success",
 		})
 
 	}

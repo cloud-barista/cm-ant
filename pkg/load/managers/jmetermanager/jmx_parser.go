@@ -14,12 +14,20 @@ import (
 )
 
 type jmxTemplateData struct {
-	TestName     string `json:"testName"`
-	Duration     string `json:"duration"`
-	RampUpSteps  string `json:"rampUpSteps"`
-	RampUpTime   string `json:"rampUpTime"`
-	VirtualUsers string `json:"virtualUsers"`
-	HttpRequests string `json:"httpRequests"`
+	TestName          string
+	Duration          string
+	RampUpSteps       string
+	RampUpTime        string
+	VirtualUsers      string
+	HttpRequests      string
+	AgentHost         string
+	AgentPort         string
+	CpuResultPath     string
+	MemoryResultPath  string
+	SwapResultPath    string
+	DiskResultPath    string
+	NetworkResultPath string
+	TcpResultPath     string
 }
 
 type jmxHttpTemplateData struct {
@@ -36,71 +44,6 @@ type jmxTemplateDataParam struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
-
-const defaultJmx = `
-<?xml version="1.0" encoding="UTF-8"?>
-<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.3">
-  <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="{{.TestName}}" enabled="true">
-      <stringProp name="TestPlan.comments"></stringProp>
-      <boolProp name="TestPlan.functional_mode">false</boolProp>
-      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
-      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
-      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
-        <collectionProp name="Arguments.arguments"/>
-      </elementProp>
-      <stringProp name="TestPlan.user_define_classpath"></stringProp>
-    </TestPlan>
-    <hashTree>
-      <com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup guiclass="com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroupGui" testclass="com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup" testname="{{.TestName}} Thread Group" enabled="true">
-        <elementProp name="ThreadGroup.main_controller" elementType="com.blazemeter.jmeter.control.VirtualUserController"/>
-        <stringProp name="Hold">{{.Duration}}</stringProp>
-        <stringProp name="Steps">{{.RampUpSteps}}</stringProp>
-        <stringProp name="RampUp">{{.RampUpTime}}</stringProp>
-        <stringProp name="TargetLevel">{{.VirtualUsers}}</stringProp>
-        <stringProp name="Iterations">0</stringProp>
-        <stringProp name="Unit">S</stringProp>
-        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
-      </com.blazemeter.jmeter.threads.concurrency.ConcurrencyThreadGroup>
-      <hashTree>
-        {{.HttpRequests}}
-      </hashTree>
-      <hashTree/>
-      <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
-        <collectionProp name="HeaderManager.headers">
-          <elementProp name="" elementType="Header">
-            <stringProp name="Header.name">test-header</stringProp>
-            <stringProp name="Header.value">test-header-value</stringProp>
-          </elementProp>
-        </collectionProp>
-      </HeaderManager>
-      <hashTree/>
-      <CookieManager guiclass="CookiePanel" testclass="CookieManager" testname="HTTP Cookie Manager" enabled="true">
-        <collectionProp name="CookieManager.cookies">
-          <elementProp name="test-cookie" elementType="Cookie" testname="test-cookie">
-            <stringProp name="Cookie.value">test-cookie-value</stringProp>
-            <stringProp name="Cookie.domain">test.domain.com</stringProp>
-            <stringProp name="Cookie.path"></stringProp>
-            <boolProp name="Cookie.secure">false</boolProp>
-            <longProp name="Cookie.expires">0</longProp>
-            <boolProp name="Cookie.path_specified">true</boolProp>
-            <boolProp name="Cookie.domain_specified">true</boolProp>
-          </elementProp>
-        </collectionProp>
-        <boolProp name="CookieManager.clearEachIteration">false</boolProp>
-        <boolProp name="CookieManager.controlledByThreadGroup">false</boolProp>
-      </CookieManager>
-      <hashTree/>
-      <CacheManager guiclass="CacheManagerGui" testclass="CacheManager" testname="HTTP Cache Manager" enabled="true">
-        <boolProp name="clearEachIteration">false</boolProp>
-        <boolProp name="useExpires">true</boolProp>
-        <boolProp name="CacheManager.controlledByThread">false</boolProp>
-      </CacheManager>
-      <hashTree/>
-    </hashTree>
-  </hashTree>
-</jmeterTestPlan>
-`
 
 var jmxHttpSamplerTemplate = map[string]string{
 	"GET": `
@@ -168,23 +111,32 @@ func tearDown(jmeterPath, loadTestKey string) error {
 }
 
 func createTestPlanJmx(createdPath string, loadTestReq *api.LoadExecutionConfigReq) error {
+	jmeterConf := configuration.Get().Load.JMeter
+	resultPath := fmt.Sprintf("%s/result", jmeterConf.WorkDir)
 
 	httpRequests, err := httpReqParseToJmx(loadTestReq.HttpReqs)
-
 	if err != nil {
 		return err
 	}
 
 	jmxTemplateData := jmxTemplateData{
-		TestName:     loadTestReq.TestName,
-		Duration:     loadTestReq.Duration,
-		RampUpSteps:  loadTestReq.RampUpSteps,
-		RampUpTime:   loadTestReq.RampUpTime,
-		VirtualUsers: loadTestReq.VirtualUsers,
-		HttpRequests: httpRequests,
+		TestName:          loadTestReq.TestName,
+		Duration:          loadTestReq.Duration,
+		RampUpSteps:       loadTestReq.RampUpSteps,
+		RampUpTime:        loadTestReq.RampUpTime,
+		VirtualUsers:      loadTestReq.VirtualUsers,
+		HttpRequests:      httpRequests,
+		AgentHost:         loadTestReq.AgentReq.PublicIp,
+		AgentPort:         "4444",
+		CpuResultPath:     fmt.Sprintf("%s/%s_cpu_result.csv", resultPath, loadTestReq.LoadTestKey),
+		MemoryResultPath:  fmt.Sprintf("%s/%s_memory_result.csv", resultPath, loadTestReq.LoadTestKey),
+		SwapResultPath:    fmt.Sprintf("%s/%s_swap_result.csv", resultPath, loadTestReq.LoadTestKey),
+		DiskResultPath:    fmt.Sprintf("%s/%s_disk_result.csv", resultPath, loadTestReq.LoadTestKey),
+		NetworkResultPath: fmt.Sprintf("%s/%s_network_result.csv", resultPath, loadTestReq.LoadTestKey),
+		TcpResultPath:     fmt.Sprintf("%s/%s_tcp_result.csv", resultPath, loadTestReq.LoadTestKey),
 	}
 
-	tmpl, err := template.ParseFiles(configuration.JoinRootPathWith("/test_plan/default.jmx"))
+	tmpl, err := template.ParseFiles(configuration.JoinRootPathWith("/test_plan/default_perfmon.jmx"))
 	if err != nil {
 		return err
 	}
