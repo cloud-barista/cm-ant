@@ -333,7 +333,7 @@
         },
         "/ant/api/v1/load/tester": {
             "post": {
-                "description": "Install load test tools in the delivered load test environment",
+                "description": "Install load test tester in the delivered load test environment",
                 "consumes": [
                     "application/json"
                 ],
@@ -341,9 +341,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Test Tool]"
+                    "[Load Test Tester]"
                 ],
-                "summary": "Install load test tool",
+                "summary": "Install load test tester",
                 "operationId": "InstallLoadTester",
                 "parameters": [
                     {
@@ -381,7 +381,7 @@
                 }
             },
             "delete": {
-                "description": "Uninstall load test tools in the delivered load test environment",
+                "description": "Uninstall load test tester in the delivered load test environment",
                 "consumes": [
                     "application/json"
                 ],
@@ -389,9 +389,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Test Tool]"
+                    "[Load Test Tester]"
                 ],
-                "summary": "Uninstall load test tool",
+                "summary": "Uninstall load test tester",
                 "operationId": "UninstallLoadTester",
                 "parameters": [
                     {

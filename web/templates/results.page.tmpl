@@ -11,9 +11,9 @@
                 <th>Duration</th>
                 <th>Env Location</th>
                 <th>HTTP Res Count</th>
-                <th>Load Test Status</th>
                 <th>Test Start Time</th>
                 <th>Test End Time</th>
+                <th>Status</th>
             </tr>
             {{range .}}
                 <tr>
@@ -24,9 +24,17 @@
                     <td>{{.Duration}}</td>
                     <td>{{.LoadEnv.InstallLocation}}</td>
                     <td>{{len .LoadExecutionHttp}}</td>
-                    <td>{{.LoadExecutionState.ExecutionStatus}}</td>
                     <td>{{.LoadExecutionState.StartAt.Format "2024-01-02 15:04:05"}}</td>
                     <td>{{if .LoadExecutionState.EndAt}}{{.LoadExecutionState.EndAt.Format "2024-01-02 15:04:05"}}{{else}}N/A{{end}}</td>
+                    <td>
+                        {{if eq .LoadExecutionState.ExecutionStatus "process"}}
+                            <button id="stop-load-test" style="background-color: #007bff; color: white">make STOP!</button>
+                        {{else if eq .LoadExecutionState.ExecutionStatus "success"}}
+                            <button disabled style="background-color: #4CAF50; color: white">{{.LoadExecutionState.ExecutionStatus}}ed</button>
+                        {{else}}
+                            <button disabled style="border-color: crimson; color: crimson">{{.LoadExecutionState.ExecutionStatus}}</button>
+                        {{end}}
+                    </td>
                 </tr>
             {{end}}
         </table>

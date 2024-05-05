@@ -2,23 +2,37 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     let loadTestKey = null;
-
+    let loading = false;
 
     const rows = document.querySelectorAll('table tr:not(:first-child)');
-    rows.forEach(row => {
-        row.addEventListener('click', function () {
-            loadTestKey = this.cells[2].textContent;
-            
-            Promise.all([
-                fetchAggregate(),
-                fetchListData()
-            ])
+
+    function fetchResult() {
+        if (loading === true) {
+            alert("Load test result is fetching!");
+            return;
+        }
+
+        loading = true;
+
+        loadTestKey = this.cells[2].textContent;
+
+        Promise.all([
+            fetchAggregate(),
+            fetchMetrics(),
+        ])
             .then(results => {
                 console.log('fetch data clear');
+                loading = false;
             })
             .catch(error => {
                 console.error('Error fetching list data:', error);
+                loading = false;
             });
+    }
+
+    rows.forEach(row => {
+        row.addEventListener('click', function () {
+            fetchResult.call(this);
         });
     })
 
@@ -47,6 +61,18 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    function fetchMetrics() {
+        return fetch(`/ant/api/v1/load/result/metrics?loadTestKey=${loadTestKey}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                return null;
+            })
+            .catch(error => {
+                throw error; // 오류를 다시 throw하여 Promise.all에서 catch로 넘김
+            });
+    }
+
     function updateTable(data) {
         const staticDiv = document.getElementById('statisticsDiv');
         staticDiv.style.display = 'none';
@@ -58,17 +84,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 <tr>
                     <td>${data.label}</td>
                     <td>${data.requestCount}</td>
-                    <td>${data.average.toFixed(2)}</td>
-                    <td>${data.median.toFixed(2)}</td>
-                    <td>${data.ninetyPercent.toFixed(2)}</td>
-                    <td>${data.ninetyFive.toFixed(2)}</td>
-                    <td>${data.ninetyNine.toFixed(2)}</td>
-                    <td>${data.minTime.toFixed(2)}</td>
-                    <td>${data.maxTime.toFixed(2)}</td>
-                    <td>${data.errorPercent.toFixed(2)}%</td>
-                    <td>${data.throughput.toFixed(2)}</td>
-                    <td>${data.receivedKB.toFixed(2)}</td>
-                    <td>${data.sentKB.toFixed(2)}</td>
+                    <td>${data.average.toFixed(2)} ms</td>
+                    <td>${data.median.toFixed(2)} ms</td>
+                    <td>${data.ninetyPercent.toFixed(2)} ms</td>
+                    <td>${data.ninetyFive.toFixed(2)} ms</td>
+                    <td>${data.ninetyNine.toFixed(2)} ms</td>
+                    <td>${data.minTime.toFixed(2)} ms</td>
+                    <td>${data.maxTime.toFixed(2)} ms</td>
+                    <td>${data.errorPercent.toFixed(2)} %</td>
+                    <td>${data.throughput.toFixed(2)} /sec</td>
+                    <td>${data.receivedKB.toFixed(2)} /sec</td>
+                    <td>${data.sentKB.toFixed(2)} /sec</td>
                 </tr>
             `;
             tbody.innerHTML += row;  // 생성된 행을 tbody에 추가
@@ -77,7 +103,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     let myChart = [];
-    
 
     function drawChart(data) {
         const staticDiv = document.getElementById('chartDiv');
@@ -88,27 +113,27 @@ document.addEventListener('DOMContentLoaded', function () {
             myChart = [];
         }
         staticDiv.innerHTML = '';
-        
+
         // const timestamps = Object.keys(data).map(ts => new Date(ts).toLocaleTimeString());
         const labels = Object.keys(data).flat();
 
+        const sampleRate = 200;
+
         labels.map(label => {
-
             const canvas = document.createElement('canvas');
-            canvas.id = 'canvas-' + label;
 
+            canvas.id = 'canvas-' + label;
             const ctx = canvas.getContext('2d');
             const v = data[label];
-            const count = Math.max(60, v.length / 1000)
-            const countedData = filterData(v, count);
+            const sampledData = sampleData(v, sampleRate);
 
-            const elapsedTimes = countedData.map(item => item.Elapsed);
-            const bytes = countedData.map(item => item.Bytes);
-            const sendBytes = countedData.map(item => item.SentBytes);
-            const latencies = countedData.map(item => item.Latency);
-            const idleTimes = countedData.map(item => item.IdleTime);
-            const connections = countedData.map(item => item.Connection);
-            const timestamps = countedData.map(item => new Date(item.Timestamp).toLocaleTimeString());
+            const elapsedTimes = sampledData.map(item => item.Elapsed);
+            const bytes = sampledData.map(item => item.Bytes);
+            const sendBytes = sampledData.map(item => item.SentBytes);
+            const latencies = sampledData.map(item => item.Latency);
+            const idleTimes = sampledData.map(item => item.IdleTime);
+            const connections = sampledData.map(item => item.Connection);
+            const timestamps = sampledData.map(item => new Date(item.Timestamp).toLocaleTimeString());
 
 
             const charttt = new Chart(ctx, {
@@ -177,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     scales: {
                         x: {
                             ticks: {
-                                maxTicksLimit: count
+                                maxTicksLimit: sampleRate
                             }
                         },
                         y: {
@@ -198,37 +223,57 @@ document.addEventListener('DOMContentLoaded', function () {
         staticDiv.style.display = 'block';
     }
 
-    function filterData(data, count) {
 
-        if (data.length < count) {
+    function sampleData(data, sampleRate) {
+        if (data.length < sampleRate) {
             return data;
         }
-        const interval = Math.floor(data.length / count);
-        let datas = [];
+        const interval = Math.floor(data.length / sampleRate);
+        let sampledData = [];
         for (let i = 0; i < data.length; i += interval) {
-            datas.push(data[i]);
+            sampledData.push(data[i]);
         }
-        return datas;
+        return sampledData;
     }
 
     const button = document.getElementById('refresh-chart');
 
     button.addEventListener('click', function() {
+        fetchResult.call(this);
+    });
+
+
+    const stopButton = document.getElementById('stop-load-test');
+
+    stopButton.addEventListener('click', function() {
+        stopLoadTest();
+    });
+
+    function stopLoadTest() {
 
         if (!loadTestKey) {
-            return;
+            return
         }
-        Promise.all([
-            fetchAggregate(),
-            fetchListData()
-        ])
-        .then(results => {
-            console.log('fetch data clear');
+
+        fetch(`/ant/api/v1/load/stop`,{
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({"loadTestKey": loadTestKey})
         })
-        .catch(error => {
-            console.error('Error fetching list data:', error);
-        });
-    });
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                console.log('load test stopped!');
+                return null; // 데이터 반환
+            })
+            .catch(error => {
+                throw error; // 오류를 다시 throw하여 Promise.all에서 catch로 넘김
+            });
+
+    }
+
 
 });
 

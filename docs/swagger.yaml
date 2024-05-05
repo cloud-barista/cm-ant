@@ -393,7 +393,7 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Uninstall load test tools in the delivered load test environment
+      description: Uninstall load test tester in the delivered load test environment
       operationId: UninstallLoadTester
       parameters:
       - description: load test environment id
@@ -419,13 +419,13 @@ paths:
           description: something went wrong.try again.
           schema:
             type: string
-      summary: Uninstall load test tool
+      summary: Uninstall load test tester
       tags:
-      - '[Load Test Tool]'
+      - '[Load Test Tester]'
     post:
       consumes:
       - application/json
-      description: Install load test tools in the delivered load test environment
+      description: Install load test tester in the delivered load test environment
       operationId: InstallLoadTester
       parameters:
       - description: load test environment request
@@ -451,7 +451,7 @@ paths:
           description: sorry, internal server error while executing load test;
           schema:
             type: string
-      summary: Install load test tool
+      summary: Install load test tester
       tags:
-      - '[Load Test Tool]'
+      - '[Load Test Tester]'
 swagger: "2.0"
