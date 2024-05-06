@@ -48,6 +48,104 @@ const docTemplate = `{
                 }
             }
         },
+        "/ant/api/v1/load/agent": {
+            "post": {
+                "description": "Install an agent to collect server metrics during load testing such as CPU and memory.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Agent - for Development]"
+                ],
+                "summary": "Install jmeter perfmon agent for metrics collection",
+                "operationId": "InstallAgent",
+                "parameters": [
+                    {
+                        "description": "agent install request",
+                        "name": "loadEnvReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.AgentReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "request body is not correct",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/agent/{agentId}": {
+            "delete": {
+                "description": "Uninstall an agent to collect server metrics during load testing such as CPU and memory.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Agent - for Development]"
+                ],
+                "summary": "Uninstall jmeter perfmon agent for metrics collection",
+                "operationId": "UninstallAgent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "agentId",
+                        "name": "agentId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "request body is not correct",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/ant/api/v1/load/config": {
             "get": {
                 "description": "Get all the load test execution configurations.",
@@ -132,7 +230,7 @@ const docTemplate = `{
                 "tags": [
                     "[Load Test Result]"
                 ],
-                "summary": "Get the the result of single load test result",
+                "summary": "Get the result of single load test result",
                 "operationId": "LoadTestResult",
                 "parameters": [
                     {
@@ -147,6 +245,51 @@ const docTemplate = `{
                         "description": "format of load test result aggregate",
                         "name": "format",
                         "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "loadTestKey must be passed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "sorry, internal server error while getting load test result;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/result/metrics": {
+            "get": {
+                "description": "Get the result of metrics for target server.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Result]"
+                ],
+                "summary": "Get the result of single load test metrics",
+                "operationId": "LoadTestMetrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "load test key",
+                        "name": "loadTestKey",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -440,6 +583,20 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "api.AgentReq": {
+            "type": "object",
+            "properties": {
+                "pemKeyPath": {
+                    "type": "string"
+                },
+                "publicIp": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "api.LoadEnvIdReq": {
             "type": "object",
             "properties": {

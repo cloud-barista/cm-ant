@@ -14,6 +14,7 @@ import (
 
 	_ "github.com/cloud-barista/cm-ant/docs"
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	zerolog "github.com/rs/zerolog/log"
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
@@ -43,7 +44,56 @@ func InitRouter() *echo.Echo {
 	e.Static("/css", configuration.RootPath()+"/web/css")
 	e.Static("/js", configuration.RootPath()+"/web/js")
 
-	e.Use(middleware.Logger(), middleware.Recover(), middleware.RequestID())
+	e.Use(
+		middleware.RequestLoggerWithConfig(
+			middleware.RequestLoggerConfig{
+				LogError:         true,
+				LogRequestID:     true,
+				LogRemoteIP:      true,
+				LogHost:          true,
+				LogMethod:        true,
+				LogURI:           true,
+				LogUserAgent:     false,
+				LogStatus:        true,
+				LogLatency:       true,
+				LogContentLength: true,
+				LogResponseSize:  true,
+				LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+					if v.Error == nil {
+						zerolog.Info().
+							Str("id", v.RequestID).
+							Str("client_ip", v.RemoteIP).
+							Str("host", v.Host).
+							Str("method", v.Method).
+							Str("URI", v.URI).
+							Int("status", v.Status).
+							Int64("latency", v.Latency.Nanoseconds()).
+							Str("latency_human", v.Latency.String()).
+							Str("bytes_in", v.ContentLength).
+							Int64("bytes_out", v.ResponseSize).
+							Msg("request")
+					} else {
+						zerolog.Error().
+							Err(v.Error).
+							Str("id", v.RequestID).
+							Str("client_ip", v.RemoteIP).
+							Str("host", v.Host).
+							Str("method", v.Method).
+							Str("URI", v.URI).
+							Int("status", v.Status).
+							Int64("latency", v.Latency.Nanoseconds()).
+							Str("latency_human", v.Latency.String()).
+							Str("bytes_in", v.ContentLength).
+							Int64("bytes_out", v.ResponseSize).
+							Msg("request error")
+					}
+					return nil
+				},
+			},
+		),
+		middleware.Recover(),
+		middleware.RequestID(),
+	)
 	e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
 		Skipper:      middleware.DefaultSkipper,
 		ErrorMessage: "request timeout",
@@ -103,31 +153,30 @@ func InitRouter() *echo.Echo {
 			// load tester
 			loadRouter.POST("/tester", handler.InstallLoadTesterHandler())
 			loadRouter.DELETE("/tester", handler.UninstallLoadTesterHandler())
-			
+
 			// load test execution
 			loadRouter.POST("/start", handler.RunLoadTestHandler())
 			loadRouter.POST("/stop", handler.StopLoadTestHandler())
-			
+
 			// load test result
 			loadRouter.GET("/result", handler.GetLoadTestResultHandler())
 			loadRouter.GET("/result/metrics", handler.GetLoadTestMetricsHandler())
 
-			
 			// load test history
 			loadRouter.GET("/config", handler.GetAllLoadConfigHandler())
 			loadRouter.GET("/config/:loadTestKey", handler.GetLoadConfigHandler())
-			
+
 			// load test state
 			loadRouter.GET("/state", handler.GetAllLoadExecutionStateHandler())
 			loadRouter.GET("/state/:loadTestKey", handler.GetLoadExecutionStateHandler())
-			
+
 			// load test metrics agent
 			loadRouter.POST("/agent", handler.InstallAgent())
 			loadRouter.DELETE("/agent/:agentId", handler.UninstallAgent())
-			
+
 			// TBD
 			loadRouter.POST("/mock/migrate", handler.MockMigration())
-			
+
 		}
 	}
 	return e

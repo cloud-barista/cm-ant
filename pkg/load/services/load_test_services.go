@@ -51,10 +51,10 @@ func UninstallLoadTester(loadEnvId string) error {
 		return fmt.Errorf("failed to uninstall load tester: %w", err)
 	}
 
-	err := repository.DeleteLoadTestInstallEnv(loadEnvId)
-	if err != nil {
-		return fmt.Errorf("failed to delete load test installation environment: %w", err)
-	}
+	//err := repository.DeleteLoadTestInstallEnv(loadEnvId)
+	//if err != nil {
+	//	return fmt.Errorf("failed to delete load test installation environment: %w", err)
+	//}
 	log.Println("load test environment is successfully deleted")
 
 	return nil

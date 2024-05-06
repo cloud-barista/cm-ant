@@ -1,4 +1,13 @@
 definitions:
+  api.AgentReq:
+    properties:
+      pemKeyPath:
+        type: string
+      publicIp:
+        type: string
+      username:
+        type: string
+    type: object
   api.LoadEnvIdReq:
     properties:
       loadEnvId:
@@ -193,6 +202,73 @@ paths:
       summary: Get the list of load test environments
       tags:
       - '[Load Test Environment]'
+  /ant/api/v1/load/agent:
+    post:
+      consumes:
+      - application/json
+      description: Install an agent to collect server metrics during load testing
+        such as CPU and memory.
+      operationId: InstallAgent
+      parameters:
+      - description: agent install request
+        in: body
+        name: loadEnvReq
+        required: true
+        schema:
+          $ref: '#/definitions/api.AgentReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: request body is not correct
+          schema:
+            type: string
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: Install jmeter perfmon agent for metrics collection
+      tags:
+      - '[Agent - for Development]'
+  /ant/api/v1/load/agent/{agentId}:
+    delete:
+      consumes:
+      - application/json
+      description: Uninstall an agent to collect server metrics during load testing
+        such as CPU and memory.
+      operationId: UninstallAgent
+      parameters:
+      - description: agentId
+        in: path
+        name: agentId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: request body is not correct
+          schema:
+            type: string
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: Uninstall jmeter perfmon agent for metrics collection
+      tags:
+      - '[Agent - for Development]'
   /ant/api/v1/load/config:
     get:
       consumes:
@@ -272,7 +348,37 @@ paths:
           description: sorry, internal server error while getting load test result;
           schema:
             type: string
-      summary: Get the the result of single load test result
+      summary: Get the result of single load test result
+      tags:
+      - '[Load Test Result]'
+  /ant/api/v1/load/result/metrics:
+    get:
+      consumes:
+      - application/json
+      description: Get the result of metrics for target server.
+      operationId: LoadTestMetrics
+      parameters:
+      - description: load test key
+        in: query
+        name: loadTestKey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: loadTestKey must be passed
+          schema:
+            type: string
+        "500":
+          description: sorry, internal server error while getting load test result;
+          schema:
+            type: string
+      summary: Get the result of single load test metrics
       tags:
       - '[Load Test Result]'
   /ant/api/v1/load/start:

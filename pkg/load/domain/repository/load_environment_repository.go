@@ -1,9 +1,11 @@
 package repository
 
 import (
+	"errors"
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
+	"gorm.io/gorm"
 )
 
 func GetAllLoadEnvironments() ([]model.LoadEnv, error) {
@@ -26,6 +28,9 @@ func GetEnvironment(envId string) (*model.LoadEnv, error) {
 	result := db.First(&loadEnv, envId)
 
 	if err := result.Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &loadEnv, nil
+		}
 		return nil, err
 	}
 

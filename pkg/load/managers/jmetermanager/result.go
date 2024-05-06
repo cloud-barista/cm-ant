@@ -94,7 +94,7 @@ func (j *JMeterLoadTestManager) GetMetrics(loadEnv *model.LoadEnv, loadTestKey, 
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
 	metricsPrePath := fmt.Sprintf("%s/result", jmeterPath)
 	metrics := []string{"cpu", "disk", "memory", "network"}
-
+	tempFolderPath := configuration.JoinRootPathWith("/temp")
 	var metricsRawData = make(map[string][]*metricsRawData)
 
 	if (*loadEnv).InstallLocation == constant.Remote {
@@ -102,8 +102,6 @@ func (j *JMeterLoadTestManager) GetMetrics(loadEnv *model.LoadEnv, loadTestKey, 
 		case constant.BuiltIn:
 
 		case constant.PrivateKey, constant.Password:
-
-			tempFolderPath := configuration.JoinRootPathWith("/temp")
 
 			err := utils.CreateFolderIfNotExist(tempFolderPath)
 			if err != nil {
@@ -127,7 +125,15 @@ func (j *JMeterLoadTestManager) GetMetrics(loadEnv *model.LoadEnv, loadTestKey, 
 		}
 
 	} else if (*loadEnv).InstallLocation == constant.Local {
-
+		var err error
+		for _, v := range metrics {
+			fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, v)
+			localPath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
+			metricsRawData, err = appendMetricsRawData(metricsRawData, localPath)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	formattedDate, err := metricFormat(format, metricsRawData)
@@ -269,8 +275,15 @@ func appendMetricsRawData(resultRawDataMap map[string][]*metricsRawData, filePat
 
 	// every time is basically millisecond
 	for i, row := range (*csvRows)[1:] {
-		words := strings.Split(row[2], " ")
-		label := words[len(words)-1]
+		isError := row[7] == "false"
+		var label string
+
+		if isError {
+			label = row[2]
+		} else {
+			words := strings.Split(row[2], " ")
+			label = words[len(words)-1]
+		}
 
 		value, err := strconv.Atoi(row[1])
 		if err != nil {
@@ -284,7 +297,6 @@ func appendMetricsRawData(resultRawDataMap map[string][]*metricsRawData, filePat
 			continue
 		}
 
-		isError := row[7] == "false"
 		t := time.UnixMilli(unixMilliseconds)
 
 		rd := &metricsRawData{

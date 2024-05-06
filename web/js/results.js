@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         Promise.all([
             fetchAggregate(),
+            fetchResultList(),
             fetchMetrics(),
         ])
             .then(results => {
@@ -48,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
     
-    function fetchListData() {
+    function fetchResultList() {
         return fetch(`/ant/api/v1/load/result?loadTestKey=${loadTestKey}`)
             .then(response => response.json())
             .then(data => {
@@ -245,8 +246,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const stopButton = document.getElementById('stop-load-test');
 
-    stopButton.addEventListener('click', function() {
+    stopButton.addEventListener('click', function(event) {
         stopLoadTest();
+        event.stopPropagation();
     });
 
     function stopLoadTest() {
@@ -266,10 +268,10 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(data => {
                 console.log(data);
                 console.log('load test stopped!');
-                return null; // 데이터 반환
+                return null;
             })
             .catch(error => {
-                throw error; // 오류를 다시 throw하여 Promise.all에서 catch로 넘김
+                throw error;
             });
 
     }

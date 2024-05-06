@@ -17,7 +17,7 @@ import (
 
 // GetLoadTestResultHandler
 // @Id				LoadTestResult
-// @Summary			Get the the result of single load test result
+// @Summary			Get the result of single load test result
 // @Description		After start load test, get the result of load test.
 // @Tags			[Load Test Result]
 // @Accept			json
@@ -86,6 +86,18 @@ func GetLoadTestResultHandler() echo.HandlerFunc {
 	}
 }
 
+// GetLoadTestMetricsHandler
+// @Id				LoadTestMetrics
+// @Summary			Get the result of single load test metrics
+// @Description		Get the result of metrics for target server.
+// @Tags			[Load Test Result]
+// @Accept			json
+// @Produce			json
+// @Param			loadTestKey query 		string true 	"load test key"
+// @Success			200	{object}		interface{}
+// @Failure			400	{object}		string			"loadTestKey must be passed"
+// @Failure			500	{object}		string			"sorry, internal server error while getting load test result;"
+// @Router			/ant/api/v1/load/result/metrics 	[get]
 func GetLoadTestMetricsHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		loadTestKey := c.QueryParam("loadTestKey")
