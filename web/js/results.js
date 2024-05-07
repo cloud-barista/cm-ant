@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const rows = document.querySelectorAll('table tr:not(:first-child)');
 
-    function fetchResult() {
+    function fetchResult(cellValue) {
         if (loading === true) {
             alert("Load test result is fetching!");
             return;
@@ -14,7 +14,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         loading = true;
 
-        loadTestKey = this.cells[2].textContent;
+        if (cellValue !== undefined) {
+            loadTestKey = cellValue;
+        }
 
         Promise.all([
             fetchAggregate(),
@@ -22,18 +24,19 @@ document.addEventListener('DOMContentLoaded', function () {
             fetchMetrics(),
         ])
             .then(results => {
-                console.log('fetch data clear');
                 loading = false;
+                console.log('fetch data clear');
             })
             .catch(error => {
-                console.error('Error fetching list data:', error);
                 loading = false;
+                console.error('Error fetching list data:', error);
             });
     }
 
     rows.forEach(row => {
         row.addEventListener('click', function () {
-            fetchResult.call(this);
+            const cellValue = this.cells[2].textContent;
+            fetchResult(cellValue);
         });
     })
 
@@ -53,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return fetch(`/ant/api/v1/load/result?loadTestKey=${loadTestKey}`)
             .then(response => response.json())
             .then(data => {
-                drawChart(data);
+                drawResultChart(data);
                 return null; // 데이터 반환
             })
             .catch(error => {
@@ -66,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return fetch(`/ant/api/v1/load/result/metrics?loadTestKey=${loadTestKey}`)
             .then(response => response.json())
             .then(data => {
-                console.log(data);
+                drawMetricsChart(data);
                 return null;
             })
             .catch(error => {
@@ -103,22 +106,91 @@ document.addEventListener('DOMContentLoaded', function () {
         staticDiv.style.display = 'block';
     }
 
-    let myChart = [];
+    let metricsCharts = [];
 
-    function drawChart(data) {
-        const staticDiv = document.getElementById('chartDiv');
+    function drawMetricsChart(data) {
+        const metricsDiv = document.getElementById('metrics-chart-div');
+        metricsDiv.style.display = 'none';
+        
+        if (!metricsCharts) {
+            metricsCharts.map(s => s.destroy());
+            metricsCharts = [];
+        }
+        metricsDiv.innerHTML = '';
+
+        const labels = Object.keys(data).flat();
+
+        const sampleRate = 50;
+
+        labels.map(label => {
+            const canvas = document.createElement('canvas');
+
+            canvas.style.width = '25%';
+            canvas.style.minWidth = '200px';
+
+            canvas.id = 'canvas-' + label;
+            const ctx = canvas.getContext('2d');
+            const v = data[label];
+            const sampledData = sampleData(v, sampleRate);
+
+            const values = sampledData.map(item => item.Value);
+            const timestamps = sampledData.map(item => new Date(item.Timestamp).toLocaleTimeString());
+
+            const charttt = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timestamps, 
+                    datasets: [
+                        {
+                            label: label + ' (' + sampledData[0].Unit + ')',
+                            data: values,
+                            borderColor: 'rgb(255, 87, 34)',
+                            backgroundColor: 'rgba(255, 87, 34, 0.5)',
+                            fill: false
+                        },
+                    ]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            ticks: {
+                                maxTicksLimit: sampleRate
+                            }
+                        },
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: true
+                }
+            });
+
+            metricsCharts.push(charttt) ;
+            metricsDiv.appendChild(canvas);
+        })
+
+        
+
+        metricsDiv.style.display = 'block';
+    }
+
+    let resultCharts = [];
+
+    function drawResultChart(data) {
+        const staticDiv = document.getElementById('result-chart-div');
         staticDiv.style.display = 'none';
         
-        if (!myChart) {
-            myChart.map(s => s.destroy());
-            myChart = [];
+        if (!resultCharts) {
+            resultCharts.map(s => s.destroy());
+            resultCharts = [];
         }
         staticDiv.innerHTML = '';
 
         // const timestamps = Object.keys(data).map(ts => new Date(ts).toLocaleTimeString());
         const labels = Object.keys(data).flat();
 
-        const sampleRate = 200;
+        const sampleRate = 100;
 
         labels.map(label => {
             const canvas = document.createElement('canvas');
@@ -215,7 +287,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            myChart.push(charttt) ;
+            resultCharts.push(charttt) ;
             staticDiv.appendChild(canvas);
         })
 
@@ -240,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const button = document.getElementById('refresh-chart');
 
     button.addEventListener('click', function() {
-        fetchResult.call(this);
+        fetchResult();
     });
 
 

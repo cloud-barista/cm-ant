@@ -32,14 +32,13 @@ tr:nth-child(even) {
     }
 }
 
-#chartDiv {
-    width: 80%;
+#result-chart-div {
+    width: 90%;
     margin: 20px auto;
 }
-
-#loadTestChart {
-    width: 100%;
-    min-height: 400px;
+#metrics-chart-div {
+    width: 90%;
+    margin: 10px auto;
 }
 
 .centered {

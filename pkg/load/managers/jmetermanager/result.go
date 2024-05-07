@@ -30,10 +30,66 @@ type resultRawData struct {
 }
 
 type metricsRawData struct {
-	Value     int
+	Value     string
+	Unit      string
 	Label     string
 	IsError   bool
 	Timestamp time.Time
+}
+type metricsUnits struct {
+	Multiple float64
+	Unit     string
+}
+
+var tags = map[string]metricsUnits{
+	"cpu_all_combined": {
+		Multiple: 0.001,
+		Unit:     "%",
+	},
+	"cpu_all_idle": {
+		Multiple: 0.001,
+		Unit:     "%",
+	},
+	"memory_all_used": {
+		Multiple: 0.001,
+		Unit:     "%",
+	},
+	"memory_all_free": {
+		Multiple: 0.001,
+		Unit:     "%",
+	},
+	"memory_all_used_kb": {
+		Multiple: 0.000001,
+		Unit:     "mb",
+	},
+	"memory_all_free_kb": {
+		Multiple: 0.000001,
+		Unit:     "mb",
+	},
+	"disk_read_kb": {
+		Multiple: 0.001,
+		Unit:     "kb",
+	},
+	"disk_write_kb": {
+		Multiple: 0.001,
+		Unit:     "kb",
+	},
+	"disk_use": {
+		Multiple: 0.001,
+		Unit:     "%",
+	},
+	"disk_total": {
+		Multiple: 0.000001,
+		Unit:     "mb",
+	},
+	"network_recv_kb": {
+		Multiple: 0.000001,
+		Unit:     "kb",
+	},
+	"network_sent_kb": {
+		Multiple: 0.001,
+		Unit:     "kb",
+	},
 }
 
 func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, loadTestKey, format string) (interface{}, error) {
@@ -276,19 +332,30 @@ func appendMetricsRawData(resultRawDataMap map[string][]*metricsRawData, filePat
 	// every time is basically millisecond
 	for i, row := range (*csvRows)[1:] {
 		isError := row[7] == "false"
+		intValue, err := strconv.Atoi(row[1])
+		if err != nil {
+			log.Printf("[%d] value has error %s\n", i, err)
+			continue
+		}
+
 		var label string
+		var value string
+		var u string
 
 		if isError {
 			label = row[2]
 		} else {
 			words := strings.Split(row[2], " ")
 			label = words[len(words)-1]
-		}
 
-		value, err := strconv.Atoi(row[1])
-		if err != nil {
-			log.Printf("[%d] value has error %s\n", i, err)
-			continue
+			unit, ok := tags[label]
+			if !ok {
+				continue
+			}
+
+			floatValue := float64(intValue) * unit.Multiple
+			value = strconv.FormatFloat(floatValue, 'f', 3, 64)
+			u = unit.Unit
 		}
 
 		unixMilliseconds, err := strconv.ParseInt(row[0], 10, 64)
@@ -300,8 +367,9 @@ func appendMetricsRawData(resultRawDataMap map[string][]*metricsRawData, filePat
 		t := time.UnixMilli(unixMilliseconds)
 
 		rd := &metricsRawData{
-			Value:     value,
-			Label:     label,
+			Value: value,
+			Unit:  u,
+			// Label:     label,
 			IsError:   isError,
 			Timestamp: t,
 		}

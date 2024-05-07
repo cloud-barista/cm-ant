@@ -227,24 +227,6 @@
           <boolProp name="include_checkbox_state">false</boolProp>
           <boolProp name="exclude_checkbox_state">false</boolProp>
           <collectionProp name="metricConnections">
-            <collectionProp name="308831886">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="2112896831">Disks I/O</stringProp>
-              <stringProp name="342684583">label=disk_reads:reads</stringProp>
-            </collectionProp>
-            <collectionProp name="194089759">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="2112896831">Disks I/O</stringProp>
-              <stringProp name="939584161">label=disk_writes:writes</stringProp>
-            </collectionProp>
-            <collectionProp name="253458662">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="2112896831">Disks I/O</stringProp>
-              <stringProp name="377949071">label=disk_queue:queue</stringProp>
-            </collectionProp>
             <collectionProp name="1912302659">
               <stringProp name="1461373927">{{.AgentHost}}</stringProp>
               <stringProp name="1468761134">{{.AgentPort}}</stringProp>
@@ -328,12 +310,6 @@
               <stringProp name="1468761134">{{.AgentPort}}</stringProp>
               <stringProp name="-274342153">Network I/O</stringProp>
               <stringProp name="854809069">label=network_sent_kb:bytessent</stringProp>
-            </collectionProp>
-            <collectionProp name="-2111683725">
-              <stringProp name="1461373927">{{.AgentHost}}</stringProp>
-              <stringProp name="1468761134">{{.AgentPort}}</stringProp>
-              <stringProp name="-274342153">Network I/O</stringProp>
-              <stringProp name="-116000678">label=network_speed:speed</stringProp>
             </collectionProp>
           </collectionProp>
         </kg.apc.jmeter.perfmon.PerfMonCollector>

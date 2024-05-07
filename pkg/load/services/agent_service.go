@@ -3,14 +3,15 @@ package services
 import (
 	"context"
 	"errors"
+	"log"
+	"os"
+	"time"
+
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/repository"
 	"github.com/cloud-barista/cm-ant/pkg/outbound"
 	"github.com/melbahja/goph"
-	"log"
-	"os"
-	"time"
 )
 
 func InstallAgent(agentInstallReq api.AgentReq) (uint, error) {
@@ -32,7 +33,7 @@ func InstallAgent(agentInstallReq api.AgentReq) (uint, error) {
 		return 0, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 	defer cancel()
 
