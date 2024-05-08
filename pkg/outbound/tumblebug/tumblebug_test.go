@@ -1,4 +1,4 @@
-package outbound
+package tumblebug
 
 import (
 	"encoding/json"
@@ -54,7 +54,7 @@ func TestSendCommandTo(t *testing.T) {
 	defer server.Close()
 
 	t.Run("send command to tumblebug server", func(t *testing.T) {
-		got, err := SendCommandTo(server.URL, "namespaceId", "mcisId", struct {
+		got, err := CommandToMcis(server.URL, "namespaceId", "mcisId", struct {
 			Command  []string `json:"command"`
 			UserName string   `json:"userName"`
 		}{

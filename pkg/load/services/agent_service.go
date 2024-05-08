@@ -10,7 +10,7 @@ import (
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/repository"
-	"github.com/cloud-barista/cm-ant/pkg/outbound"
+	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
 	"github.com/melbahja/goph"
 )
 
@@ -102,18 +102,18 @@ func UninstallAgent(agentId string) error {
 
 func MockMigration(name string) error {
 
-	createNamespaceReq := outbound.CreateNamespaceReq{
+	createNamespaceReq := tumblebug.CreateNamespaceReq{
 		Description: "description",
 		Name:        "test01",
 	}
 
-	mcisDynamicReq := outbound.McisDynamicReq{
+	mcisDynamicReq := tumblebug.McisDynamicReq{
 		Description:     "test 01 description",
 		InstallMonAgent: "no",
 		Label:           "DynamicVM",
 		Name:            "mcis-test-01",
 		SystemLabel:     "",
-		VM: []outbound.VirtualMachineReq{{
+		VM: []tumblebug.VirtualMachineReq{{
 			CommonImage:    "ubuntu20.04",
 			CommonSpec:     "",
 			ConnectionName: "asdfasdf",
@@ -126,7 +126,7 @@ func MockMigration(name string) error {
 			VMUserPassword: "",
 		}},
 	}
-	err := outbound.MockMigrate(createNamespaceReq, mcisDynamicReq)
+	err := tumblebug.MockMigrate(createNamespaceReq, mcisDynamicReq)
 
 	if err != nil {
 		return err

@@ -9,7 +9,7 @@ import (
 
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
-	"github.com/cloud-barista/cm-ant/pkg/outbound"
+	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
 	"github.com/melbahja/goph"
 
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
@@ -32,12 +32,12 @@ func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 		switch loadEnvReq.RemoteConnectionType {
 		case constant.BuiltIn:
 
-			commandReq := outbound.SendCommandReq{
+			commandReq := tumblebug.SendCommandReq{
 				Command:  []string{installationCommand},
 				UserName: loadEnvReq.Username,
 			}
 
-			stdout, err := outbound.SendCommandTo(loadEnvReq.NsId, loadEnvReq.McisId, commandReq)
+			stdout, err := tumblebug.CommandToMcis(loadEnvReq.NsId, loadEnvReq.McisId, commandReq)
 
 			if err != nil {
 				log.Println(stdout)
@@ -105,12 +105,12 @@ func (j *JMeterLoadTestManager) Uninstall(loadEnvReq *api.LoadEnvReq) error {
 
 		switch loadEnvReq.RemoteConnectionType {
 		case constant.BuiltIn:
-			commandReq := outbound.SendCommandReq{
+			commandReq := tumblebug.SendCommandReq{
 				Command:  []string{uninstallCommand},
 				UserName: loadEnvReq.Username,
 			}
 
-			stdout, err := outbound.SendCommandTo(loadEnvReq.NsId, loadEnvReq.McisId, commandReq)
+			stdout, err := tumblebug.CommandToMcis(loadEnvReq.NsId, loadEnvReq.McisId, commandReq)
 
 			if err != nil {
 				log.Println(stdout)
@@ -172,12 +172,12 @@ func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadExecutionConfigReq) err
 
 		switch loadEnv.RemoteConnectionType {
 		case constant.BuiltIn:
-			commandReq := outbound.SendCommandReq{
+			commandReq := tumblebug.SendCommandReq{
 				Command:  []string{killCmd},
 				UserName: loadEnv.Username,
 			}
 
-			stdout, err := outbound.SendCommandTo(loadEnv.NsId, loadEnv.McisId, commandReq)
+			stdout, err := tumblebug.CommandToMcis(loadEnv.NsId, loadEnv.McisId, commandReq)
 
 			if err != nil {
 				log.Println(stdout)
@@ -249,13 +249,13 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 
 		switch loadEnv.RemoteConnectionType {
 		case constant.BuiltIn:
-			commandReq := outbound.SendCommandReq{
+			commandReq := tumblebug.SendCommandReq{
 				Command:  []string{preRequirementCmd},
 				UserName: loadTestReq.LoadEnvReq.Username,
 			}
 
 			// 1. check pre-requisition
-			stdout, err := outbound.SendCommandTo(loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, commandReq)
+			stdout, err := tumblebug.CommandToMcis(loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, commandReq)
 
 			if err != nil {
 				log.Printf("error occured; %s\n", err)
@@ -268,12 +268,12 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 			// 2. execute jmeter test
 			jmeterTestCommand := executionCmdGen(loadTestReq, testPlanName, resultFileName)
 
-			commandReq = outbound.SendCommandReq{
+			commandReq = tumblebug.SendCommandReq{
 				Command:  []string{jmeterTestCommand},
 				UserName: loadTestReq.LoadEnvReq.Username,
 			}
 
-			stdout, err = outbound.SendCommandTo(loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, commandReq)
+			stdout, err = tumblebug.CommandToMcis(loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, commandReq)
 
 			if err != nil {
 				log.Printf("error occured; %s\n", err)

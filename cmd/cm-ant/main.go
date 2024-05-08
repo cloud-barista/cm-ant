@@ -100,7 +100,7 @@ func InitRouter() *echo.Echo {
 		OnTimeoutRouteErrorHandler: func(err error, c echo.Context) {
 			log.Println(c.Path())
 		},
-		Timeout: 120 * time.Second,
+		Timeout: 300 * time.Second,
 	}))
 
 	// config template
@@ -178,6 +178,16 @@ func InitRouter() *echo.Echo {
 			loadRouter.POST("/mock/migrate", handler.MockMigration())
 
 		}
+
+		version2Router := apiRouter.Group("/v2")
+		lr := version2Router.Group("/load")
+		{
+			// load test metrics agent
+			lr.POST("/agent", handler.InstallAgentV2())
+			lr.GET("/agent", handler.GetAllAgentInstallInfo())
+			lr.DELETE("/agent/:agentInstallInfoId", handler.UninstallAgentV2())
+		}
+
 	}
 	return e
 }

@@ -1,4 +1,4 @@
-package outbound
+package tumblebug
 
 type SendCommandReq struct {
 	Command  []string `json:"command"`

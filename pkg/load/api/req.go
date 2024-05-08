@@ -19,7 +19,7 @@ type LoadExecutionConfigReq struct {
 
 	EnvId      string     `json:"envId,omitempty"`
 	LoadEnvReq LoadEnvReq `json:"loadEnvReq,omitempty"`
-	
+
 	TestName     string `json:"testName"`
 	VirtualUsers string `json:"virtualUsers"`
 	Duration     string `json:"duration"`
@@ -81,3 +81,11 @@ type AgentReq struct {
 	PublicIp   string `json:"publicIp,omitempty"`
 	PemKeyPath string `json:"pemKeyPath,omitempty"`
 }
+
+type AgentReqV2 struct {
+	NsId   string `json:"nsId,omitempty"`
+	McisId string `json:"mcisId,omitempty"`
+	VmId   string `json:"vmId,omitempty"`
+}
+
+

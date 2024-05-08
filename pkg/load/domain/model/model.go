@@ -7,6 +7,15 @@ import (
 	"gorm.io/gorm"
 )
 
+type AgentInstallInfo struct {
+	gorm.Model
+	NsId     string
+	McisId   string
+	VmId     string
+	Username string
+	Status   string
+}
+
 type LoadEnv struct {
 	gorm.Model
 	InstallLocation      constant.InstallLocation      `json:"installLocation"`

@@ -51,3 +51,12 @@ type LoadExecutionStateRes struct {
 	StartAt              time.Time
 	EndAt                *time.Time
 }
+
+type AgentInstallInfoRes struct {
+	AgentInstallInfoId uint      `json:"agentInstallInfoId,omitempty"`
+	NsId               string    `json:"nsId,omitempty"`
+	McisId             string    `json:"mcisId,omitempty"`
+	VmId               string    `json:"vmId,omitempty"`
+	Status             string    `json:"status,omitempty"`
+	CreatedAt          time.Time `json:"createdAt,omitempty"`
+}
