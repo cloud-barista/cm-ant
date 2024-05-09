@@ -1,7 +1,7 @@
 #!/bin/bash
 
-echo "[CM-ANT] JMeter Installation"
 set -e
+echo "[CM-ANT] JMeter Installation"
 
 # Base setup
 JMETER_WORK_DIR=${JMETER_WORK_DIR:="/opt/ant/jmeter"}

@@ -24,16 +24,11 @@ func requestWitContext(ctx context.Context, method, url string, body []byte, hea
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("error while request to client")
-		return nil, err
+		log.Println("error while request to client", err)
+		return resp, err
 	}
 
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		log.Println("internal server error while request to url;", url, "\nerror;", err)
-		return nil, err
-	}
-
-	return resp, err
+	return resp, nil
 }
 
 func RequestWithBaseAuthWithContext(ctx context.Context, method, url string, body []byte) (*http.Response, error) {
@@ -56,10 +51,6 @@ func request(method, url string, body []byte, header map[string]string) (*http.R
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error while request to url: %s; %w", url, err)
-	}
-
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
-		return nil, fmt.Errorf("internal server error while request to url: %s; %w", url, err)
 	}
 
 	return resp, err

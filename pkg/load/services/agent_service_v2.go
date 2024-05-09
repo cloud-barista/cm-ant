@@ -26,7 +26,6 @@ func InstallAgentV2(agentReq api.AgentReqV2) error {
 
 	defer cancel()
 
-	// tumblebug 의 ns의 mcis 에 agent install command 추가
 	mcisObject, err := tumblebug.GetMcisObjectWithContext(ctx, agentReq.NsId, agentReq.McisId)
 
 	if err != nil {

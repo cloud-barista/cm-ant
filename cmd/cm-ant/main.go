@@ -186,6 +186,9 @@ func InitRouter() *echo.Echo {
 			lr.POST("/agent", handler.InstallAgentV2())
 			lr.GET("/agent", handler.GetAllAgentInstallInfo())
 			lr.DELETE("/agent/:agentInstallInfoId", handler.UninstallAgentV2())
+
+			// load tester
+			lr.POST("/tester", handler.InstallLoadTesterHandlerV2())
 		}
 
 	}

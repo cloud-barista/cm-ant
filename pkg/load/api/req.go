@@ -83,9 +83,13 @@ type AgentReq struct {
 }
 
 type AgentReqV2 struct {
-	NsId   string `json:"nsId,omitempty"`
-	McisId string `json:"mcisId,omitempty"`
+	NsId   string `json:"nsId"`
+	McisId string `json:"mcisId"`
 	VmId   string `json:"vmId,omitempty"`
 }
 
-
+type LoadTesterReq struct {
+	NsId   string `json:"nsId"`
+	McisId string `json:"mcisId"`
+	VmId   string `json:"vmId"`
+}

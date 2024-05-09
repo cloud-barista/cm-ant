@@ -12,29 +12,88 @@ import (
 
 var tumblebugUrl = TumblebugHostWithPort()
 
-func GetMcisObjectWithContext(ctx context.Context, nsId, mcisId string) (Mcis, error) {
-	url := fmt.Sprintf("%s/tumblebug/ns/%s/mcis/%s", tumblebugUrl, nsId, mcisId)
-
-	res, err := RequestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
+func CreateMcisWithContext(ctx context.Context, nsId string, mcisReq McisReq) (McisRes, error) {
+	url := fmt.Sprintf("%s/tumblebug/ns/%s/mcis", tumblebugUrl, nsId)
+	var mcis McisRes
+	marshalledBody, err := json.Marshal(mcisReq)
 	if err != nil {
-		log.Println("get mcis object request error: ", err)
-		return Mcis{}, err
+		log.Println("marshalling body error;", err)
+		return mcis, err
+	}
+
+	res, err := RequestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
+	if err != nil {
+		log.Println("create image request error: ", err)
+		return mcis, err
 	}
 
 	rb, err := io.ReadAll(res.Body)
 
 	if err != nil {
 		log.Println("read response body error:", err)
-		return Mcis{}, err
+		return mcis, err
 	}
 	defer res.Body.Close()
 
-	mcisObject := Mcis{}
+	err = json.Unmarshal(rb, &mcis)
+
+	if err != nil {
+		return mcis, err
+	}
+
+	return mcis, nil
+}
+
+func GetVmWithContext(ctx context.Context, nsId, mcisId, vmId string) (VmRes, error) {
+	url := fmt.Sprintf("%s/tumblebug/ns/%s/mcis/%s/vm/%s", tumblebugUrl, nsId, mcisId, vmId)
+	vm := VmRes{}
+
+	res, err := RequestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		log.Println("get mcis object request error: ", err)
+		return vm, err
+	}
+
+	rb, err := io.ReadAll(res.Body)
+
+	if err != nil {
+		log.Println("read response body error:", err)
+		return vm, err
+	}
+	defer res.Body.Close()
+
+	err = json.Unmarshal(rb, &vm)
+
+	if err != nil {
+		return vm, err
+	}
+
+	return vm, nil
+}
+
+func GetMcisObjectWithContext(ctx context.Context, nsId, mcisId string) (McisRes, error) {
+	url := fmt.Sprintf("%s/tumblebug/ns/%s/mcis/%s", tumblebugUrl, nsId, mcisId)
+
+	res, err := RequestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		log.Println("get mcis object request error: ", err)
+		return McisRes{}, err
+	}
+
+	rb, err := io.ReadAll(res.Body)
+
+	if err != nil {
+		log.Println("read response body error:", err)
+		return McisRes{}, err
+	}
+	defer res.Body.Close()
+
+	mcisObject := McisRes{}
 
 	err = json.Unmarshal(rb, &mcisObject)
 
 	if err != nil {
-		return Mcis{}, err
+		return McisRes{}, err
 	}
 
 	return mcisObject, nil
@@ -65,34 +124,34 @@ func CommandToVmWithContext(ctx context.Context, nsId, mcisId, vmId string, body
 	defer res.Body.Close()
 
 	ret := string(responseBody)
-	log.Println("[commanbd result]\n", ret)
+	log.Println("[command result]\n", ret)
 
 	return ret, nil
 }
 
-func GetMcisObject(nsId, mcisId string) (Mcis, error) {
+func GetMcisObject(nsId, mcisId string) (McisRes, error) {
 	url := fmt.Sprintf("%s/tumblebug/ns/%s/mcis/%s", tumblebugUrl, nsId, mcisId)
 
 	res, err := RequestWithBaseAuth(http.MethodGet, url, nil)
 	if err != nil {
 		log.Println("get mcis object request error: ", err)
-		return Mcis{}, err
+		return McisRes{}, err
 	}
 
 	rb, err := io.ReadAll(res.Body)
 
 	if err != nil {
 		log.Println("read response body error:", err)
-		return Mcis{}, err
+		return McisRes{}, err
 	}
 	defer res.Body.Close()
 
-	mcisObject := Mcis{}
+	mcisObject := McisRes{}
 
 	err = json.Unmarshal(rb, &mcisObject)
 
 	if err != nil {
-		return Mcis{}, err
+		return McisRes{}, err
 	}
 
 	return mcisObject, nil
@@ -123,7 +182,7 @@ func CommandToVm(nsId, mcisId, vmId string, body SendCommandReq) (string, error)
 	defer res.Body.Close()
 
 	ret := string(responseBody)
-	log.Println("[commanbd result]\n", ret)
+	log.Println("[command result]\n", ret)
 
 	return ret, nil
 }
@@ -159,7 +218,6 @@ func CommandToMcis(nsId, mcisId string, body SendCommandReq) (string, error) {
 }
 
 func MockMigrate(createNamespaceBody CreateNamespaceReq, mcisDynamicBody McisDynamicReq) error {
-	tumblebugUrl := TumblebugHostWithPort()
 	// ns create
 	url := fmt.Sprintf("%s/tumblebug/ns", tumblebugUrl)
 
