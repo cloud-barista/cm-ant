@@ -22,6 +22,7 @@ type LoadEnv struct {
 	RemoteConnectionType constant.RemoteConnectionType `json:"remoteConnectionType"`
 	NsId                 string                        `json:"nsId"`
 	McisId               string                        `json:"mcisId"`
+	VmId                 string                        `json:"vmId"`
 	Username             string                        `json:"username"`
 	PublicIp             string                        `json:"publicIp"`
 	Cert                 string                        `json:"cert"`

@@ -16,9 +16,23 @@ echo "This is jmeter folder name >>>>>>>>>>>>>>>>>>>>>>> ${JMETER_FOLDER}"
 echo
 echo
 
-sudo mkdir -p "${JMETER_WORK_DIR}"
-sudo mkdir -p "${JMETER_WORK_DIR}/result"
-sudo mkdir -p "${JMETER_WORK_DIR}/test_plan"
+
+if [ ! -e "${JMETER_WORK_DIR}" ]; then
+  sudo mkdir -p "${JMETER_WORK_DIR}"
+  echo "jmeter path folder created"
+fi
+
+if [ ! -e "${JMETER_WORK_DIR}/result" ]; then
+  sudo mkdir -p "${JMETER_WORK_DIR}/result"
+  echo "test plan path folder created"
+fi
+
+
+if [ ! -e "${JMETER_WORK_DIR}/test_plan" ]; then
+  sudo mkdir -p "${JMETER_WORK_DIR}/test_plan"
+  echo "test plan path folder created"
+fi
+
 
 echo "[CM-ANT] [Step 1/6] Installing default required tools..."
 sudo apt-get update -y | sudo apt-get install -y wget default-jre

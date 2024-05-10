@@ -124,7 +124,6 @@ func CommandToVmWithContext(ctx context.Context, nsId, mcisId, vmId string, body
 	defer res.Body.Close()
 
 	ret := string(responseBody)
-	log.Println("[command result]\n", ret)
 
 	return ret, nil
 }
@@ -162,10 +161,9 @@ func CommandToVm(nsId, mcisId, vmId string, body SendCommandReq) (string, error)
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
-		log.Println("send command request error", err)
+		log.Println("marshalling body error;", err)
 		return "", err
 	}
-
 	res, err := RequestWithBaseAuth(http.MethodPost, url, marshalledBody)
 
 	if err != nil {
@@ -176,13 +174,12 @@ func CommandToVm(nsId, mcisId, vmId string, body SendCommandReq) (string, error)
 	responseBody, err := io.ReadAll(res.Body)
 
 	if err != nil {
-		log.Println("send command request error", errors.Unwrap(err))
+		log.Println("response body read error", errors.Unwrap(err))
 		return "", err
 	}
 	defer res.Body.Close()
 
 	ret := string(responseBody)
-	log.Println("[command result]\n", ret)
 
 	return ret, nil
 }

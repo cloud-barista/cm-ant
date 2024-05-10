@@ -3,11 +3,13 @@ package services
 import (
 	"context"
 	"errors"
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"fmt"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
+	"github.com/cloud-barista/cm-ant/pkg/load/constant"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain/repository"
+	"github.com/cloud-barista/cm-ant/pkg/load/managers"
 	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
 	"log"
-	"os"
 	"sync"
 	"time"
 )
@@ -45,7 +47,7 @@ var regionImageMap = map[string]string{
 	"us-east-2":      "ami-0f30a9c3a48f3fa79",
 }
 
-func InstallLoadTesterV2(loadTesterReq *api.LoadTesterReq) error {
+func InstallLoadTesterV2(loadTesterReq *api.LoadTesterReq) (uint, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 
 	defer cancel()
@@ -53,7 +55,7 @@ func InstallLoadTesterV2(loadTesterReq *api.LoadTesterReq) error {
 	vm, err := tumblebug.GetVmWithContext(ctx, loadTesterReq.NsId, loadTesterReq.McisId, loadTesterReq.VmId)
 
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	connectionId := vm.ConnectionName
@@ -74,7 +76,7 @@ func InstallLoadTesterV2(loadTesterReq *api.LoadTesterReq) error {
 	log.Println(connectionId, nsId, vNetId, subnetId, username, cspRegion, cspImageId, sgId, sshId, imageId, specId, cspSpecName, vmId, mcisId)
 
 	if !ok {
-		return errors.New("region base ubuntu 22.04 lts image doesn't exist")
+		return 0, errors.New("region base ubuntu 22.04 lts image doesn't exist")
 	}
 
 	var wg sync.WaitGroup
@@ -202,133 +204,115 @@ func InstallLoadTesterV2(loadTesterReq *api.LoadTesterReq) error {
 
 	if len(errChan) != 0 {
 		err = <-errChan
-		return err
+		return 0, err
 	}
 
-	// TODO check mcis and condition
+	manager := managers.NewLoadTestManager()
+
 	mcis, err := tumblebug.GetMcisWithContext(ctx, nsId, mcisId)
+
 	if err != nil && !errors.Is(err, tumblebug.ResourcesNotFound) {
-		return err
+		return 0, err
 	} else if err == nil {
-		// mcis 상태 확인 후 jmeter 설치
-		if mcis.IsRunning(vmId) {
-			scriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
-
-			installScript, err := os.ReadFile(scriptPath)
-			if err != nil {
-				return err
-			}
-
-			commandReq := tumblebug.SendCommandReq{
-				Command:  []string{string(installScript)},
-				UserName: username,
-			}
-
-			stdout, err := tumblebug.CommandToVmWithContext(ctx, nsId, mcisId, mcis.VmId(), commandReq)
-
-			if err != nil {
-				log.Println(stdout)
-				return err
-			}
-			log.Println(stdout)
-
-			return nil
+		if !mcis.IsRunning(vmId) {
+			// TODO need to change mcis or vm status execution
+			return 0, errors.New("mcis is not running condition")
+		}
+	} else {
+		mcisReq := tumblebug.McisReq{
+			Name:            mcisId,
+			Description:     "Default mcis for Ant load test",
+			InstallMonAgent: "no",
+			Label:           "ANT",
+			SystemLabel:     "ANT",
+			Vm: []tumblebug.VmReq{
+				{
+					SubGroupSize:     "1",
+					Name:             vmId,
+					ImageId:          imageId,
+					VmUserAccount:    "cb-user",
+					ConnectionName:   connectionId,
+					SshKeyId:         sshId,
+					SpecId:           specId,
+					SecurityGroupIds: []string{sgId},
+					VNetId:           vNetId,
+					SubnetId:         subnetId,
+					Description:      "Default vm for Ant load test",
+					VmUserPassword:   "",
+					RootDiskType:     "default",
+					RootDiskSize:     "default",
+				},
+			},
 		}
 
-		return errors.New("mcis condition is not correct")
+		mcis, err = tumblebug.CreateMcisWithContext(ctx, nsId, mcisReq)
 
+		if err != nil {
+			return 0, err
+		}
+
+		log.Println("******************created*******************\n", mcis)
+		time.Sleep(3 * time.Second)
 	}
 
-	mcisReq := tumblebug.McisReq{
-		Name:            mcisId,
-		Description:     "Default mcis for Ant load test",
-		InstallMonAgent: "no",
-		Label:           "ANT",
-		SystemLabel:     "ANT",
-		Vm: []tumblebug.VmReq{
-			{
-				SubGroupSize:     "1",
-				Name:             vmId,
-				ImageId:          imageId,
-				VmUserAccount:    "cb-user",
-				ConnectionName:   connectionId,
-				SshKeyId:         sshId,
-				SpecId:           specId,
-				SecurityGroupIds: []string{sgId},
-				VNetId:           vNetId,
-				SubnetId:         subnetId,
-				Description:      "Default vm for Ant load test",
-				VmUserPassword:   "",
-				RootDiskType:     "default",
-				RootDiskSize:     "default",
-			},
-		},
+	log.Println("mcis is ready with running condition")
+
+	// install load tester on load environment
+	req := api.LoadEnvReq{
+		InstallLocation:      constant.Remote,
+		RemoteConnectionType: constant.BuiltIn,
+		NsId:                 nsId,
+		McisId:               mcisId,
+		VmId:                 mcis.VmId(),
+		Username:             username,
 	}
 
-	createdMcis, err := tumblebug.CreateMcisWithContext(ctx, nsId, mcisReq)
+	// TODO add context to timeout after clear all
+	err = manager.Install(&req)
 
+	if err != nil {
+		return 0, err
+	}
+
+	envId, err := repository.SaveLoadTestInstallEnv(&req)
+	if err != nil {
+		return 0, err
+	}
+
+	return envId, nil
+}
+
+func UninstallLoadTesterV2(envId string) error {
+	manager := managers.NewLoadTestManager()
+
+	var loadEnvReq api.LoadEnvReq
+
+	loadEnv, err := repository.GetEnvironment(envId)
 	if err != nil {
 		return err
 	}
 
-	log.Println("******************created*******************\n", createdMcis)
+	loadEnvReq.InstallLocation = (*loadEnv).InstallLocation
+	loadEnvReq.RemoteConnectionType = (*loadEnv).RemoteConnectionType
+	loadEnvReq.Username = (*loadEnv).Username
+	loadEnvReq.PublicIp = (*loadEnv).PublicIp
+	loadEnvReq.Cert = (*loadEnv).Cert
+	loadEnvReq.NsId = (*loadEnv).NsId
+	loadEnvReq.McisId = (*loadEnv).McisId
+	loadEnvReq.VmId = (*loadEnv).VmId
 
-	time.Sleep(5 * time.Second)
+	if err := manager.Uninstall(&loadEnvReq); err != nil {
+		return fmt.Errorf("failed to uninstall load tester: %w", err)
+	}
 
-	scriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
-
-	installScript, err := os.ReadFile(scriptPath)
+	err = repository.DeleteLoadTestInstallEnv(envId)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete load test installation environment: %w", err)
 	}
-
-	commandReq := tumblebug.SendCommandReq{
-		Command:  []string{string(installScript)},
-		UserName: username,
-	}
-
-	stdout, err := tumblebug.CommandToVmWithContext(ctx, nsId, mcisId, createdMcis.VmId(), commandReq)
-
-	if err != nil {
-		log.Println(stdout)
-		return err
-	}
-	log.Println(stdout)
 
 	return nil
 }
 
-//func UninstallLoadTester(loadEnvId string) error {
-//	loadTestManager := managers.NewLoadTestManager()
-//
-//	var loadEnvReq api.LoadEnvReq
-//	if loadEnvId != "" {
-//		loadEnv, err := repository.GetEnvironment(loadEnvId)
-//		if err != nil {
-//			return err
-//		}
-//
-//		loadEnvReq.InstallLocation = (*loadEnv).InstallLocation
-//		loadEnvReq.RemoteConnectionType = (*loadEnv).RemoteConnectionType
-//		loadEnvReq.Username = (*loadEnv).Username
-//		loadEnvReq.PublicIp = (*loadEnv).PublicIp
-//		loadEnvReq.Cert = (*loadEnv).Cert
-//		loadEnvReq.NsId = (*loadEnv).NsId
-//		loadEnvReq.McisId = (*loadEnv).McisId
-//	}
-//
-//	if err := loadTestManager.Uninstall(&loadEnvReq); err != nil {
-//		return fmt.Errorf("failed to uninstall load tester: %w", err)
-//	}
-//
-//	//err := repository.DeleteLoadTestInstallEnv(loadEnvId)
-//	//if err != nil {
-//	//	return fmt.Errorf("failed to delete load test installation environment: %w", err)
-//	//}
-//	log.Println("load test environment is successfully deleted")
-//
-//	return nil
-//}
 //
 //func prepareEnvironment(loadTestReq *api.LoadExecutionConfigReq) error {
 //	if loadTestReq.EnvId == "" {

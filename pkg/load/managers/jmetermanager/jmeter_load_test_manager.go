@@ -31,20 +31,19 @@ func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 
 		switch loadEnvReq.RemoteConnectionType {
 		case constant.BuiltIn:
-
 			commandReq := tumblebug.SendCommandReq{
 				Command:  []string{installationCommand},
 				UserName: loadEnvReq.Username,
 			}
 
-			stdout, err := tumblebug.CommandToMcis(loadEnvReq.NsId, loadEnvReq.McisId, commandReq)
+			stdout, err := tumblebug.CommandToVm(loadEnvReq.NsId, loadEnvReq.McisId, loadEnvReq.VmId, commandReq)
 
 			if err != nil {
-				log.Println(stdout)
+				log.Println("error! ", stdout)
 				return err
 			}
 
-			log.Println(stdout)
+			log.Println("command result", stdout)
 		case constant.PrivateKey, constant.Password:
 			var auth goph.Auth
 			var err error

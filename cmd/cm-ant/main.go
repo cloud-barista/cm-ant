@@ -189,6 +189,10 @@ func InitRouter() *echo.Echo {
 
 			// load tester
 			lr.POST("/tester", handler.InstallLoadTesterHandlerV2())
+			lr.DELETE("/tester/:envId", handler.UninstallLoadTesterHandlerV2())
+
+			// load test execution
+			lr.POST("/start", handler.RunLoadTestHandlerV2())
 		}
 
 	}

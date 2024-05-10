@@ -53,8 +53,8 @@ func SaveLoadTestInstallEnv(installReq *api.LoadEnvReq) (uint, error) {
 
 	if err := tx.
 		Where(
-			"install_location = ? AND remote_connection_type = ? AND ns_id = ? AND mcis_id = ? AND username = ? AND public_ip = ? AND cert = ?",
-			loadEnv.InstallLocation, loadEnv.RemoteConnectionType, loadEnv.NsId, loadEnv.McisId, loadEnv.Username, loadEnv.PublicIp, loadEnv.Cert,
+			"install_location = ? AND remote_connection_type = ? AND ns_id = ? AND mcis_id = ? AND vm_id = ? AND username = ? AND public_ip = ? AND cert = ?",
+			loadEnv.InstallLocation, loadEnv.RemoteConnectionType, loadEnv.NsId, loadEnv.McisId, loadEnv.VmId, loadEnv.Username, loadEnv.PublicIp, loadEnv.Cert,
 		).
 		FirstOrCreate(
 			&loadEnv,

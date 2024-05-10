@@ -48,6 +48,7 @@ type LoadEnvReq struct {
 
 	NsId   string `json:"nsId,omitempty"`
 	McisId string `json:"mcisId,omitempty"`
+	VmId   string `json:"vmId,omitempty"`
 }
 
 func (l LoadEnvReq) Validate() error {
