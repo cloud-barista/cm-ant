@@ -15,9 +15,9 @@ import (
 
 func InstallLoadTesterHandlerV2() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		loadTesterReq := api.LoadTesterReq{}
+		antTargetServerReq := api.AntTargetServerReq{}
 
-		if err := c.Bind(&loadTesterReq); err != nil {
+		if err := c.Bind(&antTargetServerReq); err != nil {
 			log.Printf("error while binding request body; %+v\n", err)
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
 				"message": "request body is incorrect",
@@ -25,13 +25,13 @@ func InstallLoadTesterHandlerV2() echo.HandlerFunc {
 
 		}
 
-		if loadTesterReq.NsId == "" || loadTesterReq.McisId == "" || loadTesterReq.VmId == "" {
+		if antTargetServerReq.NsId == "" || antTargetServerReq.McisId == "" || antTargetServerReq.VmId == "" {
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
 				"message": "ns, mcis and vm id is essential",
 			})
 		}
 
-		_, err := services.InstallLoadTesterV2(&loadTesterReq)
+		_, err := services.InstallLoadTesterV2(&antTargetServerReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v", err)
@@ -52,7 +52,6 @@ func InstallLoadTesterHandlerV2() echo.HandlerFunc {
 		})
 	}
 }
-
 func UninstallLoadTesterHandlerV2() echo.HandlerFunc {
 	return func(c echo.Context) error {
 
@@ -96,7 +95,7 @@ func RunLoadTestHandlerV2() echo.HandlerFunc {
 			})
 		}
 
-		loadTestKey, err := services.ExecuteLoadTest(&loadTestReq)
+		loadTestKey, err := services.ExecuteLoadTestV2(&loadTestReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v\n", err)
@@ -110,5 +109,39 @@ func RunLoadTestHandlerV2() echo.HandlerFunc {
 			"message":     "success",
 		})
 
+	}
+}
+
+func StopLoadTestHandlerV2() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		loadTestKeyReq := api.LoadTestKeyReq{}
+
+		if err := c.Bind(&loadTestKeyReq); err != nil {
+			log.Printf("error while binding request body; %+v\n", err)
+			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
+				"message": fmt.Sprintf("request param is incorrect; %+v", loadTestKeyReq),
+			})
+		}
+
+		if loadTestKeyReq.LoadTestKey == "" {
+			log.Println("error while execute [StopLoadTestHandler()]; no passing propertiesId")
+			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
+				"message": "pass propertiesId if you want to stop test",
+			})
+		}
+
+		err := services.StopLoadTest(loadTestKeyReq)
+
+		if err != nil {
+			log.Printf("error while executing load test; %+v\n", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
+				"message": "sorry, internal server error while executing load test;",
+			})
+
+		}
+
+		return c.JSON(http.StatusOK, map[string]any{
+			"message": "success",
+		})
 	}
 }

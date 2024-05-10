@@ -13,7 +13,7 @@ import (
 
 func InstallAgentV2() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		agentReq := api.AgentReqV2{}
+		agentReq := api.AntTargetServerReq{}
 
 		if err := c.Bind(&agentReq); err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{

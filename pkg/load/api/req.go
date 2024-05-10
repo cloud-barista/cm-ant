@@ -17,8 +17,9 @@ type LoadEnvIdReq struct {
 type LoadExecutionConfigReq struct {
 	LoadTestKey string `json:"loadTestKey,omitempty"`
 
-	EnvId      string     `json:"envId,omitempty"`
-	LoadEnvReq LoadEnvReq `json:"loadEnvReq,omitempty"`
+	EnvId              string             `json:"envId,omitempty"`
+	LoadEnvReq         LoadEnvReq         `json:"loadEnvReq,omitempty"`
+	AntTargetServerReq AntTargetServerReq `json:"antTargetServerReq"`
 
 	TestName     string `json:"testName"`
 	VirtualUsers string `json:"virtualUsers"`
@@ -83,14 +84,8 @@ type AgentReq struct {
 	PemKeyPath string `json:"pemKeyPath,omitempty"`
 }
 
-type AgentReqV2 struct {
+type AntTargetServerReq struct {
 	NsId   string `json:"nsId"`
 	McisId string `json:"mcisId"`
 	VmId   string `json:"vmId,omitempty"`
-}
-
-type LoadTesterReq struct {
-	NsId   string `json:"nsId"`
-	McisId string `json:"mcisId"`
-	VmId   string `json:"vmId"`
 }

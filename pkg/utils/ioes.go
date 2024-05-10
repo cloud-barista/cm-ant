@@ -95,3 +95,13 @@ func ExistCheck(path string) bool {
 
 	return true
 }
+
+func ReadToString(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		log.Println("file doesn't exist on correct path")
+		return "", err
+	}
+
+	return string(data), nil
+}

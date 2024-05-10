@@ -19,7 +19,17 @@ func InstallLoadTester(installReq *api.LoadEnvReq) (uint, error) {
 		return 0, fmt.Errorf("failed to install load tester: %w", err)
 	}
 
-	createdEnvId, err := repository.SaveLoadTestInstallEnv(installReq)
+	loadEnv := model.LoadEnv{
+		InstallLocation:      (*installReq).InstallLocation,
+		RemoteConnectionType: (*installReq).RemoteConnectionType,
+		NsId:                 (*installReq).NsId,
+		McisId:               (*installReq).McisId,
+		Username:             (*installReq).Username,
+		PublicIp:             (*installReq).PublicIp,
+		Cert:                 (*installReq).Cert,
+	}
+
+	createdEnvId, err := repository.SaveLoadTestInstallEnv(&loadEnv)
 	if err != nil {
 		return 0, fmt.Errorf("failed to save load test installation environment: %w", err)
 	}
@@ -86,6 +96,7 @@ func convertToLoadEnvReq(loadEnv *model.LoadEnv) api.LoadEnvReq {
 		Cert:                 loadEnv.Cert,
 		NsId:                 loadEnv.NsId,
 		McisId:               loadEnv.McisId,
+		VmId:                 loadEnv.VmId,
 	}
 }
 
@@ -165,6 +176,7 @@ func StopLoadTest(loadTestKeyReq api.LoadTestKeyReq) error {
 		env.Cert = (*loadEnv).Cert
 		env.NsId = (*loadEnv).NsId
 		env.McisId = (*loadEnv).McisId
+		env.VmId = (*loadEnv).VmId
 
 		loadTestReq.LoadEnvReq = env
 	}

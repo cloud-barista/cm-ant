@@ -3,7 +3,6 @@ package repository
 import (
 	"errors"
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
-	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"gorm.io/gorm"
 )
@@ -37,18 +36,12 @@ func GetEnvironment(envId string) (*model.LoadEnv, error) {
 	return &loadEnv, nil
 }
 
-func SaveLoadTestInstallEnv(installReq *api.LoadEnvReq) (uint, error) {
+func SaveLoadTestInstallEnv(loadEnv *model.LoadEnv) (uint, error) {
 	db := configuration.DB()
 	tx := db.Begin()
 
-	loadEnv := model.LoadEnv{
-		InstallLocation:      (*installReq).InstallLocation,
-		RemoteConnectionType: (*installReq).RemoteConnectionType,
-		NsId:                 (*installReq).NsId,
-		McisId:               (*installReq).McisId,
-		Username:             (*installReq).Username,
-		PublicIp:             (*installReq).PublicIp,
-		Cert:                 (*installReq).Cert,
+	if loadEnv == nil {
+		return 0, errors.New("load test environment is empty")
 	}
 
 	if err := tx.
@@ -57,7 +50,7 @@ func SaveLoadTestInstallEnv(installReq *api.LoadEnvReq) (uint, error) {
 			loadEnv.InstallLocation, loadEnv.RemoteConnectionType, loadEnv.NsId, loadEnv.McisId, loadEnv.VmId, loadEnv.Username, loadEnv.PublicIp, loadEnv.Cert,
 		).
 		FirstOrCreate(
-			&loadEnv,
+			loadEnv,
 		).Error; err != nil {
 		tx.Rollback()
 		return 0, err

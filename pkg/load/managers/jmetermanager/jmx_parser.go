@@ -110,6 +110,47 @@ func tearDown(jmeterPath, loadTestKey string) error {
 	return os.Remove(fmt.Sprintf("%s/test_plan/%s.jmx", jmeterPath, loadTestKey))
 }
 
+func TestPlanJmx(loadTestReq *api.LoadExecutionConfigReq) (string, error) {
+	jmeterConf := configuration.Get().Load.JMeter
+	resultPath := fmt.Sprintf("%s/result", jmeterConf.WorkDir)
+
+	httpRequests, err := httpReqParseToJmx(loadTestReq.HttpReqs)
+	if err != nil {
+		return "", err
+	}
+
+	jmxTemplateData := jmxTemplateData{
+		TestName:          loadTestReq.TestName,
+		Duration:          loadTestReq.Duration,
+		RampUpSteps:       loadTestReq.RampUpSteps,
+		RampUpTime:        loadTestReq.RampUpTime,
+		VirtualUsers:      loadTestReq.VirtualUsers,
+		HttpRequests:      httpRequests,
+		AgentHost:         loadTestReq.HttpReqs[0].Hostname,
+		AgentPort:         "5555",
+		CpuResultPath:     fmt.Sprintf("%s/%s_cpu_result.csv", resultPath, loadTestReq.LoadTestKey),
+		MemoryResultPath:  fmt.Sprintf("%s/%s_memory_result.csv", resultPath, loadTestReq.LoadTestKey),
+		SwapResultPath:    fmt.Sprintf("%s/%s_swap_result.csv", resultPath, loadTestReq.LoadTestKey),
+		DiskResultPath:    fmt.Sprintf("%s/%s_disk_result.csv", resultPath, loadTestReq.LoadTestKey),
+		NetworkResultPath: fmt.Sprintf("%s/%s_network_result.csv", resultPath, loadTestReq.LoadTestKey),
+		TcpResultPath:     fmt.Sprintf("%s/%s_tcp_result.csv", resultPath, loadTestReq.LoadTestKey),
+	}
+
+	tmpl, err := template.ParseFiles(configuration.JoinRootPathWith("/test_plan/default_perfmon.jmx"))
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, jmxTemplateData)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+
+}
+
 func createTestPlanJmx(createdPath string, loadTestReq *api.LoadExecutionConfigReq) error {
 	jmeterConf := configuration.Get().Load.JMeter
 	resultPath := fmt.Sprintf("%s/result", jmeterConf.WorkDir)

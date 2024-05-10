@@ -2,9 +2,10 @@ package jmetermanager
 
 import (
 	"context"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
@@ -23,7 +24,7 @@ func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 	installScriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
 
 	if loadEnvReq.InstallLocation == constant.Remote {
-		installationCommand, err := readAndParseScript(installScriptPath)
+		installationCommand, err := utils.ReadToString(installScriptPath)
 		if err != nil {
 			log.Println("file doesn't exist on correct path")
 			return err
@@ -96,7 +97,7 @@ func (j *JMeterLoadTestManager) Uninstall(loadEnvReq *api.LoadEnvReq) error {
 	uninstallScriptPath := configuration.JoinRootPathWith("/script/uninstall-jmeter.sh")
 
 	if loadEnvReq.InstallLocation == constant.Remote {
-		uninstallCommand, err := readAndParseScript(uninstallScriptPath)
+		uninstallCommand, err := utils.ReadToString(uninstallScriptPath)
 		if err != nil {
 			log.Println("file doesn't exist on correct path")
 			return err
@@ -109,7 +110,7 @@ func (j *JMeterLoadTestManager) Uninstall(loadEnvReq *api.LoadEnvReq) error {
 				UserName: loadEnvReq.Username,
 			}
 
-			stdout, err := tumblebug.CommandToMcis(loadEnvReq.NsId, loadEnvReq.McisId, commandReq)
+			stdout, err := tumblebug.CommandToVm(loadEnvReq.NsId, loadEnvReq.McisId, loadEnvReq.VmId, commandReq)
 
 			if err != nil {
 				log.Println(stdout)
@@ -176,7 +177,7 @@ func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadExecutionConfigReq) err
 				UserName: loadEnv.Username,
 			}
 
-			stdout, err := tumblebug.CommandToMcis(loadEnv.NsId, loadEnv.McisId, commandReq)
+			stdout, err := tumblebug.CommandToVm(loadEnv.NsId, loadEnv.McisId, loadEnv.VmId, commandReq)
 
 			if err != nil {
 				log.Println(stdout)
@@ -239,7 +240,7 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 
 	// TODO code cloud test using tumblebug
 	if loadEnv.InstallLocation == constant.Remote {
-		preRequirementCmd, err := readAndParseScript(checkRequirementPath)
+		preRequirementCmd, err := utils.ReadToString(checkRequirementPath)
 		if err != nil {
 			log.Println("file doesn't exist on correct path")
 			return err
@@ -248,13 +249,19 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 
 		switch loadEnv.RemoteConnectionType {
 		case constant.BuiltIn:
+
+			testPlan, err := TestPlanJmx(loadTestReq)
+			if err != nil {
+				return err
+			}
+			encoded := base64.StdEncoding.EncodeToString([]byte(testPlan))
+
+			createFileCmd := fmt.Sprintf("echo \"%s\" | base64 -d >> %s/test_plan/%s", encoded, jmeterPath, testPlanName)
 			commandReq := tumblebug.SendCommandReq{
-				Command:  []string{preRequirementCmd},
+				Command:  []string{createFileCmd},
 				UserName: loadTestReq.LoadEnvReq.Username,
 			}
-
-			// 1. check pre-requisition
-			stdout, err := tumblebug.CommandToMcis(loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, commandReq)
+			stdout, err := tumblebug.CommandToVm(loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, loadTestReq.LoadEnvReq.VmId, commandReq)
 
 			if err != nil {
 				log.Printf("error occured; %s\n", err)
@@ -262,17 +269,14 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 				return err
 			}
 
-			log.Println(stdout)
-
-			// 2. execute jmeter test
-			jmeterTestCommand := executionCmdGen(loadTestReq, testPlanName, resultFileName)
+			jmeterTestCommand := executionCmd(testPlanName, resultFileName)
 
 			commandReq = tumblebug.SendCommandReq{
 				Command:  []string{jmeterTestCommand},
 				UserName: loadTestReq.LoadEnvReq.Username,
 			}
 
-			stdout, err = tumblebug.CommandToMcis(loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, commandReq)
+			stdout, err = tumblebug.CommandToVm(loadTestReq.LoadEnvReq.NsId, loadTestReq.LoadEnvReq.McisId, loadTestReq.LoadEnvReq.VmId, commandReq)
 
 			if err != nil {
 				log.Printf("error occured; %s\n", err)
@@ -280,7 +284,10 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 				return err
 			}
 
-			log.Println(stdout)
+			if strings.Contains(stdout, "exited with status 1") {
+				return errors.New("error with load test")
+			}
+
 		case constant.PrivateKey, constant.Password:
 			var auth goph.Auth
 			var err error
@@ -411,31 +418,7 @@ func executionCmd(testPlanName, resultFileName string) string {
 	builder.WriteString(fmt.Sprintf(" -t=%s", testPath))
 	builder.WriteString(fmt.Sprintf(" -l=%s", resultPath))
 
-	return builder.String()
-}
-
-func executionCmdGen(p *api.LoadExecutionConfigReq, testPlanName, resultFileName string) string {
-	jmeterConf := configuration.Get().Load.JMeter
-
-	var builder strings.Builder
-	testPath := fmt.Sprintf("%s/test_plan/%s", jmeterConf.WorkDir, testPlanName)
-	resultPath := fmt.Sprintf("%s/result/%s", jmeterConf.WorkDir, resultFileName)
-
-	builder.WriteString(fmt.Sprintf("%s/apache-jmeter-%s/bin/jmeter.sh", jmeterConf.WorkDir, jmeterConf.Version))
-	builder.WriteString(" -n -f")
-	builder.WriteString(fmt.Sprintf(" -Jthreads=%s", p.VirtualUsers))
-	builder.WriteString(fmt.Sprintf(" -JrampTime=%s", p.Duration))
-	builder.WriteString(fmt.Sprintf(" -JloopCount=%s", p.RampUpTime))
-	builder.WriteString(fmt.Sprintf(" -Jprotocol=%s", p.HttpReqs[0].Protocol))
-	builder.WriteString(fmt.Sprintf(" -Jhostname=%s", p.HttpReqs[0].Hostname))
-	builder.WriteString(fmt.Sprintf(" -Jport=%s", p.HttpReqs[0].Port))
-	builder.WriteString(fmt.Sprintf(" -Jpath=%s", p.HttpReqs[0].Path))
-	builder.WriteString(fmt.Sprintf(" -JbodyData=%s", p.HttpReqs[0].BodyData))
-	builder.WriteString(fmt.Sprintf(" -JbodyData=%s", p.RampUpTime))
-	builder.WriteString(fmt.Sprintf(" -JpropertiesId=%s", p.LoadTestKey))
-	builder.WriteString(fmt.Sprintf(" -t=%s", testPath))
-	builder.WriteString(fmt.Sprintf(" -l=%s", resultPath))
-
+	builder.WriteString(fmt.Sprintf(" && sudo rm %s", testPath))
 	return builder.String()
 }
 
@@ -443,14 +426,4 @@ func killCmdGen(loadTestKey string) string {
 	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*%s'", loadTestKey)
 
 	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
-}
-
-func readAndParseScript(scriptPath string) (string, error) {
-	data, err := os.ReadFile(scriptPath)
-	if err != nil {
-		log.Println("file doesn't exist on correct path")
-		return "", err
-	}
-
-	return string(data), nil
 }

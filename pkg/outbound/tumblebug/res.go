@@ -18,16 +18,16 @@ type McisRes struct {
 	SystemLabel                   string         `json:"systemLabel,omitempty"`
 	SystemMessage                 string         `json:"systemMessage,omitempty"`
 	Description                   string         `json:"description,omitempty"`
-	VM                            []VmRes        `json:"vm,omitempty"`
+	VMs                           []VmRes        `json:"vm,omitempty"`
 	NewVMList                     any            `json:"newVmList,omitempty"`
 }
 
 func (m *McisRes) IsRunning(vmId string) bool {
-	if len(m.VM) == 0 {
+	if len(m.VMs) == 0 {
 		return false
 	}
 
-	for _, vm := range m.VM {
+	for _, vm := range m.VMs {
 		if strings.Contains(vm.ID, vmId) {
 			return vm.Status == "Running"
 		}
@@ -37,7 +37,7 @@ func (m *McisRes) IsRunning(vmId string) bool {
 }
 
 func (m *McisRes) VmId() string {
-	return m.VM[0].ID
+	return m.VMs[0].ID
 }
 
 type StatusCountRes struct {

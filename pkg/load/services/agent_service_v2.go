@@ -14,7 +14,7 @@ import (
 	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
 )
 
-func InstallAgentV2(agentReq api.AgentReqV2) error {
+func InstallAgentV2(agentReq api.AntTargetServerReq) error {
 	scriptPath := configuration.JoinRootPathWith("/script/install-server-agent.sh")
 
 	installScript, err := os.ReadFile(scriptPath)
@@ -32,11 +32,11 @@ func InstallAgentV2(agentReq api.AgentReqV2) error {
 		return err
 	}
 
-	if len(mcisObject.VM) == 0 {
+	if len(mcisObject.VMs) == 0 {
 		return errors.New("provision vm first")
 	}
 
-	vm := mcisObject.VM[0]
+	vm := mcisObject.VMs[0]
 
 	if vm.Status != "Running" {
 		return errors.New("start vm first")

@@ -193,6 +193,8 @@ func InitRouter() *echo.Echo {
 
 			// load test execution
 			lr.POST("/start", handler.RunLoadTestHandlerV2())
+			lr.POST("/stop", handler.StopLoadTestHandlerV2())
+
 		}
 
 	}
