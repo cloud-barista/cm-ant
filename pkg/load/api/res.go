@@ -17,6 +17,7 @@ type LoadEnvRes struct {
 
 	NsId   string `json:"nsId,omitempty"`
 	McisId string `json:"mcisId,omitempty"`
+	VmId   string `json:"vmId,omitempty"`
 }
 
 type LoadExecutionRes struct {

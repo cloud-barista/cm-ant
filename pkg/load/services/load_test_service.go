@@ -24,6 +24,7 @@ func InstallLoadTester(installReq *api.LoadEnvReq) (uint, error) {
 		RemoteConnectionType: (*installReq).RemoteConnectionType,
 		NsId:                 (*installReq).NsId,
 		McisId:               (*installReq).McisId,
+		VmId:                 (*installReq).VmId,
 		Username:             (*installReq).Username,
 		PublicIp:             (*installReq).PublicIp,
 		Cert:                 (*installReq).Cert,
@@ -55,6 +56,7 @@ func UninstallLoadTester(loadEnvId string) error {
 		loadEnvReq.Cert = (*loadEnv).Cert
 		loadEnvReq.NsId = (*loadEnv).NsId
 		loadEnvReq.McisId = (*loadEnv).McisId
+		loadEnvReq.VmId = (*loadEnv).VmId
 	}
 
 	if err := loadTestManager.Uninstall(&loadEnvReq); err != nil {
@@ -264,6 +266,7 @@ func GetAllLoadExecutionConfig() ([]api.LoadExecutionRes, error) {
 		load.Cert = loadEnv.Cert
 		load.NsId = loadEnv.NsId
 		load.McisId = loadEnv.McisId
+		load.VmId = loadEnv.VmId
 
 		loadExecutionHttps := make([]api.LoadExecutionHttpRes, 0)
 
@@ -328,6 +331,7 @@ func GetLoadExecutionConfig(loadTestKey string) (api.LoadExecutionRes, error) {
 	load.Cert = loadEnv.Cert
 	load.NsId = loadEnv.NsId
 	load.McisId = loadEnv.McisId
+	load.VmId = loadEnv.VmId
 
 	loadExecutionHttps := make([]api.LoadExecutionHttpRes, 0)
 

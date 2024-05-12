@@ -367,51 +367,28 @@ func ExecuteLoadTestV2(loadTestReq *api.LoadExecutionConfigReq) (string, error) 
 	return loadTestKey, nil
 }
 
-//
-//func prepareEnvironment(loadTestReq *api.LoadExecutionConfigReq) error {
-//	if loadTestReq.EnvId == "" {
-//		return nil
-//	}
-//
-//	loadEnv, err := repository.GetEnvironment(loadTestReq.EnvId)
-//	if err != nil {
-//		return fmt.Errorf("failed to get environment: %w", err)
-//	}
-//
-//	if loadEnv != nil && loadTestReq.LoadEnvReq.InstallLocation == "" {
-//		loadTestReq.LoadEnvReq = convertToLoadEnvReq(loadEnv)
-//	}
-//
-//	return nil
-//}
-//
-//func convertToLoadEnvReq(loadEnv *model.LoadEnv) api.LoadEnvReq {
-//	return api.LoadEnvReq{
-//		InstallLocation:      loadEnv.InstallLocation,
-//		RemoteConnectionType: loadEnv.RemoteConnectionType,
-//		Username:             loadEnv.Username,
-//		PublicIp:             loadEnv.PublicIp,
-//		Cert:                 loadEnv.Cert,
-//		AntTargetNsId:                 loadEnv.AntTargetNsId,
-//		AntTargetMcisId:               loadEnv.AntTargetMcisId,
-//	}
-//}
-//
-//func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.LoadExecutionConfigReq, loadTestKey string) {
-//	log.Printf("[%s] start load test", loadTestKey)
-//	if err := loadTestManager.Run(loadTestReq); err != nil {
-//		log.Printf("Error during load test: %v", err)
-//		if updateErr := repository.UpdateLoadExecutionState(loadTestKey, constant.Failed); updateErr != nil {
-//			log.Println(updateErr)
-//		}
-//	} else {
-//		log.Printf("load test complete!")
-//
-//		if updateErr := repository.UpdateLoadExecutionState(loadTestKey, constant.Success); updateErr != nil {
-//			log.Println(updateErr)
-//		}
-//	}
-//}
+func GetLoadTestResultV2(testKey, format string) (interface{}, error) {
+	loadExecutionState, err := repository.GetLoadExecutionState(testKey)
+	if err != nil {
+		return nil, err
+	}
+
+	loadEnvId := fmt.Sprintf("%d", loadExecutionState.LoadEnvID)
+
+	loadEnv, err := repository.GetEnvironment(loadEnvId)
+	if err != nil {
+		return nil, err
+	}
+
+	loadTestManager := managers.NewLoadTestManager()
+
+	result, err := loadTestManager.GetResult(loadEnv, testKey, format)
+	if err != nil {
+		return nil, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
+	}
+	return result, nil
+}
+
 //
 //func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (string, error) {
 //	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()

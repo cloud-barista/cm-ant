@@ -195,6 +195,7 @@ func InitRouter() *echo.Echo {
 			lr.POST("/start", handler.RunLoadTestHandlerV2())
 			lr.POST("/stop", handler.StopLoadTestHandlerV2())
 
+			lr.GET("/result", handler.GetLoadTestResultHandlerV2())
 		}
 
 	}
