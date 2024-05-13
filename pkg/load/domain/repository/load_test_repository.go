@@ -33,7 +33,7 @@ func SaveLoadTestExecution(loadTestReq *api.LoadExecutionConfigReq) (uint, error
 	loadExecutionState := model.LoadExecutionState{
 		LoadEnvID:       uint(loadEnvId),
 		LoadTestKey:     loadTestReq.LoadTestKey,
-		ExecutionStatus: constant.Process,
+		ExecutionStatus: constant.Processing,
 		StartAt:         time.Now(),
 		TotalSec:        uint(totalSec),
 	}
@@ -85,6 +85,24 @@ func SaveLoadTestExecution(loadTestReq *api.LoadExecutionConfigReq) (uint, error
 	tx.Commit()
 
 	return loadExecutionConfig.Model.ID, nil
+}
+
+func UpdateLoadExecutionStateWithNoTime(loadTestKey string, status constant.ExecutionStatus) error {
+	db := configuration.DB()
+	tx := db.Begin()
+
+	err := tx.Model(&model.LoadExecutionState{}).
+		Where("load_test_key = ?", loadTestKey).
+		Updates(map[string]interface{}{"execution_status": status}).
+		Error
+
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	tx.Commit()
+	return nil
 }
 
 func UpdateLoadExecutionState(loadTestKey string, status constant.ExecutionStatus) error {

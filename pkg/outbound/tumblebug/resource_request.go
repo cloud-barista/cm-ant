@@ -222,29 +222,34 @@ func GetImageWithContext(ctx context.Context, nsId string, imageId string) error
 	return nil
 }
 
-func GetSecureShellWithContext(ctx context.Context, nsId, sshId string) error {
+func GetSecureShellWithContext(ctx context.Context, nsId, sshId string) (SecureShellRes, error) {
 	url := fmt.Sprintf("%s/tumblebug/ns/%s/resources/sshKey/%s", tumblebugUrl, nsId, sshId)
+	var ssh SecureShellRes
 	res, err := RequestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		log.Println("get secure shell request error: ", err)
-		return err
+		return ssh, err
 	}
 
 	rb, err := io.ReadAll(res.Body)
 
 	if err != nil {
 		log.Println("read response body error:", err)
-		return err
+		return ssh, err
 	}
 	defer res.Body.Close()
-	stringBody := string(rb)
-	if res.StatusCode == http.StatusBadRequest && strings.Contains(stringBody, "Failed to find") {
-		return ResourcesNotFound
+
+	if res.StatusCode == http.StatusBadRequest && strings.Contains(string(rb), "Failed to find") {
+		return ssh, ResourcesNotFound
 	}
 
-	log.Println(stringBody)
+	err = json.Unmarshal(rb, &ssh)
 
-	return nil
+	if err != nil {
+		return ssh, err
+	}
+
+	return ssh, nil
 }
 
 func GetSecurityGroupWithContext(ctx context.Context, nsId, sgId string) error {

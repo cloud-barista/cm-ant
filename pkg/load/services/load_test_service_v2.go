@@ -12,6 +12,8 @@ import (
 	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -140,7 +142,7 @@ func InstallLoadTesterV2(antTargetServerReq *api.AntTargetServerReq) (uint, erro
 		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
 		defer c()
 
-		err2 := tumblebug.GetSecureShellWithContext(tc, antNsId, antSshId)
+		_, err2 := tumblebug.GetSecureShellWithContext(tc, antNsId, antSshId)
 		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
 			errChan <- err2
 			return
@@ -154,11 +156,25 @@ func InstallLoadTesterV2(antTargetServerReq *api.AntTargetServerReq) (uint, erro
 			Username:       antUsername,
 			Description:    "Default secure shell key for Ant load test",
 		}
-		_, err2 = tumblebug.CreateSecureShellWithContext(ctx, antNsId, ssh)
+		sshResult, err2 := tumblebug.CreateSecureShellWithContext(ctx, antNsId, ssh)
 		if err2 != nil {
 			errChan <- err2
 			return
 		}
+		home, err2 := os.UserHomeDir()
+		if err2 != nil {
+			errChan <- err2
+			return
+		}
+		pemFilePath := fmt.Sprintf("%s/.ssh/%s.pem", home, sshResult.Id)
+
+		err2 = os.WriteFile(pemFilePath, []byte(sshResult.PrivateKey), 0600)
+		if err2 != nil {
+			errChan <- err2
+			return
+		}
+
+		log.Printf("%s.pem ssh private key file save to default ssh path", sshResult.Id)
 	}()
 
 	wg.Add(1)
@@ -274,6 +290,16 @@ func InstallLoadTesterV2(antTargetServerReq *api.AntTargetServerReq) (uint, erro
 
 	log.Println("ant load generate server mcis is ready with running condition")
 
+	ssh, err := tumblebug.GetSecureShellWithContext(ctx, antNsId, antSshId)
+	if err != nil {
+		return 0, err
+	}
+
+	vm := antLoadGenerateServerMcis.VMs[0]
+	if err != nil {
+		return 0, err
+	}
+
 	req := api.LoadEnvReq{
 		InstallLocation:      constant.Remote,
 		RemoteConnectionType: constant.BuiltIn,
@@ -281,6 +307,8 @@ func InstallLoadTesterV2(antTargetServerReq *api.AntTargetServerReq) (uint, erro
 		McisId:               antLoadGenerateServerMcis.ID,
 		VmId:                 antLoadGenerateServerMcis.VmId(),
 		Username:             antUsername,
+		PublicIp:             vm.PublicIP,
+		Cert:                 filepath.Join(os.Getenv("HOME"), ".ssh", ssh.Id+".pem"),
 	}
 
 	manager := managers.NewLoadTestManager()
@@ -297,6 +325,8 @@ func InstallLoadTesterV2(antTargetServerReq *api.AntTargetServerReq) (uint, erro
 		McisId:               req.McisId,
 		VmId:                 req.VmId,
 		Username:             req.Username,
+		PublicIp:             req.PublicIp,
+		Cert:                 req.Cert,
 	}
 
 	createdEnvId, err := repository.SaveLoadTestInstallEnv(&loadEnv)
@@ -371,6 +401,10 @@ func GetLoadTestResultV2(testKey, format string) (interface{}, error) {
 	loadExecutionState, err := repository.GetLoadExecutionState(testKey)
 	if err != nil {
 		return nil, err
+	}
+
+	if loadExecutionState.ExecutionStatus == constant.Processing {
+		return nil, errors.New("load test is processing")
 	}
 
 	loadEnvId := fmt.Sprintf("%d", loadExecutionState.LoadEnvID)

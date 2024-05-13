@@ -27,7 +27,8 @@ const (
 type ExecutionStatus string
 
 const (
-	Process ExecutionStatus = "process"
-	Success ExecutionStatus = "success"
-	Failed  ExecutionStatus = "failed"
+	Processing ExecutionStatus = "processing"
+	Fetching   ExecutionStatus = "fetching"
+	Success    ExecutionStatus = "success"
+	Failed     ExecutionStatus = "failed"
 )

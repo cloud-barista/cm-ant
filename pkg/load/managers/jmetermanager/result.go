@@ -97,30 +97,58 @@ func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, loadTestKey, f
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
 	fileName := fmt.Sprintf("%s_result.csv", loadTestKey)
 	resultFilePath := fmt.Sprintf("%s/result/%s", jmeterPath, fileName)
-
+	tempFolderPath := configuration.JoinRootPathWith("/temp")
+	toFilePath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
 	var resultRawData = make(map[string][]*resultRawData)
 
 	if (*loadEnv).InstallLocation == constant.Remote {
 		switch (*loadEnv).RemoteConnectionType {
 		case constant.BuiltIn:
+			var err error
 
+			if !utils.ExistCheck(toFilePath) {
+				err := utils.CreateFolderIfNotExist(tempFolderPath)
+				if err != nil {
+					return nil, err
+				}
+
+				auth, err := goph.Key(loadEnv.Cert, "")
+				if err != nil {
+					return nil, err
+				}
+
+				client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
+
+				if err != nil {
+					return nil, err
+				}
+
+				defer client.Close()
+
+				err = client.Download(resultFilePath, toFilePath)
+
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			resultRawData, err = appendResultRawData(resultRawData, toFilePath)
+			if err != nil {
+				return nil, err
+			}
 		case constant.PrivateKey, constant.Password:
-
-			tempFolderPath := configuration.JoinRootPathWith("/temp")
-
 			err := utils.CreateFolderIfNotExist(tempFolderPath)
 			if err != nil {
 				return nil, err
 			}
-			copiedFilePath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
 
-			err = downloadResultFromRemote(loadEnv, resultFilePath, copiedFilePath)
+			err = downloadResultFromRemote(loadEnv, resultFilePath, toFilePath)
 
 			if err != nil {
 				return nil, err
 			}
 
-			resultRawData, err = appendResultRawData(resultRawData, copiedFilePath)
+			resultRawData, err = appendResultRawData(resultRawData, toFilePath)
 			if err != nil {
 				return nil, err
 			}

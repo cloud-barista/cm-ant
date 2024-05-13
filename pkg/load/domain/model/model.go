@@ -39,7 +39,7 @@ type LoadExecutionState struct {
 }
 
 func (l *LoadExecutionState) IsFinished() bool {
-	return l.ExecutionStatus != constant.Process
+	return l.ExecutionStatus != constant.Processing
 }
 
 type LoadExecutionConfig struct {

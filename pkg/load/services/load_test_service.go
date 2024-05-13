@@ -2,6 +2,8 @@ package services
 
 import (
 	"fmt"
+	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"github.com/melbahja/goph"
 	"log"
 
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
@@ -104,15 +106,58 @@ func convertToLoadEnvReq(loadEnv *model.LoadEnv) api.LoadEnvReq {
 
 func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.LoadExecutionConfigReq, loadTestKey string) {
 	log.Printf("[%s] start load test", loadTestKey)
-	if err := loadTestManager.Run(loadTestReq); err != nil {
-		log.Printf("Error during load test: %v", err)
-		if updateErr := repository.UpdateLoadExecutionState(loadTestKey, constant.Failed); updateErr != nil {
+
+	loadTestErr := loadTestManager.Run(loadTestReq)
+	if updateErr := repository.UpdateLoadExecutionState(loadTestKey, constant.Fetching); updateErr != nil {
+		log.Println(updateErr)
+	}
+
+	log.Println("load test result fetching..")
+
+	jmeterPath := configuration.Get().Load.JMeter.WorkDir
+	fileName := fmt.Sprintf("%s_result.csv", loadTestKey)
+	resultFilePath := fmt.Sprintf("%s/result/%s", jmeterPath, fileName)
+	tempFolderPath := configuration.JoinRootPathWith("/temp")
+	toFilePath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
+
+	err := utils.CreateFolderIfNotExist(tempFolderPath)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	loadEnv := loadTestReq.LoadEnvReq
+	auth, err := goph.Key(loadEnv.Cert, "")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
+
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	defer client.Close()
+
+	err = client.Download(resultFilePath, toFilePath)
+
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	if loadTestErr != nil {
+		log.Printf("Error during load test: %v", loadTestErr)
+		if updateErr := repository.UpdateLoadExecutionStateWithNoTime(loadTestKey, constant.Failed); updateErr != nil {
 			log.Println(updateErr)
 		}
 	} else {
 		log.Printf("load test complete!")
 
-		if updateErr := repository.UpdateLoadExecutionState(loadTestKey, constant.Success); updateErr != nil {
+		if updateErr := repository.UpdateLoadExecutionStateWithNoTime(loadTestKey, constant.Success); updateErr != nil {
 			log.Println(updateErr)
 		}
 	}
