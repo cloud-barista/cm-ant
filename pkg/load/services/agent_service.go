@@ -9,127 +9,143 @@ import (
 
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
+	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/repository"
 	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
-	"github.com/melbahja/goph"
 )
 
-func InstallAgent(agentInstallReq api.AgentReq) (uint, error) {
-	auth, err := goph.Key(agentInstallReq.PemKeyPath, "")
-	if err != nil {
-		return 0, err
-	}
-	client, err := goph.New(agentInstallReq.Username, agentInstallReq.PublicIp, auth)
-	if err != nil {
-		return 0, err
-	}
-
-	defer client.Close()
-
+func InstallAgent(agentReq api.AntTargetServerReq) error {
 	scriptPath := configuration.JoinRootPathWith("/script/install-server-agent.sh")
 
 	installScript, err := os.ReadFile(scriptPath)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 
 	defer cancel()
 
-	out, err := client.RunContext(ctx, string(installScript))
+	mcisObject, err := tumblebug.GetMcisObjectWithContext(ctx, agentReq.NsId, agentReq.McisId)
 
 	if err != nil {
-		if !errors.Is(err, context.DeadlineExceeded) {
-			log.Println(err)
-			log.Println(string(out))
-			return 0, err
+		return err
+	}
+
+	if len(mcisObject.VMs) == 0 {
+		return errors.New("provision vm first")
+	}
+
+	vm := mcisObject.VMs[0]
+
+	if mcisObject.IsRunning(mcisObject.VmId()) {
+		return errors.New("start vm first")
+	}
+
+	var vmId string
+
+	if agentReq.VmId == "" {
+		vmId = vm.ID
+	} else {
+		vmId = agentReq.VmId
+	}
+
+	vmUserAccount := vm.VMUserAccount
+
+	agentInstallInfo := model.AgentInstallInfo{
+		NsId:     agentReq.NsId,
+		McisId:   agentReq.McisId,
+		VmId:     vmId,
+		Username: vmUserAccount,
+		Status:   "install",
+	}
+
+	err = repository.InsertAgentInstallInfo(&agentInstallInfo)
+
+	if err != nil {
+		return err
+	}
+
+	commandReq := tumblebug.SendCommandReq{
+		Command:  []string{string(installScript)},
+		UserName: vmUserAccount,
+	}
+
+	_, err = tumblebug.CommandToVmWithContext(ctx, agentReq.NsId, agentReq.McisId, vmId, commandReq)
+
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			agentInstallInfo.Status = "completed"
+			repository.UpdateAgentInstallInfoStatus(&agentInstallInfo)
+			return nil
 		}
+
+		log.Printf("error occured; %s\n", err)
+		agentInstallInfo.Status = "failed"
+		repository.UpdateAgentInstallInfoStatus(&agentInstallInfo)
+		return err
 	}
 
-	log.Println(string(out))
+	agentInstallInfo.Status = "invalid"
+	repository.UpdateAgentInstallInfoStatus(&agentInstallInfo)
 
-	id, err := repository.SaveAgentInfo(&agentInstallReq)
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
+	return errors.New("invalid installation info")
 }
 
-func UninstallAgent(agentId string) error {
-	agentInfo, err := repository.GetAgentInfo(agentId)
+func GetAllAgentInstallInfo() ([]api.AgentInstallInfoRes, error) {
 
+	result, err := repository.GetAllAgentInstallInfos()
+
+	if err != nil {
+		return nil, err
+	}
+
+	var agentInstallInfos []api.AgentInstallInfoRes
+
+	for _, agentInstallInfo := range result {
+		var a api.AgentInstallInfoRes
+		a.AgentInstallInfoId = agentInstallInfo.Model.ID
+		a.NsId = agentInstallInfo.NsId
+		a.McisId = agentInstallInfo.McisId
+		a.VmId = agentInstallInfo.VmId
+		a.Status = agentInstallInfo.Status
+		a.CreatedAt = agentInstallInfo.Model.CreatedAt
+
+		agentInstallInfos = append(agentInstallInfos, a)
+	}
+
+	return agentInstallInfos, nil
+}
+
+func UninstallAgent(agentInstallInfoId string) error {
+	agentInstallInfo, err := repository.GetAgentInstallInfo(agentInstallInfoId)
 	if err != nil {
 		return err
 	}
-
-	auth, err := goph.Key(agentInfo.PemKeyPath, "")
-	if err != nil {
-		return err
-	}
-	client, err := goph.New(agentInfo.Username, agentInfo.PublicIp, auth)
-	if err != nil {
-		return err
-	}
-
-	defer client.Close()
 
 	scriptPath := configuration.JoinRootPathWith("/script/remove-server-agent.sh")
 
-	installScript, err := os.ReadFile(scriptPath)
+	uninstallPath, err := os.ReadFile(scriptPath)
 	if err != nil {
 		return err
 	}
 
-	out, err := client.RunContext(context.Background(), string(installScript))
-
-	if err != nil {
-		log.Println(string(out))
-		return err
+	commandReq := tumblebug.SendCommandReq{
+		Command:  []string{string(uninstallPath)},
+		UserName: agentInstallInfo.Username,
 	}
 
-	log.Println(string(out))
-
-	err = repository.DeleteAgentInfo(agentId)
+	_, err = tumblebug.CommandToVm(agentInstallInfo.NsId, agentInstallInfo.McisId, agentInstallInfo.VmId, commandReq)
 
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func MockMigration(name string) error {
-
-	createNamespaceReq := tumblebug.CreateNamespaceReq{
-		Description: "description",
-		Name:        "test01",
-	}
-
-	mcisDynamicReq := tumblebug.McisDynamicReq{
-		Description:     "test 01 description",
-		InstallMonAgent: "no",
-		Label:           "DynamicVM",
-		Name:            "mcis-test-01",
-		SystemLabel:     "",
-		VM: []tumblebug.VirtualMachineReq{{
-			CommonImage:    "ubuntu20.04",
-			CommonSpec:     "",
-			ConnectionName: "asdfasdf",
-			Description:    "test 01 vm description",
-			Label:          "DynamicVM",
-			Name:           "test-vm-t1",
-			RootDiskSize:   "10",
-			RootDiskType:   "default",
-			SubGroupSize:   "3",
-			VMUserPassword: "",
-		}},
-	}
-	err := tumblebug.MockMigrate(createNamespaceReq, mcisDynamicReq)
+	err = repository.DeleteAgentInstallInfo(agentInstallInfoId)
 
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

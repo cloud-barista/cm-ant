@@ -40,6 +40,38 @@
             }
         },
         "/ant/api/v1/load/agent": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Agent - for Development]"
+                ],
+                "operationId": "GetAllAgentInstallInfo",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Install an agent to collect server metrics during load testing such as CPU and memory.",
                 "consumes": [
@@ -75,21 +107,27 @@
                         }
                     },
                     "400": {
-                        "description": "request body is not correct",
+                        "description": "Bad Request",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
                         "description": "internal server error",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
             }
         },
-        "/ant/api/v1/load/agent/{agentId}": {
+        "/ant/api/v1/load/agent/{agentInstallInfoId}": {
             "delete": {
                 "description": "Uninstall an agent to collect server metrics during load testing such as CPU and memory.",
                 "consumes": [
@@ -106,8 +144,8 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "agentId",
-                        "name": "agentId",
+                        "description": "agent installation info id",
+                        "name": "agentInstallInfoId",
                         "in": "path",
                         "required": true
                     }
@@ -123,15 +161,21 @@
                         }
                     },
                     "400": {
-                        "description": "request body is not correct",
+                        "description": "Bad Request",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "500": {
-                        "description": "internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -522,7 +566,9 @@
                         }
                     }
                 }
-            },
+            }
+        },
+        "/ant/api/v1/load/tester/{envId}": {
             "delete": {
                 "description": "Uninstall load test tester in the delivered load test environment",
                 "consumes": [
@@ -538,13 +584,11 @@
                 "operationId": "UninstallLoadTester",
                 "parameters": [
                     {
+                        "type": "string",
                         "description": "load test environment id",
-                        "name": "loadEnvIdReq",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.LoadEnvIdReq"
-                        }
+                        "name": "envId",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -588,10 +632,16 @@
                 }
             }
         },
-        "api.LoadEnvIdReq": {
+        "api.AntTargetServerReq": {
             "type": "object",
             "properties": {
-                "loadEnvId": {
+                "mcisId": {
+                    "type": "string"
+                },
+                "nsId": {
+                    "type": "string"
+                },
+                "vmId": {
                     "type": "string"
                 }
             }
@@ -599,9 +649,6 @@
         "api.LoadEnvReq": {
             "type": "object",
             "properties": {
-                "cert": {
-                    "type": "string"
-                },
                 "installLocation": {
                     "$ref": "#/definitions/constant.InstallLocation"
                 },
@@ -611,13 +658,16 @@
                 "nsId": {
                     "type": "string"
                 },
+                "pemKeyPath": {
+                    "type": "string"
+                },
                 "publicIp": {
                     "type": "string"
                 },
-                "remoteConnectionType": {
-                    "$ref": "#/definitions/constant.RemoteConnectionType"
-                },
                 "username": {
+                    "type": "string"
+                },
+                "vmId": {
                     "type": "string"
                 }
             }
@@ -625,9 +675,6 @@
         "api.LoadEnvRes": {
             "type": "object",
             "properties": {
-                "cert": {
-                    "type": "string"
-                },
                 "installLocation": {
                     "$ref": "#/definitions/constant.InstallLocation"
                 },
@@ -640,13 +687,16 @@
                 "nsId": {
                     "type": "string"
                 },
+                "pemKeyPath": {
+                    "type": "string"
+                },
                 "publicIp": {
                     "type": "string"
                 },
-                "remoteConnectionType": {
-                    "$ref": "#/definitions/constant.RemoteConnectionType"
-                },
                 "username": {
+                    "type": "string"
+                },
+                "vmId": {
                     "type": "string"
                 }
             }
@@ -654,6 +704,9 @@
         "api.LoadExecutionConfigReq": {
             "type": "object",
             "properties": {
+                "antTargetServerReq": {
+                    "$ref": "#/definitions/api.AntTargetServerReq"
+                },
                 "duration": {
                     "type": "string"
                 },
@@ -804,12 +857,14 @@
         "constant.ExecutionStatus": {
             "type": "string",
             "enum": [
-                "process",
+                "processing",
+                "fetching",
                 "success",
                 "failed"
             ],
             "x-enum-varnames": [
-                "Process",
+                "Processing",
+                "Fetching",
                 "Success",
                 "Failed"
             ]
@@ -823,19 +878,6 @@
             "x-enum-varnames": [
                 "Local",
                 "Remote"
-            ]
-        },
-        "constant.RemoteConnectionType": {
-            "type": "string",
-            "enum": [
-                "password",
-                "privateKey",
-                "builtIn"
-            ],
-            "x-enum-varnames": [
-                "Password",
-                "PrivateKey",
-                "BuiltIn"
             ]
         }
     }

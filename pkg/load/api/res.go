@@ -7,13 +7,12 @@ import (
 )
 
 type LoadEnvRes struct {
-	LoadEnvId            uint                          `json:"loadEnvId"`
-	InstallLocation      constant.InstallLocation      `json:"installLocation,omitempty"`
-	RemoteConnectionType constant.RemoteConnectionType `json:"remoteConnectionType,omitempty"`
-	Username             string                        `json:"username,omitempty"`
+	LoadEnvId       uint                     `json:"loadEnvId"`
+	InstallLocation constant.InstallLocation `json:"installLocation,omitempty"`
+	Username        string                   `json:"username,omitempty"`
 
-	PublicIp string `json:"publicIp,omitempty"`
-	Cert     string `json:"cert,omitempty"`
+	PublicIp   string `json:"publicIp,omitempty"`
+	PemKeyPath string `json:"pemKeyPath,omitempty"`
 
 	NsId   string `json:"nsId,omitempty"`
 	McisId string `json:"mcisId,omitempty"`

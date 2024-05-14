@@ -37,29 +37,3 @@ func GetAllLoadEnvironments() echo.HandlerFunc {
 		})
 	}
 }
-
-func DeleteLoadEnvironments() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		envId := c.Param("envId")
-
-		if envId == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": "remote connection id is empty",
-			})
-		}
-
-		err := services.DeleteLoadEnvironment(envId)
-
-		if err != nil {
-			log.Println(err)
-			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-				"message": "something went wrong.try again.",
-			})
-
-		}
-
-		return c.JSON(http.StatusOK, map[string]any{
-			"message": "success",
-		})
-	}
-}

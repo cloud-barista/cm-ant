@@ -20,10 +20,9 @@ func GetAllLoadEnvironments() ([]api.LoadEnvRes, error) {
 		var load api.LoadEnvRes
 		load.LoadEnvId = loadEnv.ID
 		load.InstallLocation = loadEnv.InstallLocation
-		load.RemoteConnectionType = loadEnv.RemoteConnectionType
 		load.Username = loadEnv.Username
 		load.PublicIp = loadEnv.PublicIp
-		load.Cert = loadEnv.Cert
+		load.PemKeyPath = loadEnv.PemKeyPath
 		load.NsId = loadEnv.NsId
 		load.McisId = loadEnv.McisId
 

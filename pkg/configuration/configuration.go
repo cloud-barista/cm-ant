@@ -144,7 +144,6 @@ func migrateDB(defaultDb *gorm.DB) error {
 		&model.LoadExecutionConfig{},
 		&model.LoadExecutionState{},
 		&model.LoadExecutionHttp{},
-		&model.AgentInfo{},
 		&model.AgentInstallInfo{},
 	)
 

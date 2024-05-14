@@ -18,14 +18,13 @@ type AgentInstallInfo struct {
 
 type LoadEnv struct {
 	gorm.Model
-	InstallLocation      constant.InstallLocation      `json:"installLocation"`
-	RemoteConnectionType constant.RemoteConnectionType `json:"remoteConnectionType"`
-	NsId                 string                        `json:"nsId"`
-	McisId               string                        `json:"mcisId"`
-	VmId                 string                        `json:"vmId"`
-	Username             string                        `json:"username"`
-	PublicIp             string                        `json:"publicIp"`
-	Cert                 string                        `json:"cert"`
+	InstallLocation constant.InstallLocation `json:"installLocation"`
+	NsId            string                   `json:"nsId"`
+	McisId          string                   `json:"mcisId"`
+	VmId            string                   `json:"vmId"`
+	Username        string                   `json:"username"`
+	PublicIp        string                   `json:"publicIp"`
+	PemKeyPath      string                   `json:"cert"`
 }
 
 type LoadExecutionState struct {
@@ -63,17 +62,6 @@ type LoadExecutionHttp struct {
 	Port                  string `json:"port"`
 	Path                  string `json:"path"`
 	BodyData              string `json:"bodyData"`
-}
-
-type AgentInfo struct {
-	gorm.Model
-	Username   string `json:"username" form:"username,omitempty"`
-	PublicIp   string `json:"publicIp" form:"publicIp,omitempty"`
-	PemKeyPath string `json:"pemKeyPath" form:"pemKeyPath,omitempty"`
-}
-
-func NewAgentInfo() AgentInfo {
-	return AgentInfo{}
 }
 
 type LoadTestStatistics struct {

@@ -8,32 +8,34 @@ definitions:
       username:
         type: string
     type: object
-  api.LoadEnvIdReq:
+  api.AntTargetServerReq:
     properties:
-      loadEnvId:
+      mcisId:
+        type: string
+      nsId:
+        type: string
+      vmId:
         type: string
     type: object
   api.LoadEnvReq:
     properties:
-      cert:
-        type: string
       installLocation:
         $ref: '#/definitions/constant.InstallLocation'
       mcisId:
         type: string
       nsId:
         type: string
+      pemKeyPath:
+        type: string
       publicIp:
         type: string
-      remoteConnectionType:
-        $ref: '#/definitions/constant.RemoteConnectionType'
       username:
+        type: string
+      vmId:
         type: string
     type: object
   api.LoadEnvRes:
     properties:
-      cert:
-        type: string
       installLocation:
         $ref: '#/definitions/constant.InstallLocation'
       loadEnvId:
@@ -42,15 +44,19 @@ definitions:
         type: string
       nsId:
         type: string
+      pemKeyPath:
+        type: string
       publicIp:
         type: string
-      remoteConnectionType:
-        $ref: '#/definitions/constant.RemoteConnectionType'
       username:
+        type: string
+      vmId:
         type: string
     type: object
   api.LoadExecutionConfigReq:
     properties:
+      antTargetServerReq:
+        $ref: '#/definitions/api.AntTargetServerReq'
       duration:
         type: string
       envId:
@@ -149,12 +155,14 @@ definitions:
     type: object
   constant.ExecutionStatus:
     enum:
-    - process
+    - processing
+    - fetching
     - success
     - failed
     type: string
     x-enum-varnames:
-    - Process
+    - Processing
+    - Fetching
     - Success
     - Failed
   constant.InstallLocation:
@@ -165,16 +173,6 @@ definitions:
     x-enum-varnames:
     - Local
     - Remote
-  constant.RemoteConnectionType:
-    enum:
-    - password
-    - privateKey
-    - builtIn
-    type: string
-    x-enum-varnames:
-    - Password
-    - PrivateKey
-    - BuiltIn
 info:
   contact: {}
   title: CM-ANT API
@@ -203,6 +201,27 @@ paths:
       tags:
       - '[Load Test Environment]'
   /ant/api/v1/load/agent:
+    get:
+      consumes:
+      - application/json
+      operationId: GetAllAgentInstallInfo
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      tags:
+      - '[Agent - for Development]'
     post:
       consumes:
       - application/json
@@ -226,17 +245,21 @@ paths:
               type: string
             type: object
         "400":
-          description: request body is not correct
+          description: Bad Request
           schema:
-            type: string
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: internal server error
           schema:
-            type: string
+            additionalProperties:
+              type: string
+            type: object
       summary: Install jmeter perfmon agent for metrics collection
       tags:
       - '[Agent - for Development]'
-  /ant/api/v1/load/agent/{agentId}:
+  /ant/api/v1/load/agent/{agentInstallInfoId}:
     delete:
       consumes:
       - application/json
@@ -244,9 +267,9 @@ paths:
         such as CPU and memory.
       operationId: UninstallAgent
       parameters:
-      - description: agentId
+      - description: agent installation info id
         in: path
-        name: agentId
+        name: agentInstallInfoId
         required: true
         type: string
       produces:
@@ -259,13 +282,17 @@ paths:
               type: string
             type: object
         "400":
-          description: request body is not correct
+          description: Bad Request
           schema:
-            type: string
+            additionalProperties:
+              type: string
+            type: object
         "500":
-          description: internal server error
+          description: Internal Server Error
           schema:
-            type: string
+            additionalProperties:
+              type: string
+            type: object
       summary: Uninstall jmeter perfmon agent for metrics collection
       tags:
       - '[Agent - for Development]'
@@ -496,38 +523,6 @@ paths:
       tags:
       - '[Load Test Execution]'
   /ant/api/v1/load/tester:
-    delete:
-      consumes:
-      - application/json
-      description: Uninstall load test tester in the delivered load test environment
-      operationId: UninstallLoadTester
-      parameters:
-      - description: load test environment id
-        in: body
-        name: loadEnvIdReq
-        required: true
-        schema:
-          $ref: '#/definitions/api.LoadEnvIdReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: pass me correct body;
-          schema:
-            type: string
-        "500":
-          description: something went wrong.try again.
-          schema:
-            type: string
-      summary: Uninstall load test tester
-      tags:
-      - '[Load Test Tester]'
     post:
       consumes:
       - application/json
@@ -558,6 +553,38 @@ paths:
           schema:
             type: string
       summary: Install load test tester
+      tags:
+      - '[Load Test Tester]'
+  /ant/api/v1/load/tester/{envId}:
+    delete:
+      consumes:
+      - application/json
+      description: Uninstall load test tester in the delivered load test environment
+      operationId: UninstallLoadTester
+      parameters:
+      - description: load test environment id
+        in: path
+        name: envId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: pass me correct body;
+          schema:
+            type: string
+        "500":
+          description: something went wrong.try again.
+          schema:
+            type: string
+      summary: Uninstall load test tester
       tags:
       - '[Load Test Tester]'
 swagger: "2.0"

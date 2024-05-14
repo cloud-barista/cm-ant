@@ -102,57 +102,38 @@ func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, loadTestKey, f
 	var resultRawData = make(map[string][]*resultRawData)
 
 	if (*loadEnv).InstallLocation == constant.Remote {
-		switch (*loadEnv).RemoteConnectionType {
-		case constant.BuiltIn:
-			var err error
 
-			if !utils.ExistCheck(toFilePath) {
-				err := utils.CreateFolderIfNotExist(tempFolderPath)
-				if err != nil {
-					return nil, err
-				}
+		var err error
 
-				auth, err := goph.Key(loadEnv.Cert, "")
-				if err != nil {
-					return nil, err
-				}
-
-				client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
-
-				if err != nil {
-					return nil, err
-				}
-
-				defer client.Close()
-
-				err = client.Download(resultFilePath, toFilePath)
-
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			resultRawData, err = appendResultRawData(resultRawData, toFilePath)
-			if err != nil {
-				return nil, err
-			}
-		case constant.PrivateKey, constant.Password:
+		if !utils.ExistCheck(toFilePath) {
 			err := utils.CreateFolderIfNotExist(tempFolderPath)
 			if err != nil {
 				return nil, err
 			}
 
-			err = downloadResultFromRemote(loadEnv, resultFilePath, toFilePath)
+			auth, err := goph.Key(loadEnv.PemKeyPath, "")
+			if err != nil {
+				return nil, err
+			}
+
+			client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
 
 			if err != nil {
 				return nil, err
 			}
 
-			resultRawData, err = appendResultRawData(resultRawData, toFilePath)
+			defer client.Close()
+
+			err = client.Download(resultFilePath, toFilePath)
+
 			if err != nil {
 				return nil, err
 			}
+		}
 
+		resultRawData, err = appendResultRawData(resultRawData, toFilePath)
+		if err != nil {
+			return nil, err
 		}
 
 	} else if (*loadEnv).InstallLocation == constant.Local {
@@ -182,30 +163,24 @@ func (j *JMeterLoadTestManager) GetMetrics(loadEnv *model.LoadEnv, loadTestKey, 
 	var metricsRawData = make(map[string][]*metricsRawData)
 
 	if (*loadEnv).InstallLocation == constant.Remote {
-		switch (*loadEnv).RemoteConnectionType {
-		case constant.BuiltIn:
 
-		case constant.PrivateKey, constant.Password:
+		err := utils.CreateFolderIfNotExist(tempFolderPath)
+		if err != nil {
+			return nil, err
+		}
 
-			err := utils.CreateFolderIfNotExist(tempFolderPath)
+		for _, v := range metrics {
+			fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, v)
+			localPath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
+			fromPath := fmt.Sprintf("%s/%s", metricsPrePath, fileName)
+			err = downloadResultFromRemote(loadEnv, fromPath, localPath)
 			if err != nil {
 				return nil, err
 			}
-
-			for _, v := range metrics {
-				fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, v)
-				localPath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
-				fromPath := fmt.Sprintf("%s/%s", metricsPrePath, fileName)
-				err = downloadResultFromRemote(loadEnv, fromPath, localPath)
-				if err != nil {
-					return nil, err
-				}
-				metricsRawData, err = appendMetricsRawData(metricsRawData, localPath)
-				if err != nil {
-					return nil, err
-				}
+			metricsRawData, err = appendMetricsRawData(metricsRawData, localPath)
+			if err != nil {
+				return nil, err
 			}
-
 		}
 
 	} else if (*loadEnv).InstallLocation == constant.Local {
@@ -518,17 +493,11 @@ func downloadResultFromRemote(loadEnv *model.LoadEnv, fromPath, toPath string) e
 	var auth goph.Auth
 	var err error
 
-	if loadEnv.RemoteConnectionType == constant.PrivateKey {
-		keyAuth, err := goph.Key(loadEnv.Cert, "")
-		if err != nil {
-			return err
-		}
-		auth = keyAuth
-
-	} else if loadEnv.RemoteConnectionType == constant.Password {
-		passAuth := goph.Password(loadEnv.Cert)
-		auth = passAuth
+	keyAuth, err := goph.Key(loadEnv.PemKeyPath, "")
+	if err != nil {
+		return err
 	}
+	auth = keyAuth
 
 	client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
 

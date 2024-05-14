@@ -1,10 +1,18 @@
 package services
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
 	"github.com/melbahja/goph"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
@@ -14,22 +22,312 @@ import (
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 )
 
-func InstallLoadTester(installReq *api.LoadEnvReq) (uint, error) {
-	loadTestManager := managers.NewLoadTestManager()
+// Ubuntu Server 22.04 LTS
+var regionImageMap = map[string]string{
+	"ap-south-2":     "",
+	"ap-south-1":     "ami-05e00961530ae1b55",
+	"eu-south-1":     "",
+	"eu-south-2":     "",
+	"me-central-1":   "",
+	"il-central-1":   "",
+	"ca-central-1":   "ami-0083d3f8b2a6c7a81",
+	"eu-central-1":   "ami-026c3177c9bd54288",
+	"eu-central-2":   "",
+	"us-west-1":      "ami-036cafe742923b3d9",
+	"us-west-2":      "ami-03c983f9003cb9cd1",
+	"af-south-1":     "ami-0f256846cac23da94",
+	"eu-north-1":     "ami-011e54f70c1c91e17",
+	"eu-west-3":      "ami-0326f9264af7e51e2",
+	"eu-west-2":      "ami-09627c82937ccdd6d",
+	"eu-west-1":      "ami-0607a9783dd204cae",
+	"ap-northeast-3": "ami-0c1531991482a24e1",
+	"ap-northeast-2": "ami-01ed8ade75d4eee2f",
+	"me-south-1":     "",
+	"ap-northeast-1": "ami-0595d6e81396a9efb",
+	"sa-east-1":      "ami-0cdc2f24b2f67ea17",
+	"ap-east-1":      "",
+	"ca-west-1":      "",
+	"ap-southeast-1": "ami-0be48b687295f8bd6",
+	"ap-southeast-2": "ami-076fe60835f136dc9",
+	"ap-southeast-3": "",
+	"ap-southeast-4": "",
+	"us-east-1":      "ami-0e001c9271cf7f3b9",
+	"us-east-2":      "ami-0f30a9c3a48f3fa79",
+}
 
-	if err := loadTestManager.Install(installReq); err != nil {
-		return 0, fmt.Errorf("failed to install load tester: %w", err)
+func InstallLoadTester(antTargetServerReq *api.AntTargetServerReq) (uint, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+
+	defer cancel()
+
+	antTargetServerMcis, err := tumblebug.GetMcisObjectWithContext(ctx, antTargetServerReq.NsId, antTargetServerReq.McisId)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if len(antTargetServerMcis.VMs) == 0 {
+		return 0, errors.New("cannot find any vm in target mcis")
+	}
+
+	var antTargetServerVm tumblebug.VmRes
+
+	for _, v := range antTargetServerMcis.VMs {
+		if strings.EqualFold(v.ID, antTargetServerReq.VmId) {
+			antTargetServerVm = v
+		}
+	}
+
+	if antTargetServerVm.ID == "" {
+		return 0, errors.New(fmt.Sprintf("%s does not exist", antTargetServerReq.VmId))
+	}
+
+	connectionId := antTargetServerVm.ConnectionName
+	antNsId := antTargetServerReq.NsId
+	antVNetId := antTargetServerVm.VNetID
+	antSubnetId := antTargetServerVm.SubnetID
+	antCspRegion := antTargetServerVm.Region.Region
+	antCspImageId, ok := regionImageMap[antCspRegion]
+	antUsername := "cb-user"
+	antSgId := "ant-load-test-sg"
+	antSshId := "ant-load-test-ssh"
+	antImageId := "ant-load-test-image"
+	antSpecId := "ant-load-test-spec"
+	antCspSpecName := "t3.small"
+	antVmId := "ant-load-test-vm"
+	antMcisId := "ant-load-test-mcis"
+
+	log.Println(connectionId, antNsId, antVNetId, antSubnetId, antUsername, antCspRegion, antCspImageId, antSgId, antSshId, antImageId, antSpecId, antCspSpecName, antVmId, antMcisId)
+
+	if !ok {
+		return 0, errors.New("region base ubuntu 22.04 lts image doesn't exist")
+	}
+
+	var wg sync.WaitGroup
+	goroutine := 4
+	errChan := make(chan error, goroutine)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
+		defer c()
+
+		err2 := tumblebug.GetSecurityGroupWithContext(tc, antNsId, antSgId)
+		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
+			errChan <- err2
+			return
+		} else if err2 == nil {
+			return
+		}
+
+		sg := tumblebug.SecurityGroupReq{
+			Name:           antSgId,
+			ConnectionName: connectionId,
+			VNetID:         antVNetId,
+			Description:    "Default Security Group for Ant load test",
+			FirewallRules: []tumblebug.FirewallRuleReq{
+				{FromPort: "22", ToPort: "22", IPProtocol: "tcp", Direction: "inbound", CIDR: "0.0.0.0/0"},
+			},
+		}
+		_, err2 = tumblebug.CreateSecurityGroupWithContext(tc, antNsId, sg)
+		if err2 != nil {
+			errChan <- err2
+			return
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
+		defer c()
+
+		_, err2 := tumblebug.GetSecureShellWithContext(tc, antNsId, antSshId)
+		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
+			errChan <- err2
+			return
+		} else if err2 == nil {
+			return
+		}
+
+		ssh := tumblebug.SecureShellReq{
+			ConnectionName: connectionId,
+			Name:           antSshId,
+			Username:       antUsername,
+			Description:    "Default secure shell key for Ant load test",
+		}
+		sshResult, err2 := tumblebug.CreateSecureShellWithContext(ctx, antNsId, ssh)
+		if err2 != nil {
+			errChan <- err2
+			return
+		}
+		home, err2 := os.UserHomeDir()
+		if err2 != nil {
+			errChan <- err2
+			return
+		}
+		pemFilePath := fmt.Sprintf("%s/.ssh/%s.pem", home, sshResult.Id)
+
+		err2 = os.WriteFile(pemFilePath, []byte(sshResult.PrivateKey), 0600)
+		if err2 != nil {
+			errChan <- err2
+			return
+		}
+
+		log.Printf("%s.pem ssh private key file save to default ssh path", sshResult.Id)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
+		defer c()
+
+		err2 := tumblebug.GetImageWithContext(tc, antNsId, antImageId)
+		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
+			errChan <- err2
+			return
+		} else if err2 == nil {
+			return
+		}
+		// TODO add dynamic spec integration in advanced version
+		image := tumblebug.ImageReq{
+			ConnectionName: connectionId,
+			Name:           antImageId,
+			CspImageId:     antCspImageId,
+			Description:    "Default machine image for Ant load test",
+		}
+		_, err2 = tumblebug.CreateImageWithContext(ctx, antNsId, image)
+		if err2 != nil {
+			errChan <- err2
+			return
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
+		defer c()
+
+		err2 := tumblebug.GetSpecWithContext(tc, antNsId, antSpecId)
+		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
+			errChan <- err2
+			return
+		} else if err2 == nil {
+			return
+		}
+
+		// TODO add dynamic spec integration in advanced version
+		spec := tumblebug.SpecReq{
+			ConnectionName: connectionId,
+			Name:           antSpecId,
+			CspSpecName:    antCspSpecName,
+			Description:    "Default spec for Ant load test",
+		}
+		_, err2 = tumblebug.CreateSpecWithContext(ctx, antNsId, spec)
+		if err2 != nil {
+			errChan <- err2
+			return
+		}
+	}()
+
+	wg.Wait()
+	close(errChan)
+
+	if len(errChan) != 0 {
+		err = <-errChan
+		return 0, err
+	}
+
+	antLoadGenerateServerMcis, err := tumblebug.GetMcisWithContext(ctx, antNsId, antMcisId)
+
+	if err != nil && !errors.Is(err, tumblebug.ResourcesNotFound) {
+		return 0, err
+	} else if err == nil {
+		if !antLoadGenerateServerMcis.IsRunning(antVmId) {
+			// TODO - need to change mcis or antTargetServerVm status execution
+			return 0, errors.New("vm is not running condition")
+		}
+	} else {
+		antLoadGenerateServerReq := tumblebug.McisReq{
+			Name:            antMcisId,
+			Description:     "Default mcis for Ant load test",
+			InstallMonAgent: "no",
+			Label:           "ANT",
+			SystemLabel:     "ANT",
+			Vm: []tumblebug.VmReq{
+				{
+					SubGroupSize:     "1",
+					Name:             antVmId,
+					ImageId:          antImageId,
+					VmUserAccount:    antUsername,
+					ConnectionName:   connectionId,
+					SshKeyId:         antSshId,
+					SpecId:           antSpecId,
+					SecurityGroupIds: []string{antSgId},
+					VNetId:           antVNetId,
+					SubnetId:         antSubnetId,
+					Description:      "Default vm for Ant load test",
+					VmUserPassword:   "",
+					RootDiskType:     "default",
+					RootDiskSize:     "default",
+				},
+			},
+		}
+
+		antLoadGenerateServerMcis, err = tumblebug.CreateMcisWithContext(ctx, antNsId, antLoadGenerateServerReq)
+
+		if err != nil {
+			return 0, err
+		}
+
+		log.Println("******************created*******************\n", antLoadGenerateServerMcis)
+		time.Sleep(3 * time.Second)
+	}
+
+	log.Println("ant load generate server mcis is ready with running condition")
+
+	ssh, err := tumblebug.GetSecureShellWithContext(ctx, antNsId, antSshId)
+	if err != nil {
+		return 0, err
+	}
+
+	vm := antLoadGenerateServerMcis.VMs[0]
+	if err != nil {
+		return 0, err
+	}
+
+	req := api.LoadEnvReq{
+		InstallLocation: constant.Remote,
+		NsId:            antNsId,
+		McisId:          antLoadGenerateServerMcis.ID,
+		VmId:            antLoadGenerateServerMcis.VmId(),
+		Username:        antUsername,
+		PublicIp:        vm.PublicIP,
+		PemKeyPath:      filepath.Join(os.Getenv("HOME"), ".ssh", ssh.Id+".pem"),
+	}
+
+	manager := managers.NewLoadTestManager()
+
+	err = manager.Install(&req)
+	if err != nil {
+		return 0, err
 	}
 
 	loadEnv := model.LoadEnv{
-		InstallLocation:      (*installReq).InstallLocation,
-		RemoteConnectionType: (*installReq).RemoteConnectionType,
-		NsId:                 (*installReq).NsId,
-		McisId:               (*installReq).McisId,
-		VmId:                 (*installReq).VmId,
-		Username:             (*installReq).Username,
-		PublicIp:             (*installReq).PublicIp,
-		Cert:                 (*installReq).Cert,
+		InstallLocation: req.InstallLocation,
+		NsId:            req.NsId,
+		McisId:          req.McisId,
+		VmId:            req.VmId,
+		Username:        req.Username,
+		PublicIp:        req.PublicIp,
+		PemKeyPath:      req.PemKeyPath,
 	}
 
 	createdEnvId, err := repository.SaveLoadTestInstallEnv(&loadEnv)
@@ -41,37 +339,90 @@ func InstallLoadTester(installReq *api.LoadEnvReq) (uint, error) {
 	return createdEnvId, nil
 }
 
-func UninstallLoadTester(loadEnvId string) error {
-	loadTestManager := managers.NewLoadTestManager()
+func UninstallLoadTester(envId string) error {
+	manager := managers.NewLoadTestManager()
 
 	var loadEnvReq api.LoadEnvReq
-	if loadEnvId != "" {
-		loadEnv, err := repository.GetEnvironment(loadEnvId)
-		if err != nil {
-			return err
-		}
 
-		loadEnvReq.InstallLocation = (*loadEnv).InstallLocation
-		loadEnvReq.RemoteConnectionType = (*loadEnv).RemoteConnectionType
-		loadEnvReq.Username = (*loadEnv).Username
-		loadEnvReq.PublicIp = (*loadEnv).PublicIp
-		loadEnvReq.Cert = (*loadEnv).Cert
-		loadEnvReq.NsId = (*loadEnv).NsId
-		loadEnvReq.McisId = (*loadEnv).McisId
-		loadEnvReq.VmId = (*loadEnv).VmId
+	loadEnv, err := repository.GetEnvironment(envId)
+	if err != nil {
+		return err
 	}
 
-	if err := loadTestManager.Uninstall(&loadEnvReq); err != nil {
+	loadEnvReq.InstallLocation = (*loadEnv).InstallLocation
+	loadEnvReq.Username = (*loadEnv).Username
+	loadEnvReq.NsId = (*loadEnv).NsId
+	loadEnvReq.McisId = (*loadEnv).McisId
+	loadEnvReq.VmId = (*loadEnv).VmId
+	loadEnvReq.PublicIp = (*loadEnv).PublicIp
+	loadEnvReq.PemKeyPath = (*loadEnv).PemKeyPath
+
+	if err := manager.Uninstall(&loadEnvReq); err != nil {
 		return fmt.Errorf("failed to uninstall load tester: %w", err)
 	}
 
-	//err := repository.DeleteLoadTestInstallEnv(loadEnvId)
-	//if err != nil {
-	//	return fmt.Errorf("failed to delete load test installation environment: %w", err)
-	//}
-	log.Println("load test environment is successfully deleted")
+	err = repository.DeleteLoadTestInstallEnv(envId)
+	if err != nil {
+		return fmt.Errorf("failed to delete load test installation environment: %w", err)
+	}
 
 	return nil
+}
+
+func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (string, error) {
+	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()
+	loadTestReq.LoadTestKey = loadTestKey
+
+	envId, err := InstallLoadTester(&loadTestReq.AntTargetServerReq)
+	if err != nil {
+		return "", err
+	}
+
+	loadTestReq.EnvId = fmt.Sprintf("%d", envId)
+
+	// check env
+	if err := prepareEnvironment(loadTestReq); err != nil {
+		return "", err
+	}
+
+	loadTestReq.EnvId = fmt.Sprintf("%d", envId)
+
+	loadTestManager := managers.NewLoadTestManager()
+
+	go runLoadTest(loadTestManager, loadTestReq, loadTestKey)
+
+	_, err = repository.SaveLoadTestExecution(loadTestReq)
+	if err != nil {
+		return "", err
+	}
+
+	return loadTestKey, nil
+}
+
+func GetLoadTestResult(testKey, format string) (interface{}, error) {
+	loadExecutionState, err := repository.GetLoadExecutionState(testKey)
+	if err != nil {
+		return nil, err
+	}
+
+	if loadExecutionState.ExecutionStatus == constant.Processing {
+		return nil, errors.New("load test is processing")
+	}
+
+	loadEnvId := fmt.Sprintf("%d", loadExecutionState.LoadEnvID)
+
+	loadEnv, err := repository.GetEnvironment(loadEnvId)
+	if err != nil {
+		return nil, err
+	}
+
+	loadTestManager := managers.NewLoadTestManager()
+
+	result, err := loadTestManager.GetResult(loadEnv, testKey, format)
+	if err != nil {
+		return nil, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
+	}
+	return result, nil
 }
 
 func prepareEnvironment(loadTestReq *api.LoadExecutionConfigReq) error {
@@ -93,14 +444,13 @@ func prepareEnvironment(loadTestReq *api.LoadExecutionConfigReq) error {
 
 func convertToLoadEnvReq(loadEnv *model.LoadEnv) api.LoadEnvReq {
 	return api.LoadEnvReq{
-		InstallLocation:      loadEnv.InstallLocation,
-		RemoteConnectionType: loadEnv.RemoteConnectionType,
-		Username:             loadEnv.Username,
-		PublicIp:             loadEnv.PublicIp,
-		Cert:                 loadEnv.Cert,
-		NsId:                 loadEnv.NsId,
-		McisId:               loadEnv.McisId,
-		VmId:                 loadEnv.VmId,
+		InstallLocation: loadEnv.InstallLocation,
+		Username:        loadEnv.Username,
+		PublicIp:        loadEnv.PublicIp,
+		PemKeyPath:      loadEnv.PemKeyPath,
+		NsId:            loadEnv.NsId,
+		McisId:          loadEnv.McisId,
+		VmId:            loadEnv.VmId,
 	}
 }
 
@@ -127,7 +477,7 @@ func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.Load
 	}
 
 	loadEnv := loadTestReq.LoadEnvReq
-	auth, err := goph.Key(loadEnv.Cert, "")
+	auth, err := goph.Key(loadEnv.PemKeyPath, "")
 	if err != nil {
 		log.Println(err)
 		return
@@ -163,36 +513,6 @@ func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.Load
 	}
 }
 
-func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (string, error) {
-	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()
-	loadTestReq.LoadTestKey = loadTestKey
-
-	// check env
-	if err := prepareEnvironment(loadTestReq); err != nil {
-		return "", err
-	}
-
-	// installation jmeter
-	envId, err := InstallLoadTester(&loadTestReq.LoadEnvReq)
-	if err != nil {
-		return "", err
-	}
-
-	loadTestReq.EnvId = fmt.Sprintf("%d", envId)
-
-	log.Printf("[%s] start load test", loadTestKey)
-	loadTestManager := managers.NewLoadTestManager()
-
-	go runLoadTest(loadTestManager, loadTestReq, loadTestKey)
-
-	_, err = repository.SaveLoadTestExecution(loadTestReq)
-	if err != nil {
-		return "", err
-	}
-
-	return loadTestKey, nil
-}
-
 func StopLoadTest(loadTestKeyReq api.LoadTestKeyReq) error {
 	loadExecutionState, err := repository.GetLoadExecutionState(loadTestKeyReq.LoadTestKey)
 
@@ -217,10 +537,9 @@ func StopLoadTest(loadTestKeyReq api.LoadTestKeyReq) error {
 		}
 
 		env.InstallLocation = (*loadEnv).InstallLocation
-		env.RemoteConnectionType = (*loadEnv).RemoteConnectionType
 		env.Username = (*loadEnv).Username
 		env.PublicIp = (*loadEnv).PublicIp
-		env.Cert = (*loadEnv).Cert
+		env.PemKeyPath = (*loadEnv).PemKeyPath
 		env.NsId = (*loadEnv).NsId
 		env.McisId = (*loadEnv).McisId
 		env.VmId = (*loadEnv).VmId
@@ -239,28 +558,6 @@ func StopLoadTest(loadTestKeyReq api.LoadTestKeyReq) error {
 	}
 
 	return nil
-}
-
-func GetLoadTestResult(testKey, format string) (interface{}, error) {
-	loadExecutionState, err := repository.GetLoadExecutionState(testKey)
-	if err != nil {
-		return nil, err
-	}
-
-	loadEnvId := fmt.Sprintf("%d", loadExecutionState.LoadEnvID)
-
-	loadEnv, err := repository.GetEnvironment(loadEnvId)
-	if err != nil {
-		return nil, err
-	}
-
-	loadTestManager := managers.NewLoadTestManager()
-
-	result, err := loadTestManager.GetResult(loadEnv, testKey, format)
-	if err != nil {
-		return nil, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
-	}
-	return result, nil
 }
 
 func GetLoadTestMetrics(testKey, format string) (interface{}, error) {
@@ -305,10 +602,9 @@ func GetAllLoadExecutionConfig() ([]api.LoadExecutionRes, error) {
 		var load api.LoadEnvRes
 		load.LoadEnvId = loadEnv.ID
 		load.InstallLocation = loadEnv.InstallLocation
-		load.RemoteConnectionType = loadEnv.RemoteConnectionType
 		load.Username = loadEnv.Username
 		load.PublicIp = loadEnv.PublicIp
-		load.Cert = loadEnv.Cert
+		load.PemKeyPath = loadEnv.PemKeyPath
 		load.NsId = loadEnv.NsId
 		load.McisId = loadEnv.McisId
 		load.VmId = loadEnv.VmId
@@ -370,10 +666,9 @@ func GetLoadExecutionConfig(loadTestKey string) (api.LoadExecutionRes, error) {
 	var load api.LoadEnvRes
 	load.LoadEnvId = loadEnv.ID
 	load.InstallLocation = loadEnv.InstallLocation
-	load.RemoteConnectionType = loadEnv.RemoteConnectionType
 	load.Username = loadEnv.Username
 	load.PublicIp = loadEnv.PublicIp
-	load.Cert = loadEnv.Cert
+	load.PemKeyPath = loadEnv.PemKeyPath
 	load.NsId = loadEnv.NsId
 	load.McisId = loadEnv.McisId
 	load.VmId = loadEnv.VmId

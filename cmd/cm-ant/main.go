@@ -152,7 +152,7 @@ func InitRouter() *echo.Echo {
 		{
 			// load tester
 			loadRouter.POST("/tester", handler.InstallLoadTesterHandler())
-			loadRouter.DELETE("/tester", handler.UninstallLoadTesterHandler())
+			loadRouter.DELETE("/tester/:envId", handler.UninstallLoadTesterHandler())
 
 			// load test execution
 			loadRouter.POST("/start", handler.RunLoadTestHandler())
@@ -160,7 +160,7 @@ func InitRouter() *echo.Echo {
 
 			// load test result
 			loadRouter.GET("/result", handler.GetLoadTestResultHandler())
-			loadRouter.GET("/result/metrics", handler.GetLoadTestMetricsHandler())
+			loadRouter.GET("/result/metrics", handler.GetLoadTestMetricsHandler()) // TODO - update needed
 
 			// load test history
 			loadRouter.GET("/config", handler.GetAllLoadConfigHandler())
@@ -172,30 +172,8 @@ func InitRouter() *echo.Echo {
 
 			// load test metrics agent
 			loadRouter.POST("/agent", handler.InstallAgent())
-			loadRouter.DELETE("/agent/:agentId", handler.UninstallAgent())
-
-			// TBD
-			loadRouter.POST("/mock/migrate", handler.MockMigration())
-
-		}
-
-		version2Router := apiRouter.Group("/v2")
-		lr := version2Router.Group("/load")
-		{
-			// load test metrics agent
-			lr.POST("/agent", handler.InstallAgentV2())
-			lr.GET("/agent", handler.GetAllAgentInstallInfo())
-			lr.DELETE("/agent/:agentInstallInfoId", handler.UninstallAgentV2())
-
-			// load tester
-			lr.POST("/tester", handler.InstallLoadTesterHandlerV2())
-			lr.DELETE("/tester/:envId", handler.UninstallLoadTesterHandlerV2())
-
-			// load test execution
-			lr.POST("/start", handler.RunLoadTestHandlerV2())
-			lr.POST("/stop", handler.StopLoadTestHandlerV2())
-
-			lr.GET("/result", handler.GetLoadTestResultHandlerV2())
+			loadRouter.GET("/agent", handler.GetAllAgentInstallInfo())
+			loadRouter.DELETE("/agent/:agentInstallInfoId", handler.UninstallAgent())
 		}
 
 	}

@@ -1,8 +1,6 @@
 package api
 
 import (
-	"errors"
-
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 )
 
@@ -40,12 +38,11 @@ type LoadExecutionHttpReq struct {
 }
 
 type LoadEnvReq struct {
-	InstallLocation      constant.InstallLocation      `json:"installLocation,omitempty"`
-	RemoteConnectionType constant.RemoteConnectionType `json:"remoteConnectionType,omitempty"`
-	Username             string                        `json:"username,omitempty"`
+	InstallLocation constant.InstallLocation `json:"installLocation,omitempty"`
+	Username        string                   `json:"username,omitempty"`
 
-	PublicIp string `json:"publicIp,omitempty"`
-	Cert     string `json:"cert,omitempty"`
+	PublicIp   string `json:"publicIp,omitempty"`
+	PemKeyPath string `json:"pemKeyPath,omitempty"`
 
 	NsId   string `json:"nsId,omitempty"`
 	McisId string `json:"mcisId,omitempty"`
@@ -55,24 +52,7 @@ type LoadEnvReq struct {
 func (l LoadEnvReq) Validate() error {
 
 	if l.InstallLocation == constant.Remote {
-		if l.RemoteConnectionType == "" {
-			return errors.New("remote connection type should set")
-		}
 
-		switch l.RemoteConnectionType {
-		case constant.BuiltIn:
-			if l.NsId == "" ||
-				l.McisId == "" ||
-				l.Username == "" {
-				return errors.New("check build in properties. all field has to filled")
-			}
-		case constant.PrivateKey, constant.Password:
-			if l.PublicIp == "" ||
-				l.Cert == "" ||
-				l.Username == "" {
-				return errors.New("check Secure shell properties. all field has to filled")
-			}
-		}
 	}
 
 	return nil
