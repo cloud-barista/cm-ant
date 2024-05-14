@@ -50,6 +50,7 @@ type LoadExecutionStateRes struct {
 	ExecutionStatus      constant.ExecutionStatus
 	StartAt              time.Time
 	EndAt                *time.Time
+	TotalSec             uint
 }
 
 type AgentInstallInfoRes struct {

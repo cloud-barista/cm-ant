@@ -25,6 +25,7 @@ func GetAllLoadEnvironments() ([]api.LoadEnvRes, error) {
 		load.PemKeyPath = loadEnv.PemKeyPath
 		load.NsId = loadEnv.NsId
 		load.McisId = loadEnv.McisId
+		load.VmId = loadEnv.VmId
 
 		responseEnv = append(responseEnv, load)
 	}

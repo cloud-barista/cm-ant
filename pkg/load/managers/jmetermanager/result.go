@@ -97,19 +97,17 @@ func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, loadTestKey, f
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
 	fileName := fmt.Sprintf("%s_result.csv", loadTestKey)
 	resultFilePath := fmt.Sprintf("%s/result/%s", jmeterPath, fileName)
-	tempFolderPath := configuration.JoinRootPathWith("/temp")
-	toFilePath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
+	resultFolderPath := configuration.JoinRootPathWith("/result/" + loadTestKey)
+	toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
 	var resultRawData = make(map[string][]*resultRawData)
 
 	if (*loadEnv).InstallLocation == constant.Remote {
 
-		var err error
-
+		err := utils.CreateFolderIfNotExist(resultFolderPath)
+		if err != nil {
+			return nil, err
+		}
 		if !utils.ExistCheck(toFilePath) {
-			err := utils.CreateFolderIfNotExist(tempFolderPath)
-			if err != nil {
-				return nil, err
-			}
 
 			auth, err := goph.Key(loadEnv.PemKeyPath, "")
 			if err != nil {
@@ -159,25 +157,39 @@ func (j *JMeterLoadTestManager) GetMetrics(loadEnv *model.LoadEnv, loadTestKey, 
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
 	metricsPrePath := fmt.Sprintf("%s/result", jmeterPath)
 	metrics := []string{"cpu", "disk", "memory", "network"}
-	tempFolderPath := configuration.JoinRootPathWith("/temp")
+	resultFolderPath := configuration.JoinRootPathWith("/result/" + loadTestKey)
 	var metricsRawData = make(map[string][]*metricsRawData)
 
 	if (*loadEnv).InstallLocation == constant.Remote {
 
-		err := utils.CreateFolderIfNotExist(tempFolderPath)
+		err := utils.CreateFolderIfNotExist(resultFolderPath)
+		if err != nil {
+			return nil, err
+		}
+		auth, err := goph.Key(loadEnv.PemKeyPath, "")
+		if err != nil {
+			return nil, err
+		}
+		client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
 		if err != nil {
 			return nil, err
 		}
 
+		defer client.Close()
+
 		for _, v := range metrics {
 			fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, v)
-			localPath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
+			toPath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
 			fromPath := fmt.Sprintf("%s/%s", metricsPrePath, fileName)
-			err = downloadResultFromRemote(loadEnv, fromPath, localPath)
-			if err != nil {
-				return nil, err
+
+			if !utils.ExistCheck(toPath) {
+				err = client.Download(fromPath, toPath)
+				if err != nil {
+					return nil, err
+				}
 			}
-			metricsRawData, err = appendMetricsRawData(metricsRawData, localPath)
+
+			metricsRawData, err = appendMetricsRawData(metricsRawData, toPath)
 			if err != nil {
 				return nil, err
 			}
@@ -187,8 +199,8 @@ func (j *JMeterLoadTestManager) GetMetrics(loadEnv *model.LoadEnv, loadTestKey, 
 		var err error
 		for _, v := range metrics {
 			fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, v)
-			localPath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
-			metricsRawData, err = appendMetricsRawData(metricsRawData, localPath)
+			toPath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+			metricsRawData, err = appendMetricsRawData(metricsRawData, toPath)
 			if err != nil {
 				return nil, err
 			}

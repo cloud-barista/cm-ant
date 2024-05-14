@@ -420,7 +420,7 @@ func GetLoadTestResult(testKey, format string) (interface{}, error) {
 
 	result, err := loadTestManager.GetResult(loadEnv, testKey, format)
 	if err != nil {
-		return nil, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
+		return nil, fmt.Errorf("error on [GetLoadTestResult()]; %s", err)
 	}
 	return result, nil
 }
@@ -465,12 +465,9 @@ func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.Load
 	log.Println("load test result fetching..")
 
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
-	fileName := fmt.Sprintf("%s_result.csv", loadTestKey)
-	resultFilePath := fmt.Sprintf("%s/result/%s", jmeterPath, fileName)
-	tempFolderPath := configuration.JoinRootPathWith("/temp")
-	toFilePath := fmt.Sprintf("%s/%s", tempFolderPath, fileName)
-
-	err := utils.CreateFolderIfNotExist(tempFolderPath)
+	resultsPrefix := []string{"", "_cpu", "_disk", "_memory", "_network"}
+	resultFolderPath := configuration.JoinRootPathWith("/result/" + loadTestKey)
+	err := utils.CreateFolderIfNotExist(resultFolderPath)
 	if err != nil {
 		log.Println(err)
 		return
@@ -491,12 +488,32 @@ func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.Load
 	}
 
 	defer client.Close()
+	var wg sync.WaitGroup
+	errCh := make(chan error)
 
-	err = client.Download(resultFilePath, toFilePath)
+	for _, p := range resultsPrefix {
+		wg.Add(1)
+		go func(prefix string) {
+			defer wg.Done()
+			fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
+			resultFilePath := fmt.Sprintf("%s/result/%s", jmeterPath, fileName)
+			toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
 
-	if err != nil {
+			if exist := utils.ExistCheck(toFilePath); !exist {
+				err2 := client.Download(resultFilePath, toFilePath)
+				if err2 != nil {
+					errCh <- err2
+				}
+			}
+		}(p)
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	if len(errCh) != 0 {
+		err = <-errCh
 		log.Println(err)
-		return
 	}
 
 	if loadTestErr != nil {
@@ -560,10 +577,14 @@ func StopLoadTest(loadTestKeyReq api.LoadTestKeyReq) error {
 	return nil
 }
 
-func GetLoadTestMetrics(testKey, format string) (interface{}, error) {
-	loadExecutionState, err := repository.GetLoadExecutionState(testKey)
+func GetLoadTestMetrics(loadTestKey, format string) (interface{}, error) {
+	loadExecutionState, err := repository.GetLoadExecutionState(loadTestKey)
 	if err != nil {
 		return nil, err
+	}
+
+	if loadExecutionState.ExecutionStatus == constant.Processing {
+		return nil, errors.New("load test is processing")
 	}
 
 	loadEnvId := fmt.Sprintf("%d", loadExecutionState.LoadEnvID)
@@ -575,9 +596,9 @@ func GetLoadTestMetrics(testKey, format string) (interface{}, error) {
 
 	loadTestManager := managers.NewLoadTestManager()
 
-	result, err := loadTestManager.GetMetrics(loadEnv, testKey, format)
+	result, err := loadTestManager.GetMetrics(loadEnv, loadTestKey, format)
 	if err != nil {
-		return nil, fmt.Errorf("error on [InstallLoadGenerator()]; %s", err)
+		return nil, fmt.Errorf("error on [GetLoadTestMetrics()]; %s", err)
 	}
 	return result, nil
 }
@@ -639,6 +660,7 @@ func GetAllLoadExecutionConfig() ([]api.LoadExecutionRes, error) {
 				ExecutionStatus:      state.ExecutionStatus,
 				StartAt:              state.StartAt,
 				EndAt:                state.EndAt,
+				TotalSec:             state.TotalSec,
 			},
 		}
 
@@ -725,6 +747,7 @@ func GetAllLoadExecutionState() (interface{}, error) {
 			ExecutionStatus:      v.ExecutionStatus,
 			StartAt:              v.StartAt,
 			EndAt:                v.EndAt,
+			TotalSec:             v.TotalSec,
 		}
 
 		responseStates = append(responseStates, loadExecutionStateRes)
@@ -746,6 +769,7 @@ func GetLoadExecutionState(loadTestKey string) (interface{}, error) {
 		ExecutionStatus:      loadExecutionState.ExecutionStatus,
 		StartAt:              loadExecutionState.StartAt,
 		EndAt:                loadExecutionState.EndAt,
+		TotalSec:             loadExecutionState.TotalSec,
 	}
 
 	return loadExecutionStateRes, nil

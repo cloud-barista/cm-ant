@@ -24,7 +24,7 @@ type LoadEnv struct {
 	VmId            string                   `json:"vmId"`
 	Username        string                   `json:"username"`
 	PublicIp        string                   `json:"publicIp"`
-	PemKeyPath      string                   `json:"cert"`
+	PemKeyPath      string                   `json:"pemKeyPath"`
 }
 
 type LoadExecutionState struct {
