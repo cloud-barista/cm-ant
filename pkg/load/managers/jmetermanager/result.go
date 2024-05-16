@@ -32,7 +32,6 @@ type resultRawData struct {
 type metricsRawData struct {
 	Value     string
 	Unit      string
-	Label     string
 	IsError   bool
 	Timestamp time.Time
 }
@@ -498,32 +497,4 @@ func metricFormat(format string, metricsRawDatas map[string][]*metricsRawData) (
 	}
 
 	return metricsRawDatas, nil
-}
-
-func downloadResultFromRemote(loadEnv *model.LoadEnv, fromPath, toPath string) error {
-
-	var auth goph.Auth
-	var err error
-
-	keyAuth, err := goph.Key(loadEnv.PemKeyPath, "")
-	if err != nil {
-		return err
-	}
-	auth = keyAuth
-
-	client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
-
-	if err != nil {
-		return err
-	}
-
-	defer client.Close()
-
-	err = client.Download(fromPath, toPath)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

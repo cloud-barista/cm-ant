@@ -5,12 +5,9 @@ import (
 	"golang.org/x/crypto/ssh"
 	"log"
 	"net"
-	"os"
-	"path/filepath"
 )
 
-func AddToKnownHost(pemFileName, publicIp, username string) error {
-	pemFilePath := filepath.Join(os.Getenv("HOME"), ".ssh", pemFileName)
+func AddToKnownHost(pemFilePath, publicIp, username string) error {
 	auth, err := goph.Key(pemFilePath, "")
 	if err != nil {
 		return err

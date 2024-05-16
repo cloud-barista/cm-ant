@@ -843,6 +843,9 @@
                 },
                 "startAt": {
                     "type": "string"
+                },
+                "totalSec": {
+                    "type": "integer"
                 }
             }
         },

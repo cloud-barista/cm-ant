@@ -853,6 +853,9 @@ const docTemplate = `{
                 },
                 "startAt": {
                     "type": "string"
+                },
+                "totalSec": {
+                    "type": "integer"
                 }
             }
         },

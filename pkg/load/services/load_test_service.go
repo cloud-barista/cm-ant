@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
-	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
-	"github.com/melbahja/goph"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
+	"github.com/melbahja/goph"
 
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
@@ -320,6 +321,11 @@ func InstallLoadTester(antTargetServerReq *api.AntTargetServerReq) (uint, error)
 		return 0, err
 	}
 
+	err = utils.AddToKnownHost(req.PemKeyPath, req.PublicIp, req.Username)
+	if err != nil {
+		return 0, err
+	}
+
 	loadEnv := model.LoadEnv{
 		InstallLocation: req.InstallLocation,
 		NsId:            req.NsId,
@@ -373,25 +379,25 @@ func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (string, error) {
 	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()
 	loadTestReq.LoadTestKey = loadTestKey
 
-	envId, err := InstallLoadTester(&loadTestReq.AntTargetServerReq)
-	if err != nil {
-		return "", err
-	}
+	if loadTestReq.EnvId == "" {
+		envId, err := InstallLoadTester(&loadTestReq.AntTargetServerReq)
+		if err != nil {
+			return "", err
+		}
 
-	loadTestReq.EnvId = fmt.Sprintf("%d", envId)
+		loadTestReq.EnvId = fmt.Sprintf("%d", envId)
+	}
 
 	// check env
 	if err := prepareEnvironment(loadTestReq); err != nil {
 		return "", err
 	}
 
-	loadTestReq.EnvId = fmt.Sprintf("%d", envId)
-
 	loadTestManager := managers.NewLoadTestManager()
 
 	go runLoadTest(loadTestManager, loadTestReq, loadTestKey)
 
-	_, err = repository.SaveLoadTestExecution(loadTestReq)
+	_, err := repository.SaveLoadTestExecution(loadTestReq)
 	if err != nil {
 		return "", err
 	}

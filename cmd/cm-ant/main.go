@@ -117,7 +117,7 @@ func InitRouter() *echo.Echo {
 			return c.Render(http.StatusOK, "home.page.tmpl", nil)
 		})
 
-		antRouter.GET("/result", func(c echo.Context) error {
+		antRouter.GET("/results", func(c echo.Context) error {
 			result, err := services.GetAllLoadExecutionConfig()
 
 			if err != nil {
@@ -128,7 +128,7 @@ func InitRouter() *echo.Echo {
 
 			}
 
-			return c.Render(http.StatusOK, "result.page.tmpl", result)
+			return c.Render(http.StatusOK, "results.page.tmpl", result)
 		})
 
 		apiRouter := antRouter.Group("/api")
