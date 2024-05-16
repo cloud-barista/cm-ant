@@ -7,8 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloud-barista/cm-ant/pkg/load/api/handler"
+	loadHanlder "github.com/cloud-barista/cm-ant/pkg/load/api/handler"
 	"github.com/cloud-barista/cm-ant/pkg/load/services"
+	priceHanlder "github.com/cloud-barista/cm-ant/pkg/price/api/handler"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
@@ -144,36 +145,42 @@ func InitRouter() *echo.Echo {
 		connectionRouter := versionRouter.Group("/env")
 
 		{
-			connectionRouter.GET("", handler.GetAllLoadEnvironments())
+			connectionRouter.GET("", loadHanlder.GetAllLoadEnvironments())
 		}
 
 		loadRouter := versionRouter.Group("/load")
 
 		{
 			// load tester
-			loadRouter.POST("/tester", handler.InstallLoadTesterHandler())
-			loadRouter.DELETE("/tester/:envId", handler.UninstallLoadTesterHandler())
+			loadRouter.POST("/tester", loadHanlder.InstallLoadTesterHandler())
+			loadRouter.DELETE("/tester/:envId", loadHanlder.UninstallLoadTesterHandler())
 
 			// load test execution
-			loadRouter.POST("/start", handler.RunLoadTestHandler())
-			loadRouter.POST("/stop", handler.StopLoadTestHandler())
+			loadRouter.POST("/start", loadHanlder.RunLoadTestHandler())
+			loadRouter.POST("/stop", loadHanlder.StopLoadTestHandler())
 
 			// load test result
-			loadRouter.GET("/result", handler.GetLoadTestResultHandler())
-			loadRouter.GET("/result/metrics", handler.GetLoadTestMetricsHandler())
+			loadRouter.GET("/result", loadHanlder.GetLoadTestResultHandler())
+			loadRouter.GET("/result/metrics", loadHanlder.GetLoadTestMetricsHandler())
 
 			// load test history
-			loadRouter.GET("/config", handler.GetAllLoadConfigHandler())
-			loadRouter.GET("/config/:loadTestKey", handler.GetLoadConfigHandler())
+			loadRouter.GET("/config", loadHanlder.GetAllLoadConfigHandler())
+			loadRouter.GET("/config/:loadTestKey", loadHanlder.GetLoadConfigHandler())
 
 			// load test state
-			loadRouter.GET("/state", handler.GetAllLoadExecutionStateHandler())
-			loadRouter.GET("/state/:loadTestKey", handler.GetLoadExecutionStateHandler())
+			loadRouter.GET("/state", loadHanlder.GetAllLoadExecutionStateHandler())
+			loadRouter.GET("/state/:loadTestKey", loadHanlder.GetLoadExecutionStateHandler())
 
 			// load test metrics agent
-			loadRouter.POST("/agent", handler.InstallAgent())
-			loadRouter.GET("/agent", handler.GetAllAgentInstallInfo())
-			loadRouter.DELETE("/agent/:agentInstallInfoId", handler.UninstallAgent())
+			loadRouter.POST("/agent", loadHanlder.InstallAgent())
+			loadRouter.GET("/agent", loadHanlder.GetAllAgentInstallInfo())
+			loadRouter.DELETE("/agent/:agentInstallInfoId", loadHanlder.UninstallAgent())
+		}
+
+		priceRouter := versionRouter.Group("/price")
+
+		{
+			priceRouter.GET("", priceHanlder.Price())
 		}
 
 	}
