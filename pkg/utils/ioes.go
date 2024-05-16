@@ -80,7 +80,7 @@ func ReadCSV(filename string) (*[][]string, error) {
 }
 
 func ExistCheck(path string) bool {
-	_, err := os.Stat(path)
+	fileInfo, err := os.Stat(path)
 
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -90,6 +90,10 @@ func ExistCheck(path string) bool {
 			log.Println(err)
 		}
 
+		return false
+	}
+
+	if fileInfo.Size() == 0 {
 		return false
 	}
 

@@ -41,6 +41,11 @@ func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 
 		log.Println("command result", stdout)
 
+		err = utils.AddToKnownHost(loadEnvReq.PemKeyPath, loadEnvReq.PublicIp, loadEnvReq.Username)
+		if err != nil {
+			return err
+		}
+
 	} else if loadEnvReq.InstallLocation == constant.Local {
 
 		err := utils.Script(installScriptPath, []string{

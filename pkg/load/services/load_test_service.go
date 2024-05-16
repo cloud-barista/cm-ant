@@ -56,284 +56,289 @@ var regionImageMap = map[string]string{
 	"us-east-2":      "ami-0f30a9c3a48f3fa79",
 }
 
-func InstallLoadTester(antTargetServerReq *api.AntTargetServerReq) (uint, error) {
+func InstallLoadTester(antLoadEnvReq *api.LoadEnvReq) (uint, error) {
+
+	if antLoadEnvReq.InstallLocation == "" {
+		return 0, errors.New("install location must set local/remote")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 
 	defer cancel()
 
-	antTargetServerMcis, err := tumblebug.GetMcisObjectWithContext(ctx, antTargetServerReq.NsId, antTargetServerReq.McisId)
+	var loadEnvReq api.LoadEnvReq
 
-	if err != nil {
-		return 0, err
-	}
-
-	if len(antTargetServerMcis.VMs) == 0 {
-		return 0, errors.New("cannot find any vm in target mcis")
-	}
-
-	var antTargetServerVm tumblebug.VmRes
-
-	for _, v := range antTargetServerMcis.VMs {
-		if strings.EqualFold(v.ID, antTargetServerReq.VmId) {
-			antTargetServerVm = v
-		}
-	}
-
-	if antTargetServerVm.ID == "" {
-		return 0, errors.New(fmt.Sprintf("%s does not exist", antTargetServerReq.VmId))
-	}
-
-	connectionId := antTargetServerVm.ConnectionName
-	antNsId := antTargetServerReq.NsId
-	antVNetId := antTargetServerVm.VNetID
-	antSubnetId := antTargetServerVm.SubnetID
-	antCspRegion := antTargetServerVm.Region.Region
-	antCspImageId, ok := regionImageMap[antCspRegion]
-	antUsername := "cb-user"
-	antSgId := "ant-load-test-sg"
-	antSshId := "ant-load-test-ssh"
-	antImageId := "ant-load-test-image"
-	antSpecId := "ant-load-test-spec"
-	antCspSpecName := "t3.small"
-	antVmId := "ant-load-test-vm"
-	antMcisId := "ant-load-test-mcis"
-
-	log.Println(connectionId, antNsId, antVNetId, antSubnetId, antUsername, antCspRegion, antCspImageId, antSgId, antSshId, antImageId, antSpecId, antCspSpecName, antVmId, antMcisId)
-
-	if !ok {
-		return 0, errors.New("region base ubuntu 22.04 lts image doesn't exist")
-	}
-
-	var wg sync.WaitGroup
-	goroutine := 4
-	errChan := make(chan error, goroutine)
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
-		defer c()
-
-		err2 := tumblebug.GetSecurityGroupWithContext(tc, antNsId, antSgId)
-		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
-			errChan <- err2
-			return
-		} else if err2 == nil {
-			return
-		}
-
-		sg := tumblebug.SecurityGroupReq{
-			Name:           antSgId,
-			ConnectionName: connectionId,
-			VNetID:         antVNetId,
-			Description:    "Default Security Group for Ant load test",
-			FirewallRules: []tumblebug.FirewallRuleReq{
-				{FromPort: "22", ToPort: "22", IPProtocol: "tcp", Direction: "inbound", CIDR: "0.0.0.0/0"},
-			},
-		}
-		_, err2 = tumblebug.CreateSecurityGroupWithContext(tc, antNsId, sg)
-		if err2 != nil {
-			errChan <- err2
-			return
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
-		defer c()
-
-		_, err2 := tumblebug.GetSecureShellWithContext(tc, antNsId, antSshId)
-		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
-			errChan <- err2
-			return
-		} else if err2 == nil {
-			return
-		}
-
-		ssh := tumblebug.SecureShellReq{
-			ConnectionName: connectionId,
-			Name:           antSshId,
-			Username:       antUsername,
-			Description:    "Default secure shell key for Ant load test",
-		}
-		sshResult, err2 := tumblebug.CreateSecureShellWithContext(ctx, antNsId, ssh)
-		if err2 != nil {
-			errChan <- err2
-			return
-		}
-		home, err2 := os.UserHomeDir()
-		if err2 != nil {
-			errChan <- err2
-			return
-		}
-		pemFilePath := fmt.Sprintf("%s/.ssh/%s.pem", home, sshResult.Id)
-
-		err2 = os.WriteFile(pemFilePath, []byte(sshResult.PrivateKey), 0600)
-		if err2 != nil {
-			errChan <- err2
-			return
-		}
-
-		log.Printf("%s.pem ssh private key file save to default ssh path", sshResult.Id)
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
-		defer c()
-
-		err2 := tumblebug.GetImageWithContext(tc, antNsId, antImageId)
-		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
-			errChan <- err2
-			return
-		} else if err2 == nil {
-			return
-		}
-		// TODO add dynamic spec integration in advanced version
-		image := tumblebug.ImageReq{
-			ConnectionName: connectionId,
-			Name:           antImageId,
-			CspImageId:     antCspImageId,
-			Description:    "Default machine image for Ant load test",
-		}
-		_, err2 = tumblebug.CreateImageWithContext(ctx, antNsId, image)
-		if err2 != nil {
-			errChan <- err2
-			return
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
-		defer c()
-
-		err2 := tumblebug.GetSpecWithContext(tc, antNsId, antSpecId)
-		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
-			errChan <- err2
-			return
-		} else if err2 == nil {
-			return
-		}
-
-		// TODO add dynamic spec integration in advanced version
-		spec := tumblebug.SpecReq{
-			ConnectionName: connectionId,
-			Name:           antSpecId,
-			CspSpecName:    antCspSpecName,
-			Description:    "Default spec for Ant load test",
-		}
-		_, err2 = tumblebug.CreateSpecWithContext(ctx, antNsId, spec)
-		if err2 != nil {
-			errChan <- err2
-			return
-		}
-	}()
-
-	wg.Wait()
-	close(errChan)
-
-	if len(errChan) != 0 {
-		err = <-errChan
-		return 0, err
-	}
-
-	antLoadGenerateServerMcis, err := tumblebug.GetMcisWithContext(ctx, antNsId, antMcisId)
-
-	if err != nil && !errors.Is(err, tumblebug.ResourcesNotFound) {
-		return 0, err
-	} else if err == nil {
-		if !antLoadGenerateServerMcis.IsRunning(antVmId) {
-			// TODO - need to change mcis or antTargetServerVm status execution
-			return 0, errors.New("vm is not running condition")
-		}
-	} else {
-		antLoadGenerateServerReq := tumblebug.McisReq{
-			Name:            antMcisId,
-			Description:     "Default mcis for Ant load test",
-			InstallMonAgent: "no",
-			Label:           "ANT",
-			SystemLabel:     "ANT",
-			Vm: []tumblebug.VmReq{
-				{
-					SubGroupSize:     "1",
-					Name:             antVmId,
-					ImageId:          antImageId,
-					VmUserAccount:    antUsername,
-					ConnectionName:   connectionId,
-					SshKeyId:         antSshId,
-					SpecId:           antSpecId,
-					SecurityGroupIds: []string{antSgId},
-					VNetId:           antVNetId,
-					SubnetId:         antSubnetId,
-					Description:      "Default vm for Ant load test",
-					VmUserPassword:   "",
-					RootDiskType:     "default",
-					RootDiskSize:     "default",
-				},
-			},
-		}
-
-		antLoadGenerateServerMcis, err = tumblebug.CreateMcisWithContext(ctx, antNsId, antLoadGenerateServerReq)
+	if antLoadEnvReq.InstallLocation == constant.Remote {
+		antTargetServerMcis, err := tumblebug.GetMcisObjectWithContext(ctx, antLoadEnvReq.NsId, antLoadEnvReq.McisId)
 
 		if err != nil {
 			return 0, err
 		}
 
-		log.Println("******************created*******************\n", antLoadGenerateServerMcis)
-		time.Sleep(3 * time.Second)
-	}
+		if len(antTargetServerMcis.VMs) == 0 {
+			return 0, errors.New("cannot find any vm in target mcis")
+		}
 
-	log.Println("ant load generate server mcis is ready with running condition")
+		var antTargetServerVm tumblebug.VmRes
 
-	ssh, err := tumblebug.GetSecureShellWithContext(ctx, antNsId, antSshId)
-	if err != nil {
-		return 0, err
-	}
+		for _, v := range antTargetServerMcis.VMs {
+			if strings.EqualFold(v.ID, antLoadEnvReq.VmId) {
+				antTargetServerVm = v
+			}
+		}
 
-	vm := antLoadGenerateServerMcis.VMs[0]
-	if err != nil {
-		return 0, err
-	}
+		if antTargetServerVm.ID == "" {
+			return 0, fmt.Errorf("%s does not exist", antLoadEnvReq.VmId)
+		}
 
-	req := api.LoadEnvReq{
-		InstallLocation: constant.Remote,
-		NsId:            antNsId,
-		McisId:          antLoadGenerateServerMcis.ID,
-		VmId:            antLoadGenerateServerMcis.VmId(),
-		Username:        antUsername,
-		PublicIp:        vm.PublicIP,
-		PemKeyPath:      filepath.Join(os.Getenv("HOME"), ".ssh", ssh.Id+".pem"),
+		connectionId := antTargetServerVm.ConnectionName
+		antNsId := antLoadEnvReq.NsId
+		antVNetId := antTargetServerVm.VNetID
+		antSubnetId := antTargetServerVm.SubnetID
+		antCspRegion := antTargetServerVm.Region.Region
+		antCspImageId, ok := regionImageMap[antCspRegion]
+		antUsername := "cb-user"
+		antSgId := "ant-load-test-sg"
+		antSshId := "ant-load-test-ssh"
+		antImageId := "ant-load-test-image"
+		antSpecId := "ant-load-test-spec"
+		antCspSpecName := "t3.small"
+		antVmId := "ant-load-test-vm"
+		antMcisId := "ant-load-test-mcis"
+
+		log.Println(connectionId, antNsId, antVNetId, antSubnetId, antUsername, antCspRegion, antCspImageId, antSgId, antSshId, antImageId, antSpecId, antCspSpecName, antVmId, antMcisId)
+
+		if !ok {
+			return 0, errors.New("region base ubuntu 22.04 lts image doesn't exist")
+		}
+
+		var wg sync.WaitGroup
+		goroutine := 4
+		errChan := make(chan error, goroutine)
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			tc, c := context.WithTimeout(context.Background(), 5*time.Second)
+			defer c()
+
+			err2 := tumblebug.GetSecurityGroupWithContext(tc, antNsId, antSgId)
+			if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
+				errChan <- err2
+				return
+			} else if err2 == nil {
+				return
+			}
+
+			sg := tumblebug.SecurityGroupReq{
+				Name:           antSgId,
+				ConnectionName: connectionId,
+				VNetID:         antVNetId,
+				Description:    "Default Security Group for Ant load test",
+				FirewallRules: []tumblebug.FirewallRuleReq{
+					{FromPort: "22", ToPort: "22", IPProtocol: "tcp", Direction: "inbound", CIDR: "0.0.0.0/0"},
+				},
+			}
+			_, err2 = tumblebug.CreateSecurityGroupWithContext(tc, antNsId, sg)
+			if err2 != nil {
+				errChan <- err2
+				return
+			}
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			tc, c := context.WithTimeout(context.Background(), 5*time.Second)
+			defer c()
+
+			_, err2 := tumblebug.GetSecureShellWithContext(tc, antNsId, antSshId)
+			if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
+				errChan <- err2
+				return
+			} else if err2 == nil {
+				return
+			}
+
+			ssh := tumblebug.SecureShellReq{
+				ConnectionName: connectionId,
+				Name:           antSshId,
+				Username:       antUsername,
+				Description:    "Default secure shell key for Ant load test",
+			}
+			sshResult, err2 := tumblebug.CreateSecureShellWithContext(ctx, antNsId, ssh)
+			if err2 != nil {
+				errChan <- err2
+				return
+			}
+			home, err2 := os.UserHomeDir()
+			if err2 != nil {
+				errChan <- err2
+				return
+			}
+			pemFilePath := fmt.Sprintf("%s/.ssh/%s.pem", home, sshResult.Id)
+
+			err2 = os.WriteFile(pemFilePath, []byte(sshResult.PrivateKey), 0600)
+			if err2 != nil {
+				errChan <- err2
+				return
+			}
+
+			log.Printf("%s.pem ssh private key file save to default ssh path", sshResult.Id)
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			tc, c := context.WithTimeout(context.Background(), 5*time.Second)
+			defer c()
+
+			err2 := tumblebug.GetImageWithContext(tc, antNsId, antImageId)
+			if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
+				errChan <- err2
+				return
+			} else if err2 == nil {
+				return
+			}
+			// TODO add dynamic spec integration in advanced version
+			image := tumblebug.ImageReq{
+				ConnectionName: connectionId,
+				Name:           antImageId,
+				CspImageId:     antCspImageId,
+				Description:    "Default machine image for Ant load test",
+			}
+			_, err2 = tumblebug.CreateImageWithContext(ctx, antNsId, image)
+			if err2 != nil {
+				errChan <- err2
+				return
+			}
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			tc, c := context.WithTimeout(context.Background(), 5*time.Second)
+			defer c()
+
+			err2 := tumblebug.GetSpecWithContext(tc, antNsId, antSpecId)
+			if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
+				errChan <- err2
+				return
+			} else if err2 == nil {
+				return
+			}
+
+			// TODO add dynamic spec integration in advanced version
+			spec := tumblebug.SpecReq{
+				ConnectionName: connectionId,
+				Name:           antSpecId,
+				CspSpecName:    antCspSpecName,
+				Description:    "Default spec for Ant load test",
+			}
+			_, err2 = tumblebug.CreateSpecWithContext(ctx, antNsId, spec)
+			if err2 != nil {
+				errChan <- err2
+				return
+			}
+		}()
+
+		wg.Wait()
+		close(errChan)
+
+		if len(errChan) != 0 {
+			err = <-errChan
+			return 0, err
+		}
+
+		antLoadGenerateServerMcis, err := tumblebug.GetMcisWithContext(ctx, antNsId, antMcisId)
+
+		if err != nil && !errors.Is(err, tumblebug.ResourcesNotFound) {
+			return 0, err
+		} else if err == nil {
+			if !antLoadGenerateServerMcis.IsRunning(antVmId) {
+				// TODO - need to change mcis or antTargetServerVm status execution
+				return 0, errors.New("vm is not running condition")
+			}
+		} else {
+			antLoadGenerateServerReq := tumblebug.McisReq{
+				Name:            antMcisId,
+				Description:     "Default mcis for Ant load test",
+				InstallMonAgent: "no",
+				Label:           "ANT",
+				SystemLabel:     "ANT",
+				Vm: []tumblebug.VmReq{
+					{
+						SubGroupSize:     "1",
+						Name:             antVmId,
+						ImageId:          antImageId,
+						VmUserAccount:    antUsername,
+						ConnectionName:   connectionId,
+						SshKeyId:         antSshId,
+						SpecId:           antSpecId,
+						SecurityGroupIds: []string{antSgId},
+						VNetId:           antVNetId,
+						SubnetId:         antSubnetId,
+						Description:      "Default vm for Ant load test",
+						VmUserPassword:   "",
+						RootDiskType:     "default",
+						RootDiskSize:     "default",
+					},
+				},
+			}
+
+			antLoadGenerateServerMcis, err = tumblebug.CreateMcisWithContext(ctx, antNsId, antLoadGenerateServerReq)
+
+			if err != nil {
+				return 0, err
+			}
+
+			log.Println("******************created*******************\n", antLoadGenerateServerMcis)
+			time.Sleep(3 * time.Second)
+		}
+
+		log.Println("ant load generate server mcis is ready with running condition")
+
+		ssh, err := tumblebug.GetSecureShellWithContext(ctx, antNsId, antSshId)
+		if err != nil {
+			return 0, err
+		}
+
+		vm := antLoadGenerateServerMcis.VMs[0]
+
+		loadEnvReq = api.LoadEnvReq{
+			InstallLocation: constant.Remote,
+			NsId:            antNsId,
+			McisId:          antLoadGenerateServerMcis.ID,
+			VmId:            antLoadGenerateServerMcis.VmId(),
+			Username:        antUsername,
+			PublicIp:        vm.PublicIP,
+			PemKeyPath:      filepath.Join(os.Getenv("HOME"), ".ssh", ssh.Id+".pem"),
+		}
+	} else {
+		loadEnvReq = api.LoadEnvReq{
+			InstallLocation: constant.Local,
+		}
 	}
 
 	manager := managers.NewLoadTestManager()
 
-	err = manager.Install(&req)
-	if err != nil {
-		return 0, err
-	}
-
-	err = utils.AddToKnownHost(req.PemKeyPath, req.PublicIp, req.Username)
+	err := manager.Install(&loadEnvReq)
 	if err != nil {
 		return 0, err
 	}
 
 	loadEnv := model.LoadEnv{
-		InstallLocation: req.InstallLocation,
-		NsId:            req.NsId,
-		McisId:          req.McisId,
-		VmId:            req.VmId,
-		Username:        req.Username,
-		PublicIp:        req.PublicIp,
-		PemKeyPath:      req.PemKeyPath,
+		InstallLocation: loadEnvReq.InstallLocation,
+		NsId:            loadEnvReq.NsId,
+		McisId:          loadEnvReq.McisId,
+		VmId:            loadEnvReq.VmId,
+		Username:        loadEnvReq.Username,
+		PublicIp:        loadEnvReq.PublicIp,
+		PemKeyPath:      loadEnvReq.PemKeyPath,
 	}
 
 	createdEnvId, err := repository.SaveLoadTestInstallEnv(&loadEnv)
@@ -380,7 +385,7 @@ func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (string, error) {
 	loadTestReq.LoadTestKey = loadTestKey
 
 	if loadTestReq.EnvId == "" {
-		envId, err := InstallLoadTester(&loadTestReq.AntTargetServerReq)
+		envId, err := InstallLoadTester(&loadTestReq.LoadEnvReq)
 		if err != nil {
 			return "", err
 		}
@@ -473,45 +478,79 @@ func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.Load
 	jmeterPath := configuration.Get().Load.JMeter.WorkDir
 	resultsPrefix := []string{"", "_cpu", "_disk", "_memory", "_network"}
 	resultFolderPath := configuration.JoinRootPathWith("/result/" + loadTestKey)
-	err := utils.CreateFolderIfNotExist(resultFolderPath)
+
+	err := utils.CreateFolderIfNotExist(configuration.JoinRootPathWith("/result"))
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	err = utils.CreateFolderIfNotExist(resultFolderPath)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
 	loadEnv := loadTestReq.LoadEnvReq
-	auth, err := goph.Key(loadEnv.PemKeyPath, "")
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
-
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	defer client.Close()
 	var wg sync.WaitGroup
 	errCh := make(chan error)
 
-	for _, p := range resultsPrefix {
-		wg.Add(1)
-		go func(prefix string) {
-			defer wg.Done()
-			fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
-			resultFilePath := fmt.Sprintf("%s/result/%s", jmeterPath, fileName)
-			toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+	if loadEnv.InstallLocation == constant.Local {
 
-			if exist := utils.ExistCheck(toFilePath); !exist {
-				err2 := client.Download(resultFilePath, toFilePath)
-				if err2 != nil {
-					errCh <- err2
+		for _, p := range resultsPrefix {
+			wg.Add(1)
+			go func(prefix string) {
+				defer wg.Done()
+				fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
+				fromFilePath := fmt.Sprintf("%s/result/%s", jmeterPath, fileName)
+				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+
+				if exist := utils.ExistCheck(toFilePath); !exist {
+					err = utils.InlineCmd(fmt.Sprintf("cp %s %s", fromFilePath, toFilePath))
+					if err != nil {
+						log.Println(err)
+						errCh <- err
+					}
 				}
-			}
-		}(p)
+			}(p)
+		}
+
+	} else if loadEnv.InstallLocation == constant.Remote {
+		auth, err := goph.Key(loadEnv.PemKeyPath, "")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		client, err := goph.New(loadEnv.Username, loadEnv.PublicIp, auth)
+
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		defer client.Close()
+		var wg sync.WaitGroup
+		errCh := make(chan error)
+
+		for _, p := range resultsPrefix {
+			wg.Add(1)
+			go func(prefix string) {
+				defer wg.Done()
+				fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
+				resultFilePath := fmt.Sprintf("%s/result/%s", jmeterPath, fileName)
+				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+
+				if exist := utils.ExistCheck(toFilePath); !exist {
+					err := client.Download(resultFilePath, toFilePath)
+					if err != nil {
+						errCh <- err
+						log.Println(err)
+					}
+				}
+			}(p)
+		}
+
 	}
 
 	wg.Wait()
@@ -520,6 +559,7 @@ func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.Load
 	if len(errCh) != 0 {
 		err = <-errCh
 		log.Println(err)
+		return
 	}
 
 	if loadTestErr != nil {

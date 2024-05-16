@@ -15,9 +15,8 @@ type LoadEnvIdReq struct {
 type LoadExecutionConfigReq struct {
 	LoadTestKey string `json:"loadTestKey,omitempty"`
 
-	EnvId              string             `json:"envId,omitempty"`
-	LoadEnvReq         LoadEnvReq         `json:"loadEnvReq,omitempty"`
-	AntTargetServerReq AntTargetServerReq `json:"antTargetServerReq"`
+	EnvId      string     `json:"envId,omitempty"`
+	LoadEnvReq LoadEnvReq `json:"loadEnvReq,omitempty"`
 
 	TestName     string `json:"testName"`
 	VirtualUsers string `json:"virtualUsers"`
@@ -47,21 +46,6 @@ type LoadEnvReq struct {
 	NsId   string `json:"nsId,omitempty"`
 	McisId string `json:"mcisId,omitempty"`
 	VmId   string `json:"vmId,omitempty"`
-}
-
-func (l LoadEnvReq) Validate() error {
-
-	if l.InstallLocation == constant.Remote {
-
-	}
-
-	return nil
-}
-
-type AgentReq struct {
-	Username   string `json:"username,omitempty"`
-	PublicIp   string `json:"publicIp,omitempty"`
-	PemKeyPath string `json:"pemKeyPath,omitempty"`
 }
 
 type AntTargetServerReq struct {

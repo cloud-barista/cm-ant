@@ -1,12 +1,14 @@
 package jmetermanager
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
@@ -100,12 +102,18 @@ func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, loadTestKey, f
 	toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
 	var resultRawData = make(map[string][]*resultRawData)
 
+	err := utils.CreateFolderIfNotExist(configuration.JoinRootPathWith("/result"))
+	if err != nil {
+		return nil, err
+	}
+
+	err = utils.CreateFolderIfNotExist(resultFolderPath)
+	if err != nil {
+		return nil, err
+	}
+
 	if (*loadEnv).InstallLocation == constant.Remote {
 
-		err := utils.CreateFolderIfNotExist(resultFolderPath)
-		if err != nil {
-			return nil, err
-		}
 		if !utils.ExistCheck(toFilePath) {
 
 			auth, err := goph.Key(loadEnv.PemKeyPath, "")
@@ -128,18 +136,21 @@ func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, loadTestKey, f
 			}
 		}
 
-		resultRawData, err = appendResultRawData(resultRawData, toFilePath)
-		if err != nil {
-			return nil, err
-		}
-
 	} else if (*loadEnv).InstallLocation == constant.Local {
-		var err error
-		resultRawData, err = appendResultRawData(resultRawData, resultFilePath)
-		if err != nil {
-			return nil, err
+
+		if !utils.ExistCheck(toFilePath) {
+			err := utils.InlineCmd(fmt.Sprintf("cp %s %s", resultFilePath, toFilePath))
+
+			if err != nil {
+				return nil, err
+			}
 		}
 
+	}
+
+	resultRawData, err = appendResultRawData(resultRawData, toFilePath)
+	if err != nil {
+		return nil, err
 	}
 
 	formattedDate, err := resultFormat(format, resultRawData)
@@ -159,6 +170,14 @@ func (j *JMeterLoadTestManager) GetMetrics(loadEnv *model.LoadEnv, loadTestKey, 
 	resultFolderPath := configuration.JoinRootPathWith("/result/" + loadTestKey)
 	var metricsRawData = make(map[string][]*metricsRawData)
 
+	err := utils.CreateFolderIfNotExist(configuration.JoinRootPathWith("/result"))
+	if err != nil {
+		return nil, err
+	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error)
+
 	if (*loadEnv).InstallLocation == constant.Remote {
 
 		err := utils.CreateFolderIfNotExist(resultFolderPath)
@@ -177,33 +196,65 @@ func (j *JMeterLoadTestManager) GetMetrics(loadEnv *model.LoadEnv, loadTestKey, 
 		defer client.Close()
 
 		for _, v := range metrics {
-			fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, v)
-			toPath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
-			fromPath := fmt.Sprintf("%s/%s", metricsPrePath, fileName)
+			wg.Add(1)
+			go func(prefix string) {
+				defer wg.Done()
+				fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, prefix)
+				toPath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+				fromPath := fmt.Sprintf("%s/%s", metricsPrePath, fileName)
 
-			if !utils.ExistCheck(toPath) {
-				err = client.Download(fromPath, toPath)
-				if err != nil {
-					return nil, err
+				if !utils.ExistCheck(toPath) {
+					err = client.Download(fromPath, toPath)
+					if err != nil {
+						log.Println(err)
+						errCh <- err
+					}
 				}
-			}
-
-			metricsRawData, err = appendMetricsRawData(metricsRawData, toPath)
-			if err != nil {
-				return nil, err
-			}
+			}(v)
 		}
 
 	} else if (*loadEnv).InstallLocation == constant.Local {
-		var err error
+
 		for _, v := range metrics {
-			fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, v)
-			toPath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
-			metricsRawData, err = appendMetricsRawData(metricsRawData, toPath)
-			if err != nil {
-				return nil, err
-			}
+			wg.Add(1)
+
+			go func(prefix string) {
+				defer wg.Done()
+				fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, prefix)
+				toPath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+				fromPath := fmt.Sprintf("%s/%s", metricsPrePath, fileName)
+				var err error
+
+				if !utils.ExistCheck(toPath) {
+					err = utils.InlineCmd(fmt.Sprintf("cp %s %s", fromPath, toPath))
+					if err != nil {
+						errCh <- err
+					}
+				}
+			}(v)
+
 		}
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	if len(errCh) != 0 {
+		err := <-errCh
+		log.Println(err)
+		return nil, err
+	}
+
+	for _, v := range metrics {
+
+		fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, v)
+		toPath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+
+		metricsRawData, err = appendMetricsRawData(metricsRawData, toPath)
+		if err != nil {
+			return nil, err
+		}
+
 	}
 
 	formattedDate, err := metricFormat(format, metricsRawData)
@@ -269,6 +320,10 @@ func appendResultRawData(resultRawDataMap map[string][]*resultRawData, filePath 
 	csvRows, err := utils.ReadCSV(filePath)
 	if err != nil || csvRows == nil {
 		return nil, err
+	}
+
+	if len(*csvRows) <= 1 {
+		return nil, errors.New("result data file is empty")
 	}
 
 	// every time is basically millisecond
@@ -341,6 +396,10 @@ func appendMetricsRawData(resultRawDataMap map[string][]*metricsRawData, filePat
 	csvRows, err := utils.ReadCSV(filePath)
 	if err != nil || csvRows == nil {
 		return nil, err
+	}
+
+	if len(*csvRows) <= 1 {
+		return nil, errors.New("metrics data file is empty")
 	}
 
 	// every time is basically millisecond

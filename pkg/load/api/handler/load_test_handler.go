@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/cloud-barista/cm-ant/pkg/load/api"
+	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 
 	"github.com/labstack/echo/v4"
 
@@ -237,9 +239,9 @@ func GetLoadExecutionStateHandler() echo.HandlerFunc {
 // @Router			/ant/api/v1/load/tester 		[post]
 func InstallLoadTesterHandler() echo.HandlerFunc {
 	return func(c echo.Context) error {
-		antTargetServerReq := api.AntTargetServerReq{}
+		antLoadEnvReq := api.LoadEnvReq{}
 
-		if err := c.Bind(&antTargetServerReq); err != nil {
+		if err := c.Bind(&antLoadEnvReq); err != nil {
 			log.Printf("error while binding request body; %+v\n", err)
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
 				"message": "request body is incorrect",
@@ -247,13 +249,20 @@ func InstallLoadTesterHandler() echo.HandlerFunc {
 
 		}
 
-		if antTargetServerReq.NsId == "" || antTargetServerReq.McisId == "" || antTargetServerReq.VmId == "" {
+		if antLoadEnvReq.InstallLocation == "" {
 			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": "ns, mcis and vm id is essential",
+				"message": "install location must set local/remote",
 			})
 		}
 
-		_, err := services.InstallLoadTester(&antTargetServerReq)
+		if antLoadEnvReq.InstallLocation == constant.Remote &&
+			(antLoadEnvReq.NsId == "" || antLoadEnvReq.McisId == "" || antLoadEnvReq.VmId == "") {
+			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
+				"message": "ns, mcis and vm id is essential if you want to install on remote",
+			})
+		}
+
+		_, err := services.InstallLoadTester(&antLoadEnvReq)
 
 		if err != nil {
 			log.Printf("error while executing load test; %+v", err)
