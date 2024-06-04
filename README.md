@@ -96,9 +96,10 @@ go version
 
 ✨ **CB-Spider 및 CB-Tumblebug 실행**
 
-CB-Spider와 CB-Tumblebug을 실행합니다(CB-Spider v0.8.17, CB-Tumblebug v0.8.12 로 실행 방식 제공, 필요에 따라 수정).
+CB-Spider와 CB-Tumblebug을 실행 <br/>
+(CB-Spider v0.8.17, CB-Tumblebug v0.8.12 로 실행 방식 제공, 필요에 따라 수정).
 
-> 아래는 대략적인 흐름을 나타내며 3개의 터미널이 사용됩니다.
+> 아래는 대략적인 흐름을 나타내며 3개의 터미널이 사용
 
 <br/>
 
@@ -157,9 +158,13 @@ make && make run
 6. CSP의 Credential 정보로 `~/.cloud-barista/credentials.yaml` 파일 수정
 <br/>
 
-7. 모든 멀티 클라우드 연결 정보 및 공통 자원 등록
-  <br/>
-    > CB-Tumblebug을 활용하여 멀티 클라우드 인프라를 생성하기 위해 필요한 클라우드 연결 정보(크리덴셜, 클라우드 종류, 클라우드 리젼 등), 공통 활용 이미지 및 스펙 등에 대한 사전 등록 필요
+7. 멀티 클라우드 연결 정보 및 공통 자원 등록
+
+- CB-Tumblebug을 활용하여 멀티 클라우드 인프라를 생성하기 위해 필요한 자원 사전 등록
+  - 클라우드 연결 정보 (CSP, Credential, Region 등)
+  - Public Image
+  - VM Spec (Instance Type 등) 
+
 ```shell
 cd ~/go/src/github.com/cloud-barista/cb-tumblebug
 
