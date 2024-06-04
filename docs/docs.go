@@ -51,6 +51,7 @@ const docTemplate = `{
         },
         "/ant/api/v1/load/agent": {
             "get": {
+                "description": "Get all agent installation nsId, mcisId, vmId, status.",
                 "consumes": [
                     "application/json"
                 ],
@@ -60,6 +61,7 @@ const docTemplate = `{
                 "tags": [
                     "[Agent - for Development]"
                 ],
+                "summary": "Get all agent installation information",
                 "operationId": "GetAllAgentInstallInfo",
                 "responses": {
                     "200": {
@@ -97,12 +99,12 @@ const docTemplate = `{
                 "operationId": "InstallAgent",
                 "parameters": [
                     {
-                        "description": "agent install request",
+                        "description": "agent target server req",
                         "name": "loadEnvReq",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.AgentReq"
+                            "$ref": "#/definitions/api.AntTargetServerReq"
                         }
                     }
                 ],
@@ -628,20 +630,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "api.AgentReq": {
-            "type": "object",
-            "properties": {
-                "pemKeyPath": {
-                    "type": "string"
-                },
-                "publicIp": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
         "api.AntTargetServerReq": {
             "type": "object",
             "properties": {
@@ -714,9 +702,6 @@ const docTemplate = `{
         "api.LoadExecutionConfigReq": {
             "type": "object",
             "properties": {
-                "antTargetServerReq": {
-                    "$ref": "#/definitions/api.AntTargetServerReq"
-                },
                 "duration": {
                     "type": "string"
                 },

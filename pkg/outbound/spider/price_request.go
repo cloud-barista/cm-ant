@@ -29,11 +29,21 @@ func GetProductFamilyWitContext(ctx context.Context, regionName, connectionName 
 	}
 	defer res.Body.Close()
 
+	err = responseStatus(res)
+	if err != nil {
+		log.Println(string(rb))
+		log.Println(res.StatusCode)
+
+		return productfamily, err
+	}
+
 	err = json.Unmarshal(rb, &productfamily)
 
 	if err != nil {
 		return productfamily, err
 	}
+	log.Println(string(rb))
+	log.Println(res.StatusCode)
 
 	return productfamily, nil
 }
@@ -63,11 +73,21 @@ func GetPriceInfoWithContext(ctx context.Context, productfamily, regionName stri
 	}
 	defer res.Body.Close()
 
+	err = responseStatus(res)
+	if err != nil {
+		log.Println(string(responseBody))
+		log.Println(res.StatusCode)
+
+		return cloudPriceData, err
+	}
+
 	err = json.Unmarshal(responseBody, &cloudPriceData)
 
 	if err != nil {
 		return cloudPriceData, err
 	}
+	log.Println(string(responseBody))
+	log.Println(res.StatusCode)
 
 	return cloudPriceData, nil
 }

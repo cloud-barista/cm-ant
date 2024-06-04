@@ -440,9 +440,8 @@ func appendMetricsRawData(resultRawDataMap map[string][]*metricsRawData, filePat
 		t := time.UnixMilli(unixMilliseconds)
 
 		rd := &metricsRawData{
-			Value: value,
-			Unit:  u,
-			// Label:     label,
+			Value:		 value,
+			Unit:      u,
 			IsError:   isError,
 			Timestamp: t,
 		}

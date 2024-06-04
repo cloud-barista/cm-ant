@@ -180,7 +180,7 @@ func InitRouter() *echo.Echo {
 		priceRouter := versionRouter.Group("/price")
 
 		{
-			priceRouter.GET("", priceHanlder.Price())
+			priceRouter.POST("", priceHanlder.GetPriceInfoHandler())
 		}
 
 	}

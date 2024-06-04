@@ -18,8 +18,8 @@ import (
 // @Tags			[Agent - for Development]
 // @Accept			json
 // @Produce			json
-// @Param			loadEnvReq 		body 	api.AgentReq 			true 		"agent install request"
-// @Success			200	{object}			map[string]string					`{ "message": "success", "agentId":  agentId }`
+// @Param			loadEnvReq 		body 	api.AntTargetServerReq 			true 		"agent target server req"
+// @Success			200	{object}			map[string]string								`{ "message": "success", "agentId":  agentId }`
 // @Failure			400	{object}			map[string]string								`{ "message": "nsId and mcisId must set", }`
 // @Failure			400	{object}			map[string]string								`{ "message": "pass me correct body;", }`
 // @Failure			500	{object}			map[string]string								"internal server error"
@@ -56,8 +56,8 @@ func InstallAgent() echo.HandlerFunc {
 
 // GetAllAgentInstallInfo
 // @Id				GetAllAgentInstallInfo
-// @Summary
-// @Description
+// @Summary			Get all agent installation information
+// @Description		Get all agent installation nsId, mcisId, vmId, status.
 // @Tags			[Agent - for Development]
 // @Accept			json
 // @Produce			json

@@ -1,13 +1,4 @@
 definitions:
-  api.AgentReq:
-    properties:
-      pemKeyPath:
-        type: string
-      publicIp:
-        type: string
-      username:
-        type: string
-    type: object
   api.AntTargetServerReq:
     properties:
       mcisId:
@@ -55,8 +46,6 @@ definitions:
     type: object
   api.LoadExecutionConfigReq:
     properties:
-      antTargetServerReq:
-        $ref: '#/definitions/api.AntTargetServerReq'
       duration:
         type: string
       envId:
@@ -206,6 +195,7 @@ paths:
     get:
       consumes:
       - application/json
+      description: Get all agent installation nsId, mcisId, vmId, status.
       operationId: GetAllAgentInstallInfo
       produces:
       - application/json
@@ -222,6 +212,7 @@ paths:
             additionalProperties:
               type: string
             type: object
+      summary: Get all agent installation information
       tags:
       - '[Agent - for Development]'
     post:
@@ -231,12 +222,12 @@ paths:
         such as CPU and memory.
       operationId: InstallAgent
       parameters:
-      - description: agent install request
+      - description: agent target server req
         in: body
         name: loadEnvReq
         required: true
         schema:
-          $ref: '#/definitions/api.AgentReq'
+          $ref: '#/definitions/api.AntTargetServerReq'
       produces:
       - application/json
       responses:
