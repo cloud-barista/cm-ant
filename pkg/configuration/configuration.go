@@ -107,6 +107,9 @@ func initAppConfig() error {
 		return fmt.Errorf("fatal error config file: %w", err)
 	}
 
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
+
 	err = viper.Unmarshal(&cfg)
 	if err != nil {
 		return fmt.Errorf("fatal error config file: %w", err)
