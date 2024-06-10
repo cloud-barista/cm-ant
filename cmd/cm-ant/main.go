@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	_ "github.com/cloud-barista/cm-ant/docs"
+	_ "github.com/cloud-barista/cm-ant/api"
 	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	zerolog "github.com/rs/zerolog/log"
 	echoSwagger "github.com/swaggo/echo-swagger"
@@ -94,7 +94,9 @@ func InitRouter() *echo.Echo {
 		),
 		middleware.Recover(),
 		middleware.RequestID(),
+		middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)),
 	)
+
 	e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
 		Skipper:      middleware.DefaultSkipper,
 		ErrorMessage: "request timeout",
