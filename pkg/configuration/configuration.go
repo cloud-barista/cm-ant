@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -96,13 +97,19 @@ func Initialize() error {
 
 func initAppConfig() error {
 	log.Println(">>>> start initAppConfig()")
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	cfg := AntConfig{}
 
 	viper.AddConfigPath(RootPath())
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 
-	err := viper.ReadInConfig()
+	err = viper.ReadInConfig()
 	if err != nil {
 		return fmt.Errorf("fatal error config file: %w", err)
 	}

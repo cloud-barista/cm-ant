@@ -4,9 +4,9 @@ go 1.21.6
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/melbahja/goph v1.4.0
-	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rs/zerolog v1.32.0
 	github.com/spf13/viper v1.18.2
 	github.com/swaggo/echo-swagger v1.4.1

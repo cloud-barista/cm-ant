@@ -3,3 +3,4 @@ jmeter.log
 result/**
 **.properties
 meta/*.db
+ant

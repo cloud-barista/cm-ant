@@ -2,17 +2,25 @@ package configuration
 
 import (
 	"fmt"
-	"github.com/mitchellh/go-homedir"
+	"os"
 	"path/filepath"
 	"runtime"
 )
 
 var (
-	_, b, _, _  = runtime.Caller(0)
-	basePath    = filepath.Dir(b)
-	rootPath    = basePath[0 : len(basePath)-len("/pkg/configuration")]
-	homePath, _ = homedir.Dir()
+	rootPath = getRootPath()
 )
+
+func getRootPath() string {
+	envRootPath := os.Getenv("ANT_ROOT_PATH")
+	if envRootPath != "" {
+		return envRootPath
+	}
+
+	_, b, _, _ := runtime.Caller(0)
+	basePath := filepath.Dir(b)
+	return basePath[0 : len(basePath)-len("/pkg/configuration")]
+}
 
 func RootPath() string {
 	return rootPath

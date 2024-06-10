@@ -4,4 +4,7 @@ swag:
 run:
 	go run cmd/cm-ant/main.go
 
-.PHONY: swag run
+build:
+	go build -o ant ./cmd/cm-ant/...
+
+.PHONY: swag run build
