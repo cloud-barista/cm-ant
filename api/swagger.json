@@ -1,0 +1,872 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "CM-ANT API",
+        "contact": {},
+        "version": "0.1"
+    },
+    "paths": {
+        "/ant/api/v1/env": {
+            "get": {
+                "description": "Get all of the load test environments",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Environment]"
+                ],
+                "summary": "Get the list of load test environments",
+                "operationId": "LoadEnvironments",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.LoadEnvRes"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/agent": {
+            "get": {
+                "description": "Get all agent installation nsId, mcisId, vmId, status.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Agent - for Development]"
+                ],
+                "summary": "Get all agent installation information",
+                "operationId": "GetAllAgentInstallInfo",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Install an agent to collect server metrics during load testing such as CPU and memory.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Agent - for Development]"
+                ],
+                "summary": "Install jmeter perfmon agent for metrics collection",
+                "operationId": "InstallAgent",
+                "parameters": [
+                    {
+                        "description": "agent target server req",
+                        "name": "loadEnvReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.AntTargetServerReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/agent/{agentInstallInfoId}": {
+            "delete": {
+                "description": "Uninstall an agent to collect server metrics during load testing such as CPU and memory.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Agent - for Development]"
+                ],
+                "summary": "Uninstall jmeter perfmon agent for metrics collection",
+                "operationId": "UninstallAgent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "agent installation info id",
+                        "name": "agentInstallInfoId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/config": {
+            "get": {
+                "description": "Get all the load test execution configurations.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Configuration]"
+                ],
+                "summary": "Get all load execution config",
+                "operationId": "LoadExecutionConfigs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.LoadExecutionRes"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "something went wrong.try again.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/config/{loadTestKey}": {
+            "get": {
+                "description": "Get a load test execution config by load test key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Configuration]"
+                ],
+                "summary": "Get load execution config",
+                "operationId": "LoadExecutionConfig",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "load test eky",
+                        "name": "loadTestKey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadExecutionRes"
+                        }
+                    },
+                    "500": {
+                        "description": "something went wrong. try again.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/result": {
+            "get": {
+                "description": "After start load test, get the result of load test.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Result]"
+                ],
+                "summary": "Get the result of single load test result",
+                "operationId": "LoadTestResult",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "load test key",
+                        "name": "loadTestKey",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "format of load test result aggregate",
+                        "name": "format",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "loadTestKey must be passed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "sorry, internal server error while getting load test result;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/result/metrics": {
+            "get": {
+                "description": "Get the result of metrics for target server.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Result]"
+                ],
+                "summary": "Get the result of single load test metrics",
+                "operationId": "LoadTestMetrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "load test key",
+                        "name": "loadTestKey",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "loadTestKey must be passed",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "sorry, internal server error while getting load test result;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/start": {
+            "post": {
+                "description": "Start load test. Load Environment Id must be passed or Load Environment must be defined.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Execution]"
+                ],
+                "summary": "Start load test",
+                "operationId": "StartLoadTest",
+                "parameters": [
+                    {
+                        "description": "load test execution configuration request",
+                        "name": "loadTestReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadExecutionConfigReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "load test environment is not correct",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "sorry, internal server error while executing load test;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/state": {
+            "get": {
+                "description": "Get all the load test execution state.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test State]"
+                ],
+                "summary": "Get all load execution state",
+                "operationId": "LoadExecutionStates",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/api.LoadExecutionStateRes"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "something went wrong.try again.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/state/{loadTestKey}": {
+            "get": {
+                "description": "Get a load test execution state by load test key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test State]"
+                ],
+                "summary": "Get load execution state",
+                "operationId": "LoadExecutionState",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "load test key",
+                        "name": "loadTestKey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadExecutionStateRes"
+                        }
+                    },
+                    "500": {
+                        "description": "something went wrong. try again.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/stop": {
+            "post": {
+                "description": "After start load test, stop the load test by passing the load test key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Execution]"
+                ],
+                "summary": "Stop load test",
+                "operationId": "StopLoadTest",
+                "parameters": [
+                    {
+                        "description": "load test key",
+                        "name": "loadTestKeyReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadTestKeyReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "pass propertiesId if you want to stop test",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "sorry, internal server error while executing load test;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/tester": {
+            "post": {
+                "description": "Install load test tester in the delivered load test environment",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Tester]"
+                ],
+                "summary": "Install load test tester",
+                "operationId": "InstallLoadTester",
+                "parameters": [
+                    {
+                        "description": "load test environment request",
+                        "name": "loadEnvReq",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.LoadEnvReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "load test environment is not correct",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "sorry, internal server error while executing load test;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/ant/api/v1/load/tester/{envId}": {
+            "delete": {
+                "description": "Uninstall load test tester in the delivered load test environment",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Tester]"
+                ],
+                "summary": "Uninstall load test tester",
+                "operationId": "UninstallLoadTester",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "load test environment id",
+                        "name": "envId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "pass me correct body;",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "something went wrong.try again.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "api.AntTargetServerReq": {
+            "type": "object",
+            "properties": {
+                "mcisId": {
+                    "type": "string"
+                },
+                "nsId": {
+                    "type": "string"
+                },
+                "vmId": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadEnvReq": {
+            "type": "object",
+            "properties": {
+                "installLocation": {
+                    "$ref": "#/definitions/constant.InstallLocation"
+                },
+                "mcisId": {
+                    "type": "string"
+                },
+                "nsId": {
+                    "type": "string"
+                },
+                "pemKeyPath": {
+                    "type": "string"
+                },
+                "publicIp": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "vmId": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadEnvRes": {
+            "type": "object",
+            "properties": {
+                "installLocation": {
+                    "$ref": "#/definitions/constant.InstallLocation"
+                },
+                "loadEnvId": {
+                    "type": "integer"
+                },
+                "mcisId": {
+                    "type": "string"
+                },
+                "nsId": {
+                    "type": "string"
+                },
+                "pemKeyPath": {
+                    "type": "string"
+                },
+                "publicIp": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "vmId": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadExecutionConfigReq": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "type": "string"
+                },
+                "envId": {
+                    "type": "string"
+                },
+                "httpReqs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.LoadExecutionHttpReq"
+                    }
+                },
+                "loadEnvReq": {
+                    "$ref": "#/definitions/api.LoadEnvReq"
+                },
+                "loadTestKey": {
+                    "type": "string"
+                },
+                "rampUpSteps": {
+                    "type": "string"
+                },
+                "rampUpTime": {
+                    "type": "string"
+                },
+                "testName": {
+                    "type": "string"
+                },
+                "virtualUsers": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadExecutionHttpReq": {
+            "type": "object",
+            "properties": {
+                "bodyData": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadExecutionHttpRes": {
+            "type": "object",
+            "properties": {
+                "bodyData": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "loadExecutionHttpId": {
+                    "type": "integer"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadExecutionRes": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "type": "string"
+                },
+                "loadEnv": {
+                    "$ref": "#/definitions/api.LoadEnvRes"
+                },
+                "loadExecutionConfigId": {
+                    "type": "integer"
+                },
+                "loadExecutionHttp": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.LoadExecutionHttpRes"
+                    }
+                },
+                "loadExecutionState": {
+                    "$ref": "#/definitions/api.LoadExecutionStateRes"
+                },
+                "loadTestKey": {
+                    "type": "string"
+                },
+                "rampUpSteps": {
+                    "type": "string"
+                },
+                "rampUpTime": {
+                    "type": "string"
+                },
+                "testName": {
+                    "type": "string"
+                },
+                "virtualUsers": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.LoadExecutionStateRes": {
+            "type": "object",
+            "properties": {
+                "endAt": {
+                    "type": "string"
+                },
+                "executionStatus": {
+                    "$ref": "#/definitions/constant.ExecutionStatus"
+                },
+                "loadExecutionStateId": {
+                    "type": "integer"
+                },
+                "loadTestKey": {
+                    "type": "string"
+                },
+                "startAt": {
+                    "type": "string"
+                },
+                "totalSec": {
+                    "type": "integer"
+                }
+            }
+        },
+        "api.LoadTestKeyReq": {
+            "type": "object",
+            "properties": {
+                "loadTestKey": {
+                    "type": "string"
+                }
+            }
+        },
+        "constant.ExecutionStatus": {
+            "type": "string",
+            "enum": [
+                "processing",
+                "fetching",
+                "success",
+                "failed"
+            ],
+            "x-enum-varnames": [
+                "Processing",
+                "Fetching",
+                "Success",
+                "Failed"
+            ]
+        },
+        "constant.InstallLocation": {
+            "type": "string",
+            "enum": [
+                "local",
+                "remote"
+            ],
+            "x-enum-varnames": [
+                "Local",
+                "Remote"
+            ]
+        }
+    }
+}

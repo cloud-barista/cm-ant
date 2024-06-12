@@ -1,0 +1,23 @@
+spider:
+  host: http://localhost
+  port: 1024
+
+tumblebug:
+  host: http://localhost
+  port: 1323
+  username: default
+  password: default
+
+load:
+  jmeter:
+    workDir: "/opt/ant/jmeter"
+    version: 5.3
+
+server:
+  port: 8880
+
+datasource:
+  driver: "sqlite"
+  connection: "${ROOT}/meta/ant_meta.db"
+  username:
+  password:

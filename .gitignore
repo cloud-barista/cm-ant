@@ -1,0 +1,6 @@
+jmeter.log
+.idea
+result/**
+**.properties
+meta/*.db
+ant

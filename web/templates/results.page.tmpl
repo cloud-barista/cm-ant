@@ -1,0 +1,88 @@
+{{template "base" .}}
+
+{{define "content"}}
+    <div class="list-of-results">
+        <table>
+            <tr>
+                <th>Test Number</th>
+                <th>Test Name</th>
+                <th style="display: none">Test Key</th>
+                <th>Virtual Users</th>
+                <th>Duration</th>
+                <th>Location</th>
+                <th>HTTP Res Count</th>
+                <th>Test Start Time</th>
+                <th>Test End Time</th>
+                <th>Status</th>
+            </tr>
+            {{range .}}
+                <tr>
+                    <td>{{.LoadExecutionConfigId}}</td>
+                    <td>{{.TestName}}</td>
+                    <td style="display: none">{{.LoadTestKey}}</td>
+                    <td>{{.VirtualUsers}}</td>
+                    <td>{{.Duration}}</td>
+                    <td>
+                        {{if eq .LoadEnv.InstallLocation ""}}
+                            <div style="background-color: indianred; opacity: 0.4; color: white">
+                                Deleted
+                            </div>
+                        {{else}}
+                            {{.LoadEnv.InstallLocation}}
+                        {{end}}
+                    </td>
+                    <td>{{len .LoadExecutionHttp}}</td>
+                    <td>{{.LoadExecutionState.StartAt.Format "2024-01-02 15:04:05"}}</td>
+                    <td>{{if .LoadExecutionState.EndAt}}{{.LoadExecutionState.EndAt.Format "2024-01-02 15:04:05"}}{{else}}N/A{{end}}</td>
+                    <td>
+                        {{if eq .LoadExecutionState.ExecutionStatus "process"}}
+                            <button id="stop-load-test" style="background-color: #007bff; color: white">make STOP!</button>
+                        {{else if eq .LoadExecutionState.ExecutionStatus "success"}}
+                            <button disabled style="background-color: #4CAF50; color: white">{{.LoadExecutionState.ExecutionStatus}}ed</button>
+                        {{else}}
+                            <button disabled style="border-color: crimson; color: crimson">{{.LoadExecutionState.ExecutionStatus}}</button>
+                        {{end}}
+                    </td>
+                </tr>
+            {{end}}
+        </table>
+    </div>
+    <div class="centered">
+        <button id="refresh-chart">Refresh</button>
+    </div>
+    
+    <div id="statisticsDiv" style="display: none;">
+        <table id="statisticsTable">
+            <thead>
+                <tr>
+                    <th>Label</th>
+                    <th>Requests</th>
+                    <th>Avg Time</th>
+                    <th>Median Time</th>
+                    <th>90% Line</th>
+                    <th>95% Line</th>
+                    <th>99% Line</th>
+                    <th>Min Time</th>
+                    <th>Max Time</th>
+                    <th>Error %</th>
+                    <th>Throughput</th>
+                    <th>Received KB/s</th>
+                    <th>Sent KB/s</th>
+                </tr>
+            </thead>
+            <tbody id="statsBody">
+            
+            </tbody>
+        </table>
+    </div>
+    <div id="result-chart-div" style="display: none;">
+        <br/>
+        
+    </div>
+
+    <div id="metrics-chart-div" style="display: none;">
+        
+    </div>
+    
+    <script src="/js/results.js"></script>
+{{end}}

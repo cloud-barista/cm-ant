@@ -1,0 +1,7 @@
+.idea/
+ant
+.git/
+.gitignore
+.DS_Store
+meta/*.db
+result/*
