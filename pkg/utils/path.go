@@ -1,4 +1,4 @@
-package configuration
+package utils
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ func getRootPath() string {
 
 	_, b, _, _ := runtime.Caller(0)
 	basePath := filepath.Dir(b)
-	return basePath[0 : len(basePath)-len("/pkg/configuration")]
+	return basePath[0 : len(basePath)-len("/pkg/utils")]
 }
 
 func RootPath() string {

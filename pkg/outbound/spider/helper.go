@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"github.com/cloud-barista/cm-ant/pkg/config"
 )
 
 var errorSubsystemInternal = errors.New("response status got error")
 
 func SpiderHostWithPort() string {
-	config := configuration.Get().Spider
+	config := config.AppConfig.Spider
 	return fmt.Sprintf("%s:%s", config.Host, config.Port)
 }
 

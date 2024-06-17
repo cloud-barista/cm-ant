@@ -2,13 +2,14 @@ package repository
 
 import (
 	"errors"
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
+
+	"github.com/cloud-barista/cm-ant/pkg/database"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"gorm.io/gorm"
 )
 
 func GetAllLoadEnvironments() ([]model.LoadEnv, error) {
-	db := configuration.DB()
+	db := database.DB()
 
 	var loadEnvs []model.LoadEnv
 
@@ -21,7 +22,7 @@ func GetAllLoadEnvironments() ([]model.LoadEnv, error) {
 }
 
 func GetEnvironment(envId string) (*model.LoadEnv, error) {
-	db := configuration.DB()
+	db := database.DB()
 	var loadEnv model.LoadEnv
 
 	result := db.First(&loadEnv, envId)
@@ -37,7 +38,7 @@ func GetEnvironment(envId string) (*model.LoadEnv, error) {
 }
 
 func SaveLoadTestInstallEnv(loadEnv *model.LoadEnv) (uint, error) {
-	db := configuration.DB()
+	db := database.DB()
 	tx := db.Begin()
 
 	if loadEnv == nil {
@@ -62,7 +63,7 @@ func SaveLoadTestInstallEnv(loadEnv *model.LoadEnv) (uint, error) {
 }
 
 func DeleteLoadTestInstallEnv(loadEnvId string) error {
-	db := configuration.DB()
+	db := database.DB()
 	tx := db.Begin()
 
 	if err := tx.

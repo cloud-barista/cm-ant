@@ -7,7 +7,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
@@ -18,7 +18,7 @@ type JMeterLoadTestManager struct {
 }
 
 func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
-	installScriptPath := configuration.JoinRootPathWith("/script/install-jmeter.sh")
+	installScriptPath := utils.JoinRootPathWith("/script/install-jmeter.sh")
 
 	if loadEnvReq.InstallLocation == constant.Remote {
 		installationCommand, err := utils.ReadToString(installScriptPath)
@@ -49,8 +49,8 @@ func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 	} else if loadEnvReq.InstallLocation == constant.Local {
 
 		err := utils.Script(installScriptPath, []string{
-			fmt.Sprintf("JMETER_WORK_DIR=%s", configuration.Get().Load.JMeter.WorkDir),
-			fmt.Sprintf("JMETER_VERSION=%s", configuration.Get().Load.JMeter.Version),
+			fmt.Sprintf("JMETER_WORK_DIR=%s", config.AppConfig.Load.JMeter.Dir),
+			fmt.Sprintf("JMETER_VERSION=%s", config.AppConfig.Load.JMeter.Version),
 		})
 		if err != nil {
 			return fmt.Errorf("error while installing jmeter; %s", err)
@@ -61,7 +61,7 @@ func (j *JMeterLoadTestManager) Install(loadEnvReq *api.LoadEnvReq) error {
 }
 
 func (j *JMeterLoadTestManager) Uninstall(loadEnvReq *api.LoadEnvReq) error {
-	uninstallScriptPath := configuration.JoinRootPathWith("/script/uninstall-jmeter.sh")
+	uninstallScriptPath := utils.JoinRootPathWith("/script/uninstall-jmeter.sh")
 
 	if loadEnvReq.InstallLocation == constant.Remote {
 		uninstallCommand, err := utils.ReadToString(uninstallScriptPath)
@@ -87,8 +87,8 @@ func (j *JMeterLoadTestManager) Uninstall(loadEnvReq *api.LoadEnvReq) error {
 	} else if loadEnvReq.InstallLocation == constant.Local {
 
 		err := utils.Script(uninstallScriptPath, []string{
-			fmt.Sprintf("JMETER_WORK_DIR=%s", configuration.Get().Load.JMeter.WorkDir),
-			fmt.Sprintf("JMETER_VERSION=%s", configuration.Get().Load.JMeter.Version),
+			fmt.Sprintf("JMETER_WORK_DIR=%s", config.AppConfig.Load.JMeter.Dir),
+			fmt.Sprintf("JMETER_VERSION=%s", config.AppConfig.Load.JMeter.Version),
 		})
 		if err != nil {
 			return fmt.Errorf("error while installing jmeter; %s", err)
@@ -134,10 +134,10 @@ func (j *JMeterLoadTestManager) Stop(loadTestReq api.LoadExecutionConfigReq) err
 }
 
 func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) error {
-	checkRequirementPath := configuration.JoinRootPathWith("/script/pre-execute-jmeter.sh")
+	checkRequirementPath := utils.JoinRootPathWith("/script/pre-execute-jmeter.sh")
 	testPlanName := fmt.Sprintf("%s.jmx", loadTestReq.LoadTestKey)
-	jmeterPath := configuration.Get().Load.JMeter.WorkDir
-	jmeterVersion := configuration.Get().Load.JMeter.Version
+	jmeterPath := config.AppConfig.Load.JMeter.Dir
+	jmeterVersion := config.AppConfig.Load.JMeter.Version
 	loadEnv := loadTestReq.LoadEnvReq
 	resultFileName := fmt.Sprintf("%s_result.csv", loadTestReq.LoadTestKey)
 
@@ -240,13 +240,13 @@ func (j *JMeterLoadTestManager) Run(loadTestReq *api.LoadExecutionConfigReq) err
 }
 
 func executionCmd(testPlanName, resultFileName string) string {
-	jmeterConf := configuration.Get().Load.JMeter
+	jmeterConf := config.AppConfig.Load.JMeter
 
 	var builder strings.Builder
-	testPath := fmt.Sprintf("%s/test_plan/%s", jmeterConf.WorkDir, testPlanName)
-	resultPath := fmt.Sprintf("%s/result/%s", jmeterConf.WorkDir, resultFileName)
+	testPath := fmt.Sprintf("%s/test_plan/%s", jmeterConf.Dir, testPlanName)
+	resultPath := fmt.Sprintf("%s/result/%s", jmeterConf.Dir, resultFileName)
 
-	builder.WriteString(fmt.Sprintf("%s/apache-jmeter-%s/bin/jmeter.sh", jmeterConf.WorkDir, jmeterConf.Version))
+	builder.WriteString(fmt.Sprintf("%s/apache-jmeter-%s/bin/jmeter.sh", jmeterConf.Dir, jmeterConf.Version))
 	builder.WriteString(" -n -f")
 	builder.WriteString(fmt.Sprintf(" -t=%s", testPath))
 	builder.WriteString(fmt.Sprintf(" -l=%s", resultPath))
