@@ -4,46 +4,52 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/pkg/config"
+	"github.com/cloud-barista/cm-ant/pkg/database"
 	loadHanlder "github.com/cloud-barista/cm-ant/pkg/load/api/handler"
 	"github.com/cloud-barista/cm-ant/pkg/load/services"
 	priceHanlder "github.com/cloud-barista/cm-ant/pkg/price/api/handler"
+	"github.com/cloud-barista/cm-ant/pkg/render"
+	"github.com/cloud-barista/cm-ant/pkg/utils"
+
+	_ "github.com/cloud-barista/cm-ant/api"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
-	_ "github.com/cloud-barista/cm-ant/api"
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	zerolog "github.com/rs/zerolog/log"
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
-var once sync.Once
+func main() {
+
+	err := config.InitConfig()
+
+	if err != nil {
+		log.Fatal("CM-Ant server config error : ", err)
+	}
+
+	err = database.InitDatabase()
+	if err != nil {
+		log.Fatal("CM-Ant database initialize erro :", err)
+	}
+
+	router := InitRouter()
+	log.Fatal(router.Start(fmt.Sprintf(":%s", config.AppConfig.Server.Port)))
+}
 
 // @title CM-ANT API
 // @version 0.1
 // @description
 
-func main() {
-
-	once.Do(func() {
-		err := configuration.Initialize()
-		if err != nil {
-			log.Println(err)
-			log.Fatal("error while reading config file.")
-		}
-		router := InitRouter()
-		log.Fatal(router.Start(fmt.Sprintf(":%s", configuration.Get().Server.Port)))
-	})
-}
-
 func InitRouter() *echo.Echo {
 	e := echo.New()
 
-	e.Static("/web/templates", configuration.RootPath()+"/web/templates")
-	e.Static("/css", configuration.RootPath()+"/web/css")
-	e.Static("/js", configuration.RootPath()+"/web/js")
+	e.Static("/web/templates", utils.RootPath()+"/web/templates")
+	e.Static("/css", utils.RootPath()+"/web/css")
+	e.Static("/js", utils.RootPath()+"/web/js")
 
 	e.Use(
 		middleware.RequestLoggerWithConfig(
@@ -95,6 +101,7 @@ func InitRouter() *echo.Echo {
 		middleware.Recover(),
 		middleware.RequestID(),
 		middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(20)),
+		middleware.CORS(),
 	)
 
 	e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
@@ -107,7 +114,7 @@ func InitRouter() *echo.Echo {
 	}))
 
 	// config template
-	tmpl := configuration.NewTemplate()
+	tmpl := render.NewTemplate()
 
 	e.Renderer = tmpl
 

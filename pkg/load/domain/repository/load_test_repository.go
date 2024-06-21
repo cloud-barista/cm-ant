@@ -4,14 +4,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"github.com/cloud-barista/cm-ant/pkg/database"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 )
 
 func SaveLoadTestExecution(loadTestReq *api.LoadExecutionConfigReq) (uint, error) {
-	db := configuration.DB()
+	db := database.DB()
 	tx := db.Begin()
 	loadEnvId, err := strconv.ParseUint(loadTestReq.EnvId, 10, 64)
 	if err != nil {
@@ -88,7 +88,7 @@ func SaveLoadTestExecution(loadTestReq *api.LoadExecutionConfigReq) (uint, error
 }
 
 func UpdateLoadExecutionStateWithNoTime(loadTestKey string, status constant.ExecutionStatus) error {
-	db := configuration.DB()
+	db := database.DB()
 	tx := db.Begin()
 
 	err := tx.Model(&model.LoadExecutionState{}).
@@ -106,7 +106,7 @@ func UpdateLoadExecutionStateWithNoTime(loadTestKey string, status constant.Exec
 }
 
 func UpdateLoadExecutionState(loadTestKey string, status constant.ExecutionStatus) error {
-	db := configuration.DB()
+	db := database.DB()
 	tx := db.Begin()
 
 	now := time.Now()
@@ -125,7 +125,7 @@ func UpdateLoadExecutionState(loadTestKey string, status constant.ExecutionStatu
 }
 
 func GetAllLoadExecutionConfig() ([]model.LoadExecutionConfig, error) {
-	db := configuration.DB()
+	db := database.DB()
 	var loadExecutionConfigs []model.LoadExecutionConfig
 	if err := db.Preload("LoadExecutionHttps").
 		Find(&loadExecutionConfigs).
@@ -137,7 +137,7 @@ func GetAllLoadExecutionConfig() ([]model.LoadExecutionConfig, error) {
 }
 
 func GetLoadExecutionConfig(testKey string) (model.LoadExecutionConfig, error) {
-	db := configuration.DB()
+	db := database.DB()
 	var loadExecutionConfig model.LoadExecutionConfig
 	if err := db.Preload("LoadExecutionHttps").
 		Where("load_test_key = ?", testKey).
@@ -150,7 +150,7 @@ func GetLoadExecutionConfig(testKey string) (model.LoadExecutionConfig, error) {
 }
 
 func GetLoadExecutionState(loadTestKey string) (model.LoadExecutionState, error) {
-	db := configuration.DB()
+	db := database.DB()
 	var loadExecutionState model.LoadExecutionState
 	if err := db.Where("load_test_key = ?", loadTestKey).
 		First(&loadExecutionState).
@@ -162,7 +162,7 @@ func GetLoadExecutionState(loadTestKey string) (model.LoadExecutionState, error)
 }
 
 func GetAllLoadExecutionState() ([]model.LoadExecutionState, error) {
-	db := configuration.DB()
+	db := database.DB()
 
 	var loadExecutionStates []model.LoadExecutionState
 

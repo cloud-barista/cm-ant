@@ -9,8 +9,9 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
+	"github.com/cloud-barista/cm-ant/pkg/utils"
 )
 
 type jmxTemplateData struct {
@@ -111,8 +112,8 @@ func tearDown(jmeterPath, loadTestKey string) error {
 }
 
 func TestPlanJmx(loadTestReq *api.LoadExecutionConfigReq) (string, error) {
-	jmeterConf := configuration.Get().Load.JMeter
-	resultPath := fmt.Sprintf("%s/result", jmeterConf.WorkDir)
+	jmeterConf := config.AppConfig.Load.JMeter
+	resultPath := fmt.Sprintf("%s/result", jmeterConf.Dir)
 
 	httpRequests, err := httpReqParseToJmx(loadTestReq.HttpReqs)
 	if err != nil {
@@ -136,7 +137,7 @@ func TestPlanJmx(loadTestReq *api.LoadExecutionConfigReq) (string, error) {
 		TcpResultPath:     fmt.Sprintf("%s/%s_tcp_result.csv", resultPath, loadTestReq.LoadTestKey),
 	}
 
-	tmpl, err := template.ParseFiles(configuration.JoinRootPathWith("/test_plan/default_perfmon.jmx"))
+	tmpl, err := template.ParseFiles(utils.JoinRootPathWith("/test_plan/default_perfmon.jmx"))
 	if err != nil {
 		return "", err
 	}
@@ -152,8 +153,8 @@ func TestPlanJmx(loadTestReq *api.LoadExecutionConfigReq) (string, error) {
 }
 
 func createTestPlanJmx(createdPath string, loadTestReq *api.LoadExecutionConfigReq) error {
-	jmeterConf := configuration.Get().Load.JMeter
-	resultPath := fmt.Sprintf("%s/result", jmeterConf.WorkDir)
+	jmeterConf := config.AppConfig.Load.JMeter
+	resultPath := fmt.Sprintf("%s/result", jmeterConf.Dir)
 
 	httpRequests, err := httpReqParseToJmx(loadTestReq.HttpReqs)
 	if err != nil {
@@ -177,7 +178,7 @@ func createTestPlanJmx(createdPath string, loadTestReq *api.LoadExecutionConfigR
 		TcpResultPath:     fmt.Sprintf("%s/%s_tcp_result.csv", resultPath, loadTestReq.LoadTestKey),
 	}
 
-	tmpl, err := template.ParseFiles(configuration.JoinRootPathWith("/test_plan/default_perfmon.jmx"))
+	tmpl, err := template.ParseFiles(utils.JoinRootPathWith("/test_plan/default_perfmon.jmx"))
 	if err != nil {
 		return err
 	}

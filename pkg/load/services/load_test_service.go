@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
 	"github.com/melbahja/goph"
 
@@ -475,11 +475,11 @@ func runLoadTest(loadTestManager managers.LoadTestManager, loadTestReq *api.Load
 
 	log.Println("load test result fetching..")
 
-	jmeterPath := configuration.Get().Load.JMeter.WorkDir
+	jmeterPath := config.AppConfig.Load.JMeter.Dir
 	resultsPrefix := []string{"", "_cpu", "_disk", "_memory", "_network"}
-	resultFolderPath := configuration.JoinRootPathWith("/result/" + loadTestKey)
+	resultFolderPath := utils.JoinRootPathWith("/result/" + loadTestKey)
 
-	err := utils.CreateFolderIfNotExist(configuration.JoinRootPathWith("/result"))
+	err := utils.CreateFolderIfNotExist(utils.JoinRootPathWith("/result"))
 	if err != nil {
 		log.Println(err)
 		return

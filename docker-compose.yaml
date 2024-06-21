@@ -1,0 +1,50 @@
+version: '3.8'
+
+services: 
+  cb-spider:
+    image: cloudbaristaorg/cb-spider:0.8.17
+    container_name: cb-spider
+    platform: linux/amd64
+    ports:
+      - "0.0.0.0:1024:1024"
+      - "0.0.0.0:2048:2048"
+    environment:
+      - PLUGIN_SW=OFF
+      # if you leave these values empty, REST Auth will be disabled.
+      - API_USERNAME=
+      - API_PASSWORD=
+      - SPIDER_LOG_LEVEL=info
+
+
+  # CB-Tumblebug
+  cb-tumblebug:
+    image: cloudbaristaorg/cb-tumblebug:0.8.12
+    container_name: cb-tumblebug
+    platform: linux/amd64
+    ports:
+      - "1323:1323"
+    depends_on:
+      - cb-spider
+    volumes:
+      - ./data/cb-tumblebug/meta_db/:/app/meta_db/
+      - ./data/cb-tumblebug/log/:/app/log/
+    environment:
+      - SPIDER_REST_URL=http://cb-spider:1024/spider
+      - API_USERNAME=default
+      - API_PASSWORD=default
+
+  cm-ant:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: cm-ant
+    platform: linux/amd64
+    ports:
+        - 8880:8880
+    depends_on:
+      - cb-tumblebug
+    environment:
+      - ANT_SPIDER_HOST=http://cb-spider
+      - ANT_SPIDER_PORT=1024
+      - ANT_TUMBLEBUG_HOST=http://cb-tumblebug
+      - ANT_TUMBLEBUG_PORT=1323

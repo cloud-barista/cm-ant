@@ -1,3 +1,9 @@
+root:
+  path: 
+  
+server:
+  port: 8880
+
 spider:
   host: http://localhost
   port: 1024
@@ -10,14 +16,16 @@ tumblebug:
 
 load:
   jmeter:
-    workDir: "/opt/ant/jmeter"
+    dir: "/opt/ant/jmeter"
     version: 5.3
 
-server:
-  port: 8880
+logging:
+  level: info
 
-datasource:
+database:
   driver: "sqlite"
-  connection: "${ROOT}/meta/ant_meta.db"
-  username:
+  host: "${ROOT}/meta/ant_meta.db"
+  port: 
+  user:
   password:
+  name:
