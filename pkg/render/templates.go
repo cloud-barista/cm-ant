@@ -1,4 +1,4 @@
-package configuration
+package render
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"github.com/cloud-barista/cm-ant/pkg/utils"
 	"github.com/labstack/echo/v4"
 )
 
@@ -37,7 +38,7 @@ func (t *Template) Render(w io.Writer, templateName string, data interface{}, c 
 }
 
 func generateTemplateCache() (map[string]*template.Template, error) {
-	pathToTemplates := JoinRootPathWith("/web/templates")
+	pathToTemplates := utils.JoinRootPathWith("/web/templates")
 	templateCache := map[string]*template.Template{}
 	pages, err := filepath.Glob(fmt.Sprintf("%s/*.page.tmpl", pathToTemplates))
 	if err != nil {

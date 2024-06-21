@@ -1,12 +1,12 @@
 package repository
 
 import (
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"github.com/cloud-barista/cm-ant/pkg/database"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 )
 
 func InsertAgentInstallInfo(agentInstallInfo *model.AgentInstallInfo) error {
-	db := configuration.DB()
+	db := database.DB()
 	tx := db.Begin()
 
 	if err := tx.
@@ -27,7 +27,7 @@ func InsertAgentInstallInfo(agentInstallInfo *model.AgentInstallInfo) error {
 }
 
 func UpdateAgentInstallInfoStatus(agentInstallInfo *model.AgentInstallInfo) error {
-	db := configuration.DB()
+	db := database.DB()
 	tx := db.Begin()
 
 	if err := tx.
@@ -45,7 +45,7 @@ func UpdateAgentInstallInfoStatus(agentInstallInfo *model.AgentInstallInfo) erro
 }
 
 func GetAllAgentInstallInfos() ([]model.AgentInstallInfo, error) {
-	db := configuration.DB()
+	db := database.DB()
 
 	var agentInstallInfos []model.AgentInstallInfo
 
@@ -59,7 +59,7 @@ func GetAllAgentInstallInfos() ([]model.AgentInstallInfo, error) {
 }
 
 func GetAgentInstallInfo(agentInstallInfoId string) (model.AgentInstallInfo, error) {
-	db := configuration.DB()
+	db := database.DB()
 
 	var agentInstallInfo model.AgentInstallInfo
 
@@ -73,7 +73,7 @@ func GetAgentInstallInfo(agentInstallInfoId string) (model.AgentInstallInfo, err
 }
 
 func DeleteAgentInstallInfo(agentInstallInfoId string) error {
-	db := configuration.DB()
+	db := database.DB()
 	tx := db.Begin()
 
 	if err := tx.

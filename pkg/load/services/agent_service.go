@@ -7,15 +7,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/repository"
 	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
+	"github.com/cloud-barista/cm-ant/pkg/utils"
 )
 
 func InstallAgent(agentReq api.AntTargetServerReq) error {
-	scriptPath := configuration.JoinRootPathWith("/script/install-server-agent.sh")
+	scriptPath := utils.JoinRootPathWith("/script/install-server-agent.sh")
 
 	installScript, err := os.ReadFile(scriptPath)
 	if err != nil {
@@ -123,7 +123,7 @@ func UninstallAgent(agentInstallInfoId string) error {
 		return err
 	}
 
-	scriptPath := configuration.JoinRootPathWith("/script/remove-server-agent.sh")
+	scriptPath := utils.JoinRootPathWith("/script/remove-server-agent.sh")
 
 	uninstallPath, err := os.ReadFile(scriptPath)
 	if err != nil {

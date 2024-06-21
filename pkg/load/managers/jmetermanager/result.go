@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloud-barista/cm-ant/pkg/configuration"
+	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
@@ -95,14 +95,14 @@ var tags = map[string]metricsUnits{
 
 func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, loadTestKey, format string) (interface{}, error) {
 
-	jmeterPath := configuration.Get().Load.JMeter.WorkDir
+	jmeterPath := config.AppConfig.Load.JMeter.Dir
 	fileName := fmt.Sprintf("%s_result.csv", loadTestKey)
 	resultFilePath := fmt.Sprintf("%s/result/%s", jmeterPath, fileName)
-	resultFolderPath := configuration.JoinRootPathWith("/result/" + loadTestKey)
+	resultFolderPath := utils.JoinRootPathWith("/result/" + loadTestKey)
 	toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
 	var resultRawData = make(map[string][]*resultRawData)
 
-	err := utils.CreateFolderIfNotExist(configuration.JoinRootPathWith("/result"))
+	err := utils.CreateFolderIfNotExist(utils.JoinRootPathWith("/result"))
 	if err != nil {
 		return nil, err
 	}
@@ -164,13 +164,13 @@ func (j *JMeterLoadTestManager) GetResult(loadEnv *model.LoadEnv, loadTestKey, f
 
 func (j *JMeterLoadTestManager) GetMetrics(loadEnv *model.LoadEnv, loadTestKey, format string) (interface{}, error) {
 
-	jmeterPath := configuration.Get().Load.JMeter.WorkDir
+	jmeterPath := config.AppConfig.Load.JMeter.Dir
 	metricsPrePath := fmt.Sprintf("%s/result", jmeterPath)
 	metrics := []string{"cpu", "disk", "memory", "network"}
-	resultFolderPath := configuration.JoinRootPathWith("/result/" + loadTestKey)
+	resultFolderPath := utils.JoinRootPathWith("/result/" + loadTestKey)
 	var metricsRawData = make(map[string][]*metricsRawData)
 
-	err := utils.CreateFolderIfNotExist(configuration.JoinRootPathWith("/result"))
+	err := utils.CreateFolderIfNotExist(utils.JoinRootPathWith("/result"))
 	if err != nil {
 		return nil, err
 	}
@@ -440,7 +440,7 @@ func appendMetricsRawData(resultRawDataMap map[string][]*metricsRawData, filePat
 		t := time.UnixMilli(unixMilliseconds)
 
 		rd := &metricsRawData{
-			Value:		 value,
+			Value:     value,
 			Unit:      u,
 			IsError:   isError,
 			Timestamp: t,

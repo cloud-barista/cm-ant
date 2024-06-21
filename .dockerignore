@@ -4,4 +4,5 @@ ant
 .gitignore
 .DS_Store
 meta/*.db
-result/*
+result/**
+data/**
