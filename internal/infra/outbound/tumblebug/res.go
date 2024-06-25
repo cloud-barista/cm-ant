@@ -1,7 +1,6 @@
 package tumblebug
 
 import (
-	"strings"
 	"time"
 )
 
@@ -22,16 +21,6 @@ type McisRes struct {
 	NewVMList                     any            `json:"newVmList,omitempty"`
 }
 
-func (m *McisRes) VmIds() string {
-	var vmIds []string
-
-	for _, s := range m.VMs {
-		vmIds = append(vmIds, s.ID)
-	}
-
-	return strings.Join(vmIds, ",")
-}
-
 type StatusCountRes struct {
 	CountTotal       int `json:"countTotal,omitempty"`
 	CountCreating    int `json:"countCreating,omitempty"`
@@ -46,11 +35,11 @@ type StatusCountRes struct {
 	CountUndefined   int `json:"countUndefined,omitempty"`
 }
 type LocationRes struct {
-	Latitude     string `json:"latitude,omitempty"`
-	Longitude    string `json:"longitude,omitempty"`
-	BriefAddr    string `json:"briefAddr,omitempty"`
-	CloudType    string `json:"cloudType,omitempty"`
-	NativeRegion string `json:"nativeRegion,omitempty"`
+	Latitude     float64 `json:"latitude,omitempty"`
+	Longitude    float64 `json:"longitude,omitempty"`
+	BriefAddr    string  `json:"briefAddr,omitempty"`
+	CloudType    string  `json:"cloudType,omitempty"`
+	NativeRegion string  `json:"nativeRegion,omitempty"`
 }
 type RegionRes struct {
 	Region string `json:"Region,omitempty"`

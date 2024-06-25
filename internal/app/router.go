@@ -18,6 +18,12 @@ import (
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
+const (
+	colorReset = "\033[0m"
+	colorRed   = "\033[31m"
+	colorGreen = "\033[32m"
+)
+
 // @title CM-ANT API
 // @version 0.1
 // @description
@@ -94,9 +100,9 @@ func (server *AntServer) InitRouter() error {
 			loadRouter.GET("/state/:loadTestKey", server.getLoadExecutionState)
 
 			// load test metrics agent
-			loadRouter.POST("/monitoring/agent", server.installMonitoringAgent, middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(1)))
-			loadRouter.GET("/agent", server.getAllAgentInstallInfo)
-			loadRouter.DELETE("/agent/:agentInstallInfoId", server.uninstallAgent)
+			loadRouter.POST("/monitoring/agent/install", server.installMonitoringAgent, middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(1)))
+			loadRouter.GET("/monitoring/agent", server.getAllMonitoringAgentInfos)
+			loadRouter.POST("/monitoring/agent/uninstall", server.uninstallMonitoringAgent, middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(1)))
 		}
 
 	}

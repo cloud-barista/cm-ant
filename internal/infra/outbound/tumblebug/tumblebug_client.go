@@ -60,7 +60,7 @@ func (t *TumblebugClient) requestWithContext(ctx context.Context, method, url st
 		req.Header.Add(k, v)
 	}
 
-	log.Printf("[INFO] Sending request to client with endpoint [%s - %s]\n", method, url)
+	utils.LogInfof("Sending request to client with endpoint [%s - %s]\n", method, url)
 	resp, err := t.client.Do(req)
 	if err != nil {
 		log.Printf("[ERROR] Failed to send request: %v", err)

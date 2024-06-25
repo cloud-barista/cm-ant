@@ -49,150 +49,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/ant/api/v1/load/agent": {
-            "get": {
-                "description": "Get all agent installation nsId, mcisId, vmId, status.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Agent - for Development]"
-                ],
-                "summary": "Get all agent installation information",
-                "operationId": "GetAllAgentInstallInfo",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Install an agent to collect server metrics during load testing such as CPU and memory.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Agent - for Development]"
-                ],
-                "summary": "Install jmeter perfmon agent for metrics collection",
-                "operationId": "InstallAgent",
-                "parameters": [
-                    {
-                        "description": "agent target server req",
-                        "name": "loadEnvReq",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.AntTargetServerReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/ant/api/v1/load/agent/{agentInstallInfoId}": {
-            "delete": {
-                "description": "Uninstall an agent to collect server metrics during load testing such as CPU and memory.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Agent - for Development]"
-                ],
-                "summary": "Uninstall jmeter perfmon agent for metrics collection",
-                "operationId": "UninstallAgent",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "agent installation info id",
-                        "name": "agentInstallInfoId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/ant/api/v1/load/config": {
             "get": {
                 "description": "Get all the load test execution configurations.",
@@ -628,7 +484,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/load/monitoring/agent": {
+        "/api/v1/load/monitoring/agent/install": {
             "post": {
                 "description": "Install a monitoring agent on specific MCIS.",
                 "consumes": [
@@ -674,23 +530,124 @@ const docTemplate = `{
                     }
                 }
             }
-        }
-    },
-    "definitions": {
-        "api.AntTargetServerReq": {
-            "type": "object",
-            "properties": {
-                "mcisId": {
-                    "type": "string"
-                },
-                "nsId": {
-                    "type": "string"
-                },
-                "vmId": {
-                    "type": "string"
+        },
+        "/api/v1/load/monitoring/agents": {
+            "get": {
+                "description": "Retrieve monitoring agent information based on specified criteria.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MonitoringAgentManagement"
+                ],
+                "summary": "Retrieve Monitoring Agent Information",
+                "operationId": "GetAllMonitoringAgentInfos",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Namespace ID",
+                        "name": "nsId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "MCIS ID",
+                        "name": "mcisId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "VM ID",
+                        "name": "vmId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of results per page",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number for pagination",
+                        "name": "page",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved monitoring agent information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_GetAllMonitoringAgentInfoResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
                 }
             }
         },
+        "/api/v1/load/monitoring/agents/uninstall": {
+            "post": {
+                "description": "Uninstall monitoring agents from specified VMs or all VMs in an MCIS.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MonitoringAgentManagement"
+                ],
+                "summary": "Uninstall Monitoring Agents",
+                "operationId": "UninstallMonitoringAgent",
+                "parameters": [
+                    {
+                        "description": "Monitoring Agent Uninstallation Request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.MonitoringAgentInstallationReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Number of affected results",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-int64"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
         "api.LoadEnvReq": {
             "type": "object",
             "properties": {
@@ -899,6 +856,40 @@ const docTemplate = `{
                 }
             }
         },
+        "app.AntResponse-int64": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "integer"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-load_GetAllMonitoringAgentInfoResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/load.GetAllMonitoringAgentInfoResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
         "app.AntResponse-load_MonitoringAgentInstallationResult": {
             "type": "object",
             "properties": {
@@ -941,6 +932,12 @@ const docTemplate = `{
                 },
                 "nsId": {
                     "type": "string"
+                },
+                "vmIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -970,9 +967,29 @@ const docTemplate = `{
                 "Remote"
             ]
         },
+        "load.GetAllMonitoringAgentInfoResult": {
+            "type": "object",
+            "properties": {
+                "monitoringAgentInfos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.MonitoringAgentInstallationResult"
+                    }
+                },
+                "totalRow": {
+                    "type": "integer"
+                }
+            }
+        },
         "load.MonitoringAgentInstallationResult": {
             "type": "object",
             "properties": {
+                "agentType": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -985,8 +1002,17 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
                 "vmCount": {
                     "type": "integer"
+                },
+                "vmId": {
+                    "type": "string"
                 }
             }
         }

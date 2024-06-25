@@ -52,7 +52,6 @@ func migrateDB(defaultDb *gorm.DB) error {
 		&model.LoadExecutionConfig{},
 		&model.LoadExecutionState{},
 		&model.LoadExecutionHttp{},
-		&model.AgentInstallInfo{},
 	)
 
 	if err != nil {

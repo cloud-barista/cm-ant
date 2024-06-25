@@ -73,7 +73,7 @@ func (s *AntServer) getLoadExecutionState(c echo.Context) error {
 // @Success 200 {object} app.AntResponse[load.MonitoringAgentInstallationResult] "Successfully installed monitoring agent"
 // @Failure 400 {object} app.AntResponse[string] "Monitoring agent installation info is not correct."
 // @Failure 500 {object} app.AntResponse[string] "Internal Server Error"
-// @Router /api/v1/load/monitoring/agent [post]
+// @Router /api/v1/load/monitoring/agent/install [post]
 func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 	var req MonitoringAgentInstallationReq
 
@@ -84,6 +84,7 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 	arg := load.MonitoringAgentInstallationParams{
 		NsId:   req.NsId,
 		McisId: req.McisId,
+		VmIds:  req.VmIds,
 	}
 
 	result, err := s.services.loadService.InstallMonitoringAgent(arg)
@@ -99,12 +100,85 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 	)
 }
 
-func (s *AntServer) getAllAgentInstallInfo(c echo.Context) error {
+// getAllMonitoringAgentInfos handler function that retrieves monitoring agent information.
+// @Id				GetAllMonitoringAgentInfos
+// @Summary Retrieve Monitoring Agent Information
+// @Description Retrieve monitoring agent information based on specified criteria.
+// @Tags MonitoringAgentManagement
+// @Accept json
+// @Produce json
+// @Param nsId query string false "Namespace ID" default:""
+// @Param mcisId query string false "MCIS ID" default:""
+// @Param vmId query string false "VM ID" default:""
+// @Param size query integer false "Number of results per page" default:"10"
+// @Param page query integer false "Page number for pagination" default:"1"
+// @Success 200 {object} app.AntResponse[load.GetAllMonitoringAgentInfoResult] "Successfully retrieved monitoring agent information"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Internal Server Error"
+// @Router /api/v1/load/monitoring/agents [get]
+func (s *AntServer) getAllMonitoringAgentInfos(c echo.Context) error {
+	var req GetAllMonitoringAgentInfosReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponse(http.StatusBadRequest, "Invalid request parameters")
+	}
+	if req.Size < 1 || req.Size > 10 {
+		req.Size = 10
+	}
+	if req.Page < 1 {
+		req.Page = 1
+	}
 
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	arg := load.GetAllMonitoringAgentInfosParam{
+		Page:   req.Page,
+		Size:   req.Size,
+		NsId:   req.NsId,
+		McisId: req.McisId,
+		VmId:   req.VmId,
+	}
+
+	result, err := s.services.loadService.GetAllMonitoringAgentInfos(arg)
+
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "Failed to retrieve monitoring agent information")
+	}
+
+	return successResponse(c, "Successfully retrieved monitoring agent information", result)
 }
 
-func (s *AntServer) uninstallAgent(c echo.Context) error {
+// uninstallMonitoringAgent handler function that initiates the uninstallation of monitoring agents.
+// @Id             UninstallMonitoringAgent
+// @Summary        Uninstall Monitoring Agents
+// @Description    Uninstall monitoring agents from specified VMs or all VMs in an MCIS.
+// @Tags           MonitoringAgentManagement
+// @Accept         json
+// @Produce        json
+// @Param body body app.MonitoringAgentInstallationReq true "Monitoring Agent Uninstallation Request"
+// @Success 200 {object} app.AntResponse[int64] "Number of affected results"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Internal Server Error"
+// @Router /api/v1/load/monitoring/agents/uninstall [post]
+func (s *AntServer) uninstallMonitoringAgent(c echo.Context) error {
+	var req MonitoringAgentInstallationReq
 
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	if err := c.Bind(&req); err != nil {
+		return errorResponse(http.StatusBadRequest, "monitoring agent uninstallation info is not correct.")
+	}
+
+	arg := load.MonitoringAgentInstallationParams{
+		NsId:   req.NsId,
+		McisId: req.McisId,
+		VmIds:  req.VmIds,
+	}
+
+	affectedResults, err := s.services.loadService.UninstallMonitoringAgent(arg)
+
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, err.Error())
+	}
+
+	return successResponse(
+		c,
+		"monitoring agent is successfully uninstalled",
+		affectedResults,
+	)
 }

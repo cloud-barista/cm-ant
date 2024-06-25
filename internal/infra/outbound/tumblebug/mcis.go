@@ -72,3 +72,25 @@ func (t *TumblebugClient) CommandToMcisWithContext(ctx context.Context, nsId, mc
 
 	return ret, nil
 }
+
+func (t *TumblebugClient) CommandToVmWithContext(ctx context.Context, nsId, mcisId, vmId string, body SendCommandReq) (string, error) {
+
+	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/mcis/%s?vmId=%s", nsId, mcisId, vmId))
+
+	marshalledBody, err := json.Marshal(body)
+	if err != nil {
+		log.Println("send command request error", err)
+		return "", err
+	}
+
+	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
+
+	if err != nil {
+		log.Printf("error sending get mcis request: %v\n", err)
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+
+	ret := string(resBytes)
+
+	return ret, nil
+}

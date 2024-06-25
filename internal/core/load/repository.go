@@ -38,8 +38,8 @@ func (r *LoadRepository) InsertMonitoringAgentInfoTx(ctx context.Context, param 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		return d.
 			Where(
-				"additional_ns_id = ? AND additional_mcis_id = ? AND username = ? AND agent_type = ?",
-				param.AdditionalNsId, param.AdditionalMcisId, param.Username, param.AgentType,
+				"additional_ns_id = ? AND additional_mcis_id = ? AND additional_vm_id = ? AND username = ? AND agent_type = ?",
+				param.AdditionalNsId, param.AdditionalMcisId, param.AdditionalVmId, param.Username, param.AgentType,
 			).
 			FirstOrCreate(
 				param,
@@ -61,4 +61,79 @@ func (r *LoadRepository) UpdateAgentInstallInfoStatusTx(ctx context.Context, par
 
 	return err
 
+}
+
+
+func (r *LoadRepository) DeleteAgentInstallInfoStatusTx(ctx context.Context, param *MonitoringAgentInfo) error {
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		return d.
+			Delete(&param).
+			Error
+	})
+
+	return err
+
+}
+
+func (r *LoadRepository) GetPagingMonitoringAgentInfosTx(ctx context.Context, param GetAllMonitoringAgentInfosParam) ([]MonitoringAgentInfo, int64, error) {
+	var monitoringAgentInfos []MonitoringAgentInfo
+	var totalRows int64
+
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		q := d.Model(&monitoringAgentInfos)
+
+		if param.NsId != "" {
+			q = q.Where("additional_ns_id = ?", param.NsId)
+		}
+
+		if param.McisId != "" {
+			q = q.Where("additional_mcis_id = ?", param.McisId)
+		}
+
+		if param.VmId != "" {
+			q = q.Where("additional_vm_id = ?", param.VmId)
+		}
+
+		if err := q.Count(&totalRows).Error; err != nil {
+			return err
+		}
+
+		offset := (param.Page - 1) * param.Size
+		if err := q.Offset(offset).Limit(param.Size).Find(&monitoringAgentInfos).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return monitoringAgentInfos, totalRows, err
+
+}
+
+func (r *LoadRepository) GetAllMonitoringAgentInfosTx(ctx context.Context, param MonitoringAgentInstallationParams) ([]MonitoringAgentInfo, error) {
+	var monitoringAgentInfos []MonitoringAgentInfo
+
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		q := d.Model(&monitoringAgentInfos)
+
+		if param.NsId != "" {
+			q = q.Where("additional_ns_id = ?", param.NsId)
+		}
+
+		if param.McisId != "" {
+			q = q.Where("additional_mcis_id = ?", param.McisId)
+		}
+
+		if param.VmIds != nil && len(param.VmIds) > 0 {
+			q = q.Where("additional_vm_id IN (?)", param.VmIds)
+		}
+
+		if err := q.Find(&monitoringAgentInfos).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return monitoringAgentInfos, err
 }
