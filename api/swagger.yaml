@@ -144,6 +144,35 @@ definitions:
       loadTestKey:
         type: string
     type: object
+  app.AntResponse-load_MonitoringAgentInstallationResult:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        $ref: '#/definitions/load.MonitoringAgentInstallationResult'
+      successMessage:
+        type: string
+    type: object
+  app.AntResponse-string:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        type: string
+      successMessage:
+        type: string
+    type: object
+  app.MonitoringAgentInstallationReq:
+    properties:
+      mcisId:
+        type: string
+      nsId:
+        type: string
+    type: object
   constant.ExecutionStatus:
     enum:
     - processing
@@ -164,10 +193,21 @@ definitions:
     x-enum-varnames:
     - Local
     - Remote
+  load.MonitoringAgentInstallationResult:
+    properties:
+      id:
+        type: integer
+      mcisId:
+        type: string
+      nsId:
+        type: string
+      status:
+        type: string
+      vmCount:
+        type: integer
+    type: object
 info:
   contact: {}
-  title: CM-ANT API
-  version: "0.1"
 paths:
   /ant/api/v1/env:
     get:
@@ -580,4 +620,35 @@ paths:
       summary: Uninstall load test tester
       tags:
       - '[Load Test Tester]'
+  /api/v1/load/monitoring/agent:
+    post:
+      consumes:
+      - application/json
+      description: Install a monitoring agent on specific MCIS.
+      operationId: InstallMonitoringAgent
+      parameters:
+      - description: Monitoring Agent Installation Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.MonitoringAgentInstallationReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully installed monitoring agent
+          schema:
+            $ref: '#/definitions/app.AntResponse-load_MonitoringAgentInstallationResult'
+        "400":
+          description: Monitoring agent installation info is not correct.
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Install Metrics Monitoring Agent
+      tags:
+      - MonitoringAgentManagement
 swagger: "2.0"

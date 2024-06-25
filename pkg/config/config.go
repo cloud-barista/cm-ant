@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/cloud-barista/cm-ant/pkg/utils"
@@ -50,6 +49,8 @@ type AntConfig struct {
 }
 
 func InitConfig() error {
+	utils.LogInfo("Initializing configuration...")
+
 	cfg := AntConfig{}
 
 	viper.AddConfigPath(utils.RootPath())
@@ -62,15 +63,17 @@ func InitConfig() error {
 
 	err := viper.ReadInConfig()
 	if err != nil {
+		utils.LogErrorf("[ERROR] Fatal error while reading config file: %v", err)
 		return fmt.Errorf("fatal error while read config file: %w", err)
 	}
 
 	err = viper.Unmarshal(&cfg)
 	if err != nil {
+		utils.LogErrorf("[ERROR] Fatal error while unmarshaling config: %v", err)
 		return fmt.Errorf("fatal error while unmarshal from config to ant config: %w", err)
 	}
 
-	log.Printf("server configuration with [%+v] \n", cfg)
+	utils.LogInfof("Configuration loaded successfully: %+v", cfg)
 	AppConfig = cfg
 
 	return nil

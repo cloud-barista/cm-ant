@@ -94,7 +94,7 @@ func (server *AntServer) InitRouter() error {
 			loadRouter.GET("/state/:loadTestKey", server.getLoadExecutionState)
 
 			// load test metrics agent
-			loadRouter.POST("/agent", server.installAgent)
+			loadRouter.POST("/monitoring/agent", server.installMonitoringAgent, middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(1)))
 			loadRouter.GET("/agent", server.getAllAgentInstallInfo)
 			loadRouter.DELETE("/agent/:agentInstallInfoId", server.uninstallAgent)
 		}

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/core/load"
 	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
@@ -16,6 +17,7 @@ import (
 
 func migrateDB(defaultDb *gorm.DB) error {
 	err := defaultDb.AutoMigrate(
+		&load.MonitoringAgentInfo{},
 		&model.LoadEnv{},
 		&model.LoadExecutionConfig{},
 		&model.LoadExecutionState{},
@@ -24,15 +26,16 @@ func migrateDB(defaultDb *gorm.DB) error {
 	)
 
 	if err != nil {
-		log.Println("migrateDB() fail to connect to sqlite database")
+		log.Printf("[ERROR] Failed to auto migrate database tables: %v\n", err)
 		return err
 	}
 
+	log.Println("[INFO] Database tables auto migration completed successfully")
 	return nil
 }
 
 func connectSqliteDB(dbPath string) (*gorm.DB, error) {
-	log.Println(">>>> sqlite configuration; meta sqliteDb path is", dbPath)
+	log.Printf("[INFO] SQLite configuration: meta SQLite DB path is %s\n", dbPath)
 
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r", log.LstdFlags),
@@ -49,10 +52,11 @@ func connectSqliteDB(dbPath string) (*gorm.DB, error) {
 		Logger: newLogger,
 	})
 	if err != nil {
-		log.Println("connectSqliteDB() fail to connect to sqlite database")
+		log.Printf("[ERROR] Failed to connect to SQLite database: %v\n", err)
 		return nil, err
 	}
 
+	log.Println("[INFO] Connected to SQLite database successfully")
 	return sqliteDb, nil
 }
 
@@ -76,15 +80,15 @@ func NewDBConnection() (*gorm.DB, error) {
 		sqlFilePath := sqliteFilePath(d.Host)
 		sqliteDB, err := connectSqliteDB(sqlFilePath)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("[ERROR] Failed to establish SQLite DB connection: %v\n", err)
 		}
 
 		err = migrateDB(sqliteDB)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("[ERROR] Failed to migrate SQLite database: %v\n", err)
 		}
 		db = sqliteDB
-		log.Printf(">>>> complete initialize database [%s] \n", d.Driver)
+		log.Printf("[INFO] Initialized SQLite database successfully [%s]\n", d.Driver)
 	}
 
 	dbConfig, _ := db.DB()

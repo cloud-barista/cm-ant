@@ -1,9 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "title": "CM-ANT API",
-        "contact": {},
-        "version": "0.1"
+        "contact": {}
     },
     "paths": {
         "/ant/api/v1/env": {
@@ -617,6 +615,53 @@
                     }
                 }
             }
+        },
+        "/api/v1/load/monitoring/agent": {
+            "post": {
+                "description": "Install a monitoring agent on specific MCIS.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MonitoringAgentManagement"
+                ],
+                "summary": "Install Metrics Monitoring Agent",
+                "operationId": "InstallMonitoringAgent",
+                "parameters": [
+                    {
+                        "description": "Monitoring Agent Installation Request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.MonitoringAgentInstallationReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully installed monitoring agent",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_MonitoringAgentInstallationResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Monitoring agent installation info is not correct.",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -842,6 +887,51 @@
                 }
             }
         },
+        "app.AntResponse-load_MonitoringAgentInstallationResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/load.MonitoringAgentInstallationResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-string": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "string"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.MonitoringAgentInstallationReq": {
+            "type": "object",
+            "properties": {
+                "mcisId": {
+                    "type": "string"
+                },
+                "nsId": {
+                    "type": "string"
+                }
+            }
+        },
         "constant.ExecutionStatus": {
             "type": "string",
             "enum": [
@@ -867,6 +957,26 @@
                 "Local",
                 "Remote"
             ]
+        },
+        "load.MonitoringAgentInstallationResult": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "mcisId": {
+                    "type": "string"
+                },
+                "nsId": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "vmCount": {
+                    "type": "integer"
+                }
+            }
         }
     }
 }

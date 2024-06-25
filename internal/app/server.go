@@ -35,6 +35,7 @@ type AntServer struct {
 func NewAntServer() (*AntServer, error) {
 
 	e := echo.New()
+	e.HideBanner = true
 
 	conn, err := initializeDBConn()
 	if err != nil {
