@@ -3,6 +3,7 @@ package app
 import (
 	"net/http"
 
+	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
 	"github.com/labstack/echo/v4"
 )
@@ -12,9 +13,29 @@ func (s *AntServer) getAllLoadEnvironments(c echo.Context) error {
 	return c.JSON(http.StatusOK, c.Request().RequestURI)
 }
 
-func (s *AntServer) installLoadTester(c echo.Context) error {
+func (s *AntServer) installLoadGenerator(c echo.Context) error {
+	var req InstallLoadGeneratorReq
 
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	if err := c.Bind(&req); err != nil {
+		return errorResponse(http.StatusBadRequest, "load generator installation info is not correct.")
+	}
+
+	if req.InstallLocation == "" ||
+		(req.InstallLocation != constant.Remote && req.InstallLocation != constant.Local) {
+		return errorResponse(http.StatusBadRequest, "available install locations are remote or local.")
+	}
+
+	if req.LoadGeneratorType != constant.Jmeter {
+		req.LoadGeneratorType = constant.Jmeter
+	}
+
+	// call service layer install load generator
+
+	return successResponse(
+		c,
+		"load generator is successfully installed",
+		"done",
+	)
 }
 
 func (s *AntServer) uninstallLoadTester(c echo.Context) error {

@@ -9,8 +9,8 @@ type MonitoringAgentInfo struct {
 	Status    string
 	AgentType string
 
-	AdditionalNsId    string
-	AdditionalMcisId  string
-	AdditionalVmId    string
-	AdditionalVmCount int
+	NsId    string
+	McisId  string
+	VmId    string
+	VmCount int
 }

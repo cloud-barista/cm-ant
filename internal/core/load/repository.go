@@ -38,8 +38,8 @@ func (r *LoadRepository) InsertMonitoringAgentInfoTx(ctx context.Context, param 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		return d.
 			Where(
-				"additional_ns_id = ? AND additional_mcis_id = ? AND additional_vm_id = ? AND username = ? AND agent_type = ?",
-				param.AdditionalNsId, param.AdditionalMcisId, param.AdditionalVmId, param.Username, param.AgentType,
+				"ns_id = ? AND mcis_id = ? AND vm_id = ? AND username = ? AND agent_type = ?",
+				param.NsId, param.McisId, param.VmId, param.Username, param.AgentType,
 			).
 			FirstOrCreate(
 				param,
@@ -63,7 +63,6 @@ func (r *LoadRepository) UpdateAgentInstallInfoStatusTx(ctx context.Context, par
 
 }
 
-
 func (r *LoadRepository) DeleteAgentInstallInfoStatusTx(ctx context.Context, param *MonitoringAgentInfo) error {
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		return d.
@@ -83,15 +82,15 @@ func (r *LoadRepository) GetPagingMonitoringAgentInfosTx(ctx context.Context, pa
 		q := d.Model(&monitoringAgentInfos)
 
 		if param.NsId != "" {
-			q = q.Where("additional_ns_id = ?", param.NsId)
+			q = q.Where("ns_id = ?", param.NsId)
 		}
 
 		if param.McisId != "" {
-			q = q.Where("additional_mcis_id = ?", param.McisId)
+			q = q.Where("mcis_id = ?", param.McisId)
 		}
 
 		if param.VmId != "" {
-			q = q.Where("additional_vm_id = ?", param.VmId)
+			q = q.Where("vm_id = ?", param.VmId)
 		}
 
 		if err := q.Count(&totalRows).Error; err != nil {
@@ -117,15 +116,15 @@ func (r *LoadRepository) GetAllMonitoringAgentInfosTx(ctx context.Context, param
 		q := d.Model(&monitoringAgentInfos)
 
 		if param.NsId != "" {
-			q = q.Where("additional_ns_id = ?", param.NsId)
+			q = q.Where("ns_id = ?", param.NsId)
 		}
 
 		if param.McisId != "" {
-			q = q.Where("additional_mcis_id = ?", param.McisId)
+			q = q.Where("mcis_id = ?", param.McisId)
 		}
 
 		if param.VmIds != nil && len(param.VmIds) > 0 {
-			q = q.Where("additional_vm_id IN (?)", param.VmIds)
+			q = q.Where("vm_id IN (?)", param.VmIds)
 		}
 
 		if err := q.Find(&monitoringAgentInfos).Error; err != nil {

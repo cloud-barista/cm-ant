@@ -80,7 +80,7 @@ func (server *AntServer) InitRouter() error {
 
 		{
 			// load tester
-			loadRouter.POST("/tester", server.installLoadTester)
+			loadRouter.POST("/tester", server.installLoadGenerator)
 			loadRouter.DELETE("/tester/:envId", server.uninstallLoadTester)
 
 			// load test execution
