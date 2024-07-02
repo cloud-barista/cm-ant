@@ -1,3 +1,8 @@
+[![Release Version](https://img.shields.io/github/v/release/cloud-barista/cm-ant?color=blue)](https://github.com/cloud-barista/cm-ant/releases/latest)
+[![Swagger API Doc](https://img.shields.io/badge/API%20Doc-Swagger-brightgreen)](https://cloud-barista.github.io/api/?url=https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.yaml)
+[![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/cloud-barista/cm-ant?label=go.mod)](https://github.com/cloud-barista/cm-ant/blob/main/go.mod)
+[![License](https://img.shields.io/github/license/cloud-barista/cm-ant?color=blue)](https://github.com/cloud-barista/cm-ant/blob/main/LICENSE)
+
 # CM-ANT 클라우드 마이그레이션 전환 상태 검증 프레임워크
 ###
 ```text
@@ -195,10 +200,18 @@ make run
 
 ## 3. API 규격
 
+✨ **CM-ANT Swagger Page**
+
+#### Click 👉 [Swagger API Doc](https://cloud-barista.github.io/api/?url=https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.yaml)
+
+<br/>
+
 ✨ **CM-ANT Swagger Endpoint**
+
 - CM-ANT 서버 기동 후 아래의 엔드포인트에 접근해서 swagger api document 확인 가능
 > http://localhost:8880/ant/swagger/index.html
 
+<br/>
 
 ✨ **CM-ANT Swagger Build if Need**
 1. swaggo 설치
