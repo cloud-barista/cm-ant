@@ -1,10 +1,17 @@
 package utils
 
 import (
-	"github.com/melbahja/goph"
-	"golang.org/x/crypto/ssh"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
 	"log"
 	"net"
+	"os"
+
+	"github.com/melbahja/goph"
+	"golang.org/x/crypto/ssh"
 )
 
 func AddToKnownHost(pemFilePath, publicIp, username string) error {
@@ -53,4 +60,60 @@ func VerifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
 	}
 
 	return goph.AddKnownHost(host, remote, key, "")
+}
+
+// GenerateSSHKeyPair generates an RSA SSH key pair of the specified bits.
+func GenerateSSHKeyPair(bits int, privKeyPath, pubKeyPath string) error {
+	reader := rand.Reader
+
+	key, err := rsa.GenerateKey(reader, bits)
+	if err != nil {
+		return err
+	}
+
+	pub, err := ssh.NewPublicKey(key.Public())
+	if err != nil {
+		return err
+	}
+	err = savePrivateKey(key, privKeyPath)
+	if err != nil {
+		return nil
+	}
+
+	err = savePublicKey(pub, pubKeyPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// savePrivateKey saves the private key to a file.
+func savePrivateKey(key *rsa.PrivateKey, filename string) error {
+	// Marshal private key to PEM format
+	keyBytes := x509.MarshalPKCS1PrivateKey(key)
+	block := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: keyBytes,
+	}
+
+	// Write to file
+	err := os.WriteFile(filename, pem.EncodeToMemory(block), 0600)
+	if err != nil {
+		return fmt.Errorf("failed to save private key: %w", err)
+	}
+	return nil
+}
+
+// savePublicKey saves the public key to a file.
+func savePublicKey(key ssh.PublicKey, filename string) error {
+	// Marshal public key to authorized_keys format
+	keyBytes := ssh.MarshalAuthorizedKey(key)
+
+	// Write to file
+	err := os.WriteFile(filename, keyBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to save public key: %w", err)
+	}
+	return nil
 }

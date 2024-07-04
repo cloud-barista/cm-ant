@@ -11,6 +11,13 @@ import (
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 )
 
+// InitRouter initializes the routing for CM-ANT API server.
+
+// @title CM-ANT REST API
+// @version 0.1
+// @description CM-ANT REST API swagger document.
+
+// @basePath /ant
 func main() {
 	utils.LogInfo("Starting CM-Ant server initialization...")
 

@@ -136,3 +136,31 @@ func (r *LoadRepository) GetAllMonitoringAgentInfosTx(ctx context.Context, param
 
 	return monitoringAgentInfos, err
 }
+
+func (r *LoadRepository) InsertLoadGeneratorInstallInfoTx(ctx context.Context, param *LoadGeneratorInstallInfo) error {
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		return d.
+			Where(
+				"install_location = ? AND install_type = ? AND install_path = ? AND install_version = ? AND status = ?",
+				param.InstallLocation, param.InstallType, param.InstallPath, param.InstallVersion, "completed",
+			).
+			FirstOrCreate(
+				param,
+			).Error
+	})
+
+	return err
+
+}
+
+func (r *LoadRepository) UpdateLoadGeneratorInstallInfoTx(ctx context.Context, param *LoadGeneratorInstallInfo) error {
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		return d.
+			Model(param).
+			Save(param).
+			Error
+	})
+
+	return err
+
+}

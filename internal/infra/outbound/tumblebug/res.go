@@ -18,7 +18,8 @@ type McisRes struct {
 	SystemMessage                 string         `json:"systemMessage,omitempty"`
 	Description                   string         `json:"description,omitempty"`
 	VMs                           []VmRes        `json:"vm,omitempty"`
-	NewVMList                     any            `json:"newVmList,omitempty"`
+	NewVMList                     []string       `json:"newVmList,omitempty"`
+	PlacementAlgo                 string         `json:"placementAlgo"`
 }
 
 type StatusCountRes struct {
@@ -64,10 +65,10 @@ type CspViewDetailRes struct {
 	ImageName          string        `json:"ImageName,omitempty"`
 	VPCName            string        `json:"VPCName,omitempty"`
 	SubnetName         string        `json:"SubnetName,omitempty"`
-	SecurityGroupNames any           `json:"SecurityGroupNames,omitempty"`
+	SecurityGroupNames []string      `json:"SecurityGroupNames,omitempty"`
 	KeyPairName        string        `json:"KeyPairName,omitempty"`
 	CSPid              string        `json:"CSPid,omitempty"`
-	DataDiskNames      any           `json:"DataDiskNames,omitempty"`
+	DataDiskNames      []string      `json:"DataDiskNames,omitempty"`
 	VMSpecName         string        `json:"VMSpecName,omitempty"`
 	VMUserID           string        `json:"VMUserId,omitempty"`
 	VMUserPasswd       string        `json:"VMUserPasswd,omitempty"`
@@ -80,7 +81,7 @@ type CspViewDetailRes struct {
 	SubnetIID          IIDRes        `json:"SubnetIID,omitempty"`
 	SecurityGroupIIds  []IIDRes      `json:"SecurityGroupIIds,omitempty"`
 	KeyPairIID         IIDRes        `json:"KeyPairIId,omitempty"`
-	DataDiskIIDs       []string      `json:"DataDiskIIDs,omitempty"`
+	DataDiskIIDs       []IIDRes      `json:"DataDiskIIDs,omitempty"`
 	StartTime          time.Time     `json:"StartTime,omitempty"`
 	Region             RegionRes     `json:"Region,omitempty"`
 	NetworkInterface   string        `json:"NetworkInterface,omitempty"`
@@ -123,7 +124,7 @@ type VmRes struct {
 	VNetID             string              `json:"vNetId,omitempty"`
 	SubnetID           string              `json:"subnetId,omitempty"`
 	SecurityGroupIds   []string            `json:"securityGroupIds,omitempty"`
-	DataDiskIds        []any               `json:"dataDiskIds,omitempty"`
+	DataDiskIds        []string            `json:"dataDiskIds,omitempty"`
 	SSHKeyID           string              `json:"sshKeyId,omitempty"`
 	VMUserAccount      string              `json:"vmUserAccount,omitempty"`
 	CspViewVMDetail    CspViewDetailRes    `json:"cspViewVmDetail,omitempty"`
@@ -174,6 +175,8 @@ type SecureShellRes struct {
 	Username             string        `json:"username"`
 	VerifiedUsername     string        `json:"verifiedUsername"`
 }
+
+type SecureShellResList []SecureShellRes
 
 type ImageRes struct {
 	AssociatedObjectList []string      `json:"associatedObjectList"`
@@ -233,4 +236,38 @@ type SpecRes struct {
 	RootDiskType          string   `json:"rootDiskType"`
 	StorageGiB            int      `json:"storageGiB"`
 	SystemLabel           string   `json:"systemLabel"`
+}
+
+type RecommendVmResList []RecommendVmRes
+
+type RecommendVmRes struct {
+	Namespace             string  `json:"namespace"`
+	ID                    string  `json:"id"`
+	Name                  string  `json:"name"`
+	ConnectionName        string  `json:"connectionName"`
+	ProviderName          string  `json:"providerName"`
+	RegionName            string  `json:"regionName"`
+	CspSpecName           string  `json:"cspSpecName"`
+	VCPU                  int     `json:"vCPU"`
+	MemoryGiB             int     `json:"memoryGiB"`
+	CostPerHour           float64 `json:"costPerHour"`
+	OrderInFilteredResult int     `json:"orderInFilteredResult"`
+	EvaluationScore01     float64 `json:"evaluationScore01"`
+	EvaluationScore02     int     `json:"evaluationScore02"`
+	EvaluationScore03     int     `json:"evaluationScore03"`
+	EvaluationScore04     int     `json:"evaluationScore04"`
+	EvaluationScore05     int     `json:"evaluationScore05"`
+	EvaluationScore06     int     `json:"evaluationScore06"`
+	EvaluationScore07     int     `json:"evaluationScore07"`
+	EvaluationScore08     int     `json:"evaluationScore08"`
+	EvaluationScore09     int     `json:"evaluationScore09"`
+	EvaluationScore10     float64 `json:"evaluationScore10"`
+	RootDiskType          string  `json:"rootDiskType"`
+	RootDiskSize          string  `json:"rootDiskSize"`
+}
+
+type GetNsRes struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }

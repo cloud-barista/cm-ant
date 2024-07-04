@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
+	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
-	u "github.com/cloud-barista/cm-ant/pkg/utils"
 )
 
 // LoadService represents a service for managing load operations.
@@ -54,7 +56,7 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 
 	var res []MonitoringAgentInstallationResult
 
-	scriptPath := u.JoinRootPathWith("/script/install-server-agent.sh")
+	scriptPath := utils.JoinRootPathWith("/script/install-server-agent.sh")
 	utils.LogInfof("Reading installation script from %s", scriptPath)
 	installScript, err := os.ReadFile(scriptPath)
 	if err != nil {
@@ -270,298 +272,459 @@ func (l *LoadService) UninstallMonitoringAgent(param MonitoringAgentInstallation
 	return effectedResults, nil
 }
 
-func (l *LoadService) InstallLoadTester() error {
-	// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	// defer cancel()
+type InstallLoadGeneratorParam struct {
+	InstallLocation constant.InstallLocation `json:"installLocation,omitempty"`
+	Coordinates     []string                 `json:"coordinate"`
+}
 
-	// var loadEnvReq api.LoadEnvReq
+type LoadGeneratorServerResult struct {
+	ID              uint
+	Csp             string
+	Region          string
+	Zone            string
+	PublicIp        string
+	PrivateIp       string
+	PublicDns       string
+	MachineType     string
+	Status          string
+	SshPort         string
+	Lat             string
+	Lon             string
+	Username        string
+	VmId            string
+	StartTime       time.Time
+	AdditionalVmKey string
+	Label           string
+	CreatedAt       time.Time
+}
 
-	// 1. check the vm is provisioned or not and the state is under running or not.
-	// 2. if the state is not valid, then provision the vm or run the vm.
-	// 3. after validation check, install load generator on running vm.
-	// TODO [medium] consider how to cluster load generator server and load generator.
-	// load generator have to cluster depends on the load test scenario.
+type LoadGeneratorInstallInfoResult struct {
+	ID              uint
+	InstallLocation constant.InstallLocation
+	InstallType     string
+	InstallPath     string
+	InstallVersion  string
+	Status          string
 
-	// if antLoadEnvReq.InstallLocation == constant.Remote {
-	// 	antTargetServerMcis, err := tumblebug.GetMcisObjectWithContext(ctx, antLoadEnvReq.NsId, antLoadEnvReq.McisId)
+	PublicKeyName        string
+	PrivateKeyName       string
+	LoadGeneratorServers []LoadGeneratorServerResult
+}
 
-	// 	if err != nil {
-	// 		return 0, err
-	// 	}
+const (
+	antNsId            = "ant-default-ns"
+	antMcisDescription = "Default MCIS for Cloud Migration Verification"
+	antInstallMonAgent = "no"
+	antMcisLabel       = "DynamicMcis,AntDefault"
+	antMcisId          = "ant-default-mcis"
 
-	// 	if len(antTargetServerMcis.VMs) == 0 {
-	// 		return 0, errors.New("cannot find any vm in target mcis")
-	// 	}
+	antVmDescription  = "Default VM for Cloud Migration Verification"
+	antVmLabel        = "DynamicVm,AntDefault"
+	antVmName         = "ant-default-vm"
+	antVmRootDiskSize = "default"
+	antVmRootDiskType = "default"
+	antVmSubGroupSize = "1"
+	antVmUserPassword = ""
 
-	// 	var antTargetServerVm tumblebug.VmRes
+	antPubKeyName  = "id_rsa_ant.pub"
+	antPrivKeyName = "id_rsa_ant"
+)
 
-	// 	for _, v := range antTargetServerMcis.VMs {
-	// 		if strings.EqualFold(v.ID, antLoadEnvReq.VmId) {
-	// 			antTargetServerVm = v
-	// 		}
-	// 	}
+// InstallLoadGenerator installs the load generator either locally or remotely.
+// Currently remote request is executing via cb-tumblebug.
+func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (LoadGeneratorInstallInfoResult, error) {
+	utils.LogInfo("Starting InstallLoadGenerator")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
 
-	// 	if antTargetServerVm.ID == "" {
-	// 		return 0, fmt.Errorf("%s does not exist", antLoadEnvReq.VmId)
-	// 	}
+	var result LoadGeneratorInstallInfoResult
 
-	// 	connectionId := antTargetServerVm.ConnectionName
-	// 	antNsId := antLoadEnvReq.NsId
-	// 	antVNetId := antTargetServerVm.VNetID
-	// 	antSubnetId := antTargetServerVm.SubnetID
-	// 	antCspRegion := antTargetServerVm.Region.Region
-	// 	antCspImageId, ok := regionImageMap[antCspRegion]
-	// 	antUsername := "cb-user"
-	// 	antSgId := "ant-load-test-sg"
-	// 	antSshId := "ant-load-test-ssh"
-	// 	antImageId := "ant-load-test-image"
-	// 	antSpecId := "ant-load-test-spec"
-	// 	antCspSpecName := "t3.small"
-	// 	antVmId := "ant-load-test-vm"
-	// 	antMcisId := "ant-load-test-mcis"
+	loadGeneratorInstallInfo := LoadGeneratorInstallInfo{
+		InstallLocation: param.InstallLocation,
+		InstallType:     "jmeter",
+		InstallPath:     config.AppConfig.Load.JMeter.Dir,
+		InstallVersion:  config.AppConfig.Load.JMeter.Version,
+		Status:          "starting",
+	}
 
-	// 	log.Println(connectionId, antNsId, antVNetId, antSubnetId, antUsername, antCspRegion, antCspImageId, antSgId, antSshId, antImageId, antSpecId, antCspSpecName, antVmId, antMcisId)
+	err := l.loadRepo.InsertLoadGeneratorInstallInfoTx(ctx, &loadGeneratorInstallInfo)
+	if err != nil {
+		utils.LogError("Failed to insert LoadGeneratorInstallInfo:", err)
+		return result, err
+	}
 
-	// 	if !ok {
-	// 		return 0, errors.New("region base ubuntu 22.04 lts image doesn't exist")
-	// 	}
+	utils.LogInfo("LoadGeneratorInstallInfo inserted successfully")
 
-	// 	var wg sync.WaitGroup
-	// 	goroutine := 4
-	// 	errChan := make(chan error, goroutine)
+	installLocation := param.InstallLocation
+	installScriptPath := utils.JoinRootPathWith("/script/install-jmeter.sh")
 
-	// 	wg.Add(1)
-	// 	go func() {
-	// 		defer wg.Done()
+	switch installLocation {
+	case constant.Local:
+		utils.LogInfo("Starting local installation of JMeter")
+		err := utils.Script(installScriptPath, []string{
+			fmt.Sprintf("JMETER_WORK_DIR=%s", config.AppConfig.Load.JMeter.Dir),
+			fmt.Sprintf("JMETER_VERSION=%s", config.AppConfig.Load.JMeter.Version),
+		})
+		if err != nil {
+			utils.LogError("Error while installing JMeter locally:", err)
+			return result, fmt.Errorf("error while installing jmeter; %s", err)
+		}
+		utils.LogInfo("Local installation of JMeter completed successfully")
+	case constant.Remote:
+		utils.LogInfo("Starting remote installation of JMeter")
+		// get the spec and image information
+		recommendVm, err := l.getRecommendVm(ctx, param.Coordinates)
+		if err != nil {
+			utils.LogError("Failed to get recommended VM:", err)
+			return result, err
+		}
+		imageOs := "ubuntu22.04"
+		antVmCommonSpec := recommendVm[0].Name
+		antVmConnectionName := recommendVm[0].ConnectionName
+		antVmCommonImage, err := utils.ReplaceAtIndex(antVmCommonSpec, imageOs, "+", 2)
 
-	// 		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
-	// 		defer c()
+		if err != nil {
+			utils.LogError("Error replacing VM spec index:", err)
+			return result, err
+		}
 
-	// 		err2 := tumblebug.GetSecurityGroupWithContext(tc, antNsId, antSgId)
-	// 		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
-	// 			errChan <- err2
-	// 			return
-	// 		} else if err2 == nil {
-	// 			return
-	// 		}
+		// check namespace is valid or not
+		err = l.validDefaultNs(ctx, antNsId)
+		if err != nil {
+			utils.LogError("Error validating default namespace:", err)
+			return result, err
+		}
 
-	// 		sg := tumblebug.SecurityGroupReq{
-	// 			Name:           antSgId,
-	// 			ConnectionName: connectionId,
-	// 			VNetID:         antVNetId,
-	// 			Description:    "Default Security Group for Ant load test",
-	// 			FirewallRules: []tumblebug.FirewallRuleReq{
-	// 				{FromPort: "22", ToPort: "22", IPProtocol: "tcp", Direction: "inbound", CIDR: "0.0.0.0/0"},
-	// 			},
-	// 		}
-	// 		_, err2 = tumblebug.CreateSecurityGroupWithContext(tc, antNsId, sg)
-	// 		if err2 != nil {
-	// 			errChan <- err2
-	// 			return
-	// 		}
-	// 	}()
+		// get the ant default mcis
+		antMcis, err := l.getAndDefaultMcis(ctx, antVmCommonSpec, antVmCommonImage, antVmConnectionName)
+		if err != nil {
+			utils.LogError("Error getting or creating default MCIS:", err)
+			return result, err
+		}
 
-	// 	wg.Add(1)
-	// 	go func() {
-	// 		defer wg.Done()
+		// if server is not running state, try to resume and get mcis information
+		retryCount := config.AppConfig.Load.Retry
+		for retryCount > 0 && antMcis.StatusCount.CountRunning < 1 {
+			utils.LogInfof("Attempting to resume MCIS, retry count: %d", retryCount)
 
-	// 		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
-	// 		defer c()
+			err = l.tumblebugClient.ControlLifecycleWithContext(ctx, antNsId, antMcis.ID, "resume")
+			if err != nil {
+				utils.LogError("Error resuming MCIS:", err)
+				return result, err
+			}
+			time.Sleep(10 * time.Second)
+			antMcis, err = l.getAndDefaultMcis(ctx, antVmCommonSpec, antVmCommonImage, antVmConnectionName)
+			if err != nil {
+				utils.LogError("Error getting MCIS after resume attempt:", err)
+				return result, err
+			}
 
-	// 		_, err2 := tumblebug.GetSecureShellWithContext(tc, antNsId, antSshId)
-	// 		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
-	// 			errChan <- err2
-	// 			return
-	// 		} else if err2 == nil {
-	// 			return
-	// 		}
+			retryCount = retryCount - 1
+		}
 
-	// 		ssh := tumblebug.SecureShellReq{
-	// 			ConnectionName: connectionId,
-	// 			Name:           antSshId,
-	// 			Username:       antUsername,
-	// 			Description:    "Default secure shell key for Ant load test",
-	// 		}
-	// 		sshResult, err2 := tumblebug.CreateSecureShellWithContext(ctx, antNsId, ssh)
-	// 		if err2 != nil {
-	// 			errChan <- err2
-	// 			return
-	// 		}
-	// 		home, err2 := os.UserHomeDir()
-	// 		if err2 != nil {
-	// 			errChan <- err2
-	// 			return
-	// 		}
-	// 		pemFilePath := fmt.Sprintf("%s/.ssh/%s.pem", home, sshResult.Id)
+		if antMcis.StatusCount.CountRunning < 1 {
+			utils.LogError("No running VM on ant default MCIS")
+			return result, errors.New("there is no running vm on ant default mcis")
+		}
 
-	// 		err2 = os.WriteFile(pemFilePath, []byte(sshResult.PrivateKey), 0600)
-	// 		if err2 != nil {
-	// 			errChan <- err2
-	// 			return
-	// 		}
+		addAuthorizedKeyCommand, err := getAddAuthorizedKeyCommand()
+		if err != nil {
+			utils.LogError("Error getting add authorized key command:", err)
+			return result, err
+		}
 
-	// 		log.Printf("%s.pem ssh private key file save to default ssh path", sshResult.Id)
-	// 	}()
+		installationCommand, err := utils.ReadToString(installScriptPath)
+		if err != nil {
+			utils.LogError("Error reading installation script:", err)
+			return result, err
+		}
 
-	// 	wg.Add(1)
-	// 	go func() {
-	// 		defer wg.Done()
+		commandReq := tumblebug.SendCommandReq{
+			Command: []string{installationCommand, addAuthorizedKeyCommand},
+		}
 
-	// 		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
-	// 		defer c()
+		_, err = l.tumblebugClient.CommandToMcisWithContext(ctx, antNsId, antMcis.ID, commandReq)
+		if err != nil {
+			utils.LogError("Error sending command to MCIS:", err)
+			return result, err
+		}
 
-	// 		err2 := tumblebug.GetImageWithContext(tc, antNsId, antImageId)
-	// 		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
-	// 			errChan <- err2
-	// 			return
-	// 		} else if err2 == nil {
-	// 			return
-	// 		}
-	// 		// TODO add dynamic spec integration in advanced version
-	// 		image := tumblebug.ImageReq{
-	// 			ConnectionName: connectionId,
-	// 			Name:           antImageId,
-	// 			CspImageId:     antCspImageId,
-	// 			Description:    "Default machine image for Ant load test",
-	// 		}
-	// 		_, err2 = tumblebug.CreateImageWithContext(ctx, antNsId, image)
-	// 		if err2 != nil {
-	// 			errChan <- err2
-	// 			return
-	// 		}
-	// 	}()
+		utils.LogInfo("Commands sent to MCIS successfully")
 
-	// 	wg.Add(1)
-	// 	go func() {
-	// 		defer wg.Done()
+		loadGeneratorServers := make([]LoadGeneratorServer, 0)
 
-	// 		tc, c := context.WithTimeout(context.Background(), 5*time.Second)
-	// 		defer c()
+		for _, vm := range antMcis.VMs {
+			loadGeneratorServer := LoadGeneratorServer{
+				Csp:             vm.ConnectionConfig.ProviderName,
+				Region:          vm.Region.Region,
+				Zone:            vm.Region.Zone,
+				PublicIp:        vm.PublicIP,
+				PrivateIp:       vm.PrivateIP,
+				PublicDns:       vm.PublicDNS,
+				MachineType:     vm.CspViewVMDetail.VMSpecName,
+				Status:          vm.Status,
+				SshPort:         vm.SSHPort,
+				Lat:             fmt.Sprintf("%f", vm.Location.Latitude),
+				Lon:             fmt.Sprintf("%f", vm.Location.Longitude),
+				Username:        vm.CspViewVMDetail.VMUserID,
+				VmId:            vm.CspViewVMDetail.IID.SystemID,
+				StartTime:       vm.CspViewVMDetail.StartTime,
+				AdditionalVmKey: vm.ID,
+				Label:           vm.Label,
+			}
 
-	// 		err2 := tumblebug.GetSpecWithContext(tc, antNsId, antSpecId)
-	// 		if err2 != nil && !errors.Is(err2, tumblebug.ResourcesNotFound) {
-	// 			errChan <- err2
-	// 			return
-	// 		} else if err2 == nil {
-	// 			return
-	// 		}
+			loadGeneratorServers = append(loadGeneratorServers, loadGeneratorServer)
+		}
 
-	// 		// TODO add dynamic spec integration in advanced version
-	// 		spec := tumblebug.SpecReq{
-	// 			ConnectionName: connectionId,
-	// 			Name:           antSpecId,
-	// 			CspSpecName:    antCspSpecName,
-	// 			Description:    "Default spec for Ant load test",
-	// 		}
-	// 		_, err2 = tumblebug.CreateSpecWithContext(ctx, antNsId, spec)
-	// 		if err2 != nil {
-	// 			errChan <- err2
-	// 			return
-	// 		}
-	// 	}()
+		loadGeneratorInstallInfo.LoadGeneratorServers = loadGeneratorServers
+		loadGeneratorInstallInfo.PublicKeyName = antPubKeyName
+		loadGeneratorInstallInfo.PrivateKeyName = antPrivKeyName
+	}
 
-	// 	wg.Wait()
-	// 	close(errChan)
+	loadGeneratorInstallInfo.Status = "completed"
+	err = l.loadRepo.UpdateLoadGeneratorInstallInfoTx(ctx, &loadGeneratorInstallInfo)
+	if err != nil {
+		utils.LogError("Error updating LoadGeneratorInstallInfo:", err)
+		return result, err
+	}
 
-	// 	if len(errChan) != 0 {
-	// 		err = <-errChan
-	// 		return 0, err
-	// 	}
+	utils.LogInfo("LoadGeneratorInstallInfo updated successfully")
 
-	// 	antLoadGenerateServerMcis, err := tumblebug.GetMcisWithContext(ctx, antNsId, antMcisId)
+	loadGeneratorServerResults := make([]LoadGeneratorServerResult, 0)
+	for _, l := range loadGeneratorInstallInfo.LoadGeneratorServers {
+		lr := LoadGeneratorServerResult{
+			ID:              l.ID,
+			Csp:             l.Csp,
+			Region:          l.Region,
+			Zone:            l.Zone,
+			PublicIp:        l.PublicIp,
+			PrivateIp:       l.PrivateIp,
+			PublicDns:       l.PublicDns,
+			MachineType:     l.MachineType,
+			Status:          l.Status,
+			SshPort:         l.SshPort,
+			Lat:             l.Lat,
+			Lon:             l.Lon,
+			Username:        l.Username,
+			VmId:            l.VmId,
+			StartTime:       l.StartTime,
+			AdditionalVmKey: l.AdditionalVmKey,
+			Label:           l.Label,
+			CreatedAt:       l.CreatedAt,
+		}
+		loadGeneratorServerResults = append(loadGeneratorServerResults, lr)
+	}
 
-	// 	if err != nil && !errors.Is(err, tumblebug.ResourcesNotFound) {
-	// 		return 0, err
-	// 	} else if err == nil {
-	// 		if !antLoadGenerateServerMcis.IsRunning(antVmId) {
-	// 			// TODO - need to change mcis or antTargetServerVm status execution
-	// 			return 0, errors.New("vm is not running condition")
-	// 		}
-	// 	} else {
-	// 		antLoadGenerateServerReq := tumblebug.McisReq{
-	// 			Name:            antMcisId,
-	// 			Description:     "Default mcis for Ant load test",
-	// 			InstallMonAgent: "no",
-	// 			Label:           "ANT",
-	// 			SystemLabel:     "ANT",
-	// 			Vm: []tumblebug.VmReq{
-	// 				{
-	// 					SubGroupSize:     "1",
-	// 					Name:             antVmId,
-	// 					ImageId:          antImageId,
-	// 					VmUserAccount:    antUsername,
-	// 					ConnectionName:   connectionId,
-	// 					SshKeyId:         antSshId,
-	// 					SpecId:           antSpecId,
-	// 					SecurityGroupIds: []string{antSgId},
-	// 					VNetId:           antVNetId,
-	// 					SubnetId:         antSubnetId,
-	// 					Description:      "Default vm for Ant load test",
-	// 					VmUserPassword:   "",
-	// 					RootDiskType:     "default",
-	// 					RootDiskSize:     "default",
-	// 				},
-	// 			},
-	// 		}
+	result.ID = loadGeneratorInstallInfo.ID
+	result.InstallLocation = loadGeneratorInstallInfo.InstallLocation
+	result.InstallType = loadGeneratorInstallInfo.InstallType
+	result.InstallPath = loadGeneratorInstallInfo.InstallPath
+	result.InstallVersion = loadGeneratorInstallInfo.InstallVersion
+	result.Status = loadGeneratorInstallInfo.Status
+	result.PublicKeyName = loadGeneratorInstallInfo.PublicKeyName
+	result.PrivateKeyName = loadGeneratorInstallInfo.PrivateKeyName
+	result.LoadGeneratorServers = loadGeneratorServerResults
 
-	// 		antLoadGenerateServerMcis, err = tumblebug.CreateMcisWithContext(ctx, antNsId, antLoadGenerateServerReq)
+	utils.LogInfo("InstallLoadGenerator completed successfully")
 
-	// 		if err != nil {
-	// 			return 0, err
-	// 		}
+	return result, nil
+}
 
-	// 		log.Println("******************created*******************\n", antLoadGenerateServerMcis)
-	// 		time.Sleep(3 * time.Second)
-	// 	}
+// getAddAuthorizedKeyCommand returns a command to add the authorized key.
+func getAddAuthorizedKeyCommand() (string, error) {
+	pubKeyPath, _, err := validateKeyPair()
+	if err != nil {
+		return "", err
+	}
 
-	// 	log.Println("ant load generate server mcis is ready with running condition")
+	pub, err := utils.ReadToString(pubKeyPath)
+	if err != nil {
+		return "", err
+	}
 
-	// 	ssh, err := tumblebug.GetSecureShellWithContext(ctx, antNsId, antSshId)
-	// 	if err != nil {
-	// 		return 0, err
-	// 	}
+	addAuthorizedKeyScript := utils.JoinRootPathWith("/script/add-authorized-key.sh")
 
-	// 	vm := antLoadGenerateServerMcis.VMs[0]
+	addAuthorizedKeyCommand, err := utils.ReadToString(addAuthorizedKeyScript)
+	if err != nil {
+		return "", err
+	}
 
-	// 	loadEnvReq = api.LoadEnvReq{
-	// 		InstallLocation: constant.Remote,
-	// 		NsId:            antNsId,
-	// 		McisId:          antLoadGenerateServerMcis.ID,
-	// 		VmId:            antLoadGenerateServerMcis.VmId(),
-	// 		Username:        antUsername,
-	// 		PublicIp:        vm.PublicIP,
-	// 		PemKeyPath:      filepath.Join(os.Getenv("HOME"), ".ssh", ssh.Id+".pem"),
-	// 	}
-	// } else {
-	// 	loadEnvReq = api.LoadEnvReq{
-	// 		InstallLocation: constant.Local,
-	// 	}
-	// }
+	addAuthorizedKeyCommand = strings.Replace(addAuthorizedKeyCommand, `PUBLIC_KEY=""`, fmt.Sprintf(`PUBLIC_KEY="%s"`, pub), 1)
+	return addAuthorizedKeyCommand, nil
+}
 
-	// manager := managers.NewLoadTestManager()
+// validateKeyPair checks and generates SSH key pair if it doesn't exist.
+func validateKeyPair() (string, string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", "", err
+	}
 
-	// err := manager.Install(&loadEnvReq)
-	// if err != nil {
-	// 	return 0, err
-	// }
+	privKeyPath := fmt.Sprintf("%s/.ssh/%s", homeDir, antPrivKeyName)
+	pubKeyPath := fmt.Sprintf("%s/.ssh/%s", homeDir, antPubKeyName)
 
-	// loadEnv := model.LoadEnv{
-	// 	InstallLocation: loadEnvReq.InstallLocation,
-	// 	NsId:            loadEnvReq.NsId,
-	// 	McisId:          loadEnvReq.McisId,
-	// 	VmId:            loadEnvReq.VmId,
-	// 	Username:        loadEnvReq.Username,
-	// 	PublicIp:        loadEnvReq.PublicIp,
-	// 	PemKeyPath:      loadEnvReq.PemKeyPath,
-	// }
+	err = utils.CreateFolderIfNotExist(fmt.Sprintf("%s/.ssh", homeDir))
+	if err != nil {
+		return pubKeyPath, privKeyPath, err
+	}
 
-	// createdEnvId, err := repository.SaveLoadTestInstallEnv(&loadEnv)
-	// if err != nil {
-	// 	return 0, fmt.Errorf("failed to save load test installation environment: %w", err)
-	// }
-	// log.Printf("Environment ID %d for load test is successfully created", createdEnvId)
+	exist := utils.ExistCheck(privKeyPath)
+	if !exist {
+		err := utils.GenerateSSHKeyPair(4096, privKeyPath, pubKeyPath)
+		if err != nil {
+			return pubKeyPath, privKeyPath, err
+		}
+	}
+	return pubKeyPath, privKeyPath, nil
+}
 
-	// return createdEnvId, nil
+// getAndDefaultMcis retrieves or creates the default MCIS.
+func (l *LoadService) getAndDefaultMcis(ctx context.Context, antVmCommonSpec, antVmCommonImage, antVmConnectionName string) (tumblebug.McisRes, error) {
+	var antMcis tumblebug.McisRes
+	var err error
+	antMcis, err = l.tumblebugClient.GetMcisWithContext(ctx, antNsId, antMcisId)
+	if err != nil {
+		if errors.Is(err, tumblebug.ErrNotFound) {
+			dynamicMcisArg := tumblebug.DynamicMcisReq{
+				Description:     antMcisDescription,
+				InstallMonAgent: antInstallMonAgent,
+				Label:           antMcisLabel,
+				Name:            antMcisId,
+				SystemLabel:     "",
+				VM: []tumblebug.DynamicVmReq{
+					{
+						CommonImage:    antVmCommonImage,
+						CommonSpec:     antVmCommonSpec,
+						ConnectionName: antVmConnectionName,
+						Description:    antVmDescription,
+						Label:          antVmLabel,
+						Name:           antVmName,
+						RootDiskSize:   antVmRootDiskSize,
+						RootDiskType:   antVmRootDiskType,
+						SubGroupSize:   antVmSubGroupSize,
+						VMUserPassword: antVmUserPassword,
+					},
+				},
+			}
+			antMcis, err = l.tumblebugClient.DynamicMcisWithContext(ctx, antNsId, dynamicMcisArg)
+			time.Sleep(15 * time.Second)
+			if err != nil {
+				return antMcis, err
+			}
+		} else {
+			return antMcis, err
+		}
+	} else if antMcis.VMs != nil && len(antMcis.VMs) == 0 {
+
+		dynamicVmArg := tumblebug.DynamicVmReq{
+			CommonImage:    antVmCommonImage,
+			CommonSpec:     antVmCommonSpec,
+			ConnectionName: antVmConnectionName,
+			Description:    antVmDescription,
+			Label:          antVmLabel,
+			Name:           antVmName,
+			RootDiskSize:   antVmRootDiskSize,
+			RootDiskType:   antVmRootDiskType,
+			SubGroupSize:   antVmSubGroupSize,
+			VMUserPassword: antVmUserPassword,
+		}
+
+		antMcis, err = l.tumblebugClient.DynamicVmWithContext(ctx, antNsId, antMcisId, dynamicVmArg)
+		time.Sleep(15 * time.Second)
+		if err != nil {
+			return antMcis, err
+		}
+	}
+	return antMcis, nil
+}
+
+// getRecommendVm retrieves recommendVm to specify the location of provisioning.
+func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string) (tumblebug.RecommendVmResList, error) {
+	recommendVmArg := tumblebug.RecommendVmReq{
+		Filter: tumblebug.Filter{
+			Policy: []tumblebug.FilterPolicy{
+				{
+					Condition: []tumblebug.Condition{
+						{
+							Operand:  "2",
+							Operator: ">=",
+						},
+						{
+							Operand:  "8",
+							Operator: "<=",
+						},
+					},
+					Metric: "vCPU",
+				},
+				{
+					Condition: []tumblebug.Condition{
+						{
+							Operand:  "4",
+							Operator: ">=",
+						},
+						{
+							Operand:  "8",
+							Operator: "<=",
+						},
+					},
+					Metric: "memoryGiB",
+				},
+				{
+					Condition: []tumblebug.Condition{
+						{
+							Operand: "aws",
+						},
+					},
+					Metric: "providerName",
+				},
+			},
+		},
+		Limit: "1",
+		Priority: tumblebug.Priority{
+			Policy: []tumblebug.Policy{
+				{
+					Metric: "location",
+					Parameter: []tumblebug.Parameter{
+						{
+							Key: "coordinateClose",
+							Val: coordinates,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	recommendRes, err := l.tumblebugClient.GetRecommendVmWithContext(ctx, recommendVmArg)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(recommendRes) == 0 {
+		return nil, errors.New("there is no recommended vm list")
+	}
+
+	return recommendRes, nil
+}
+
+// validDefaultNs checks if the default namespace exists, and creates it if not.
+func (l *LoadService) validDefaultNs(ctx context.Context, antNsId string) error {
+	_, err := l.tumblebugClient.GetNsWithContext(ctx, antNsId)
+	if err != nil && errors.Is(err, tumblebug.ErrNotFound) {
+
+		arg := tumblebug.CreateNsReq{
+			Name:        antNsId,
+			Description: "cm-ant default ns for validating migration",
+		}
+
+		err = l.tumblebugClient.CreateNsWithContext(ctx, arg)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
 
 	return nil
 }

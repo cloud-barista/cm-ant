@@ -95,3 +95,57 @@ type VmReq struct {
 	RootDiskType     string   `json:"rootDiskType"`
 	RootDiskSize     string   `json:"rootDiskSize"`
 }
+
+type RecommendVmReq struct {
+	Filter   Filter   `json:"filter"`
+	Limit    string   `json:"limit"`
+	Priority Priority `json:"priority"`
+}
+type Condition struct {
+	Operand  string `json:"operand"`
+	Operator string `json:"operator"`
+}
+type FilterPolicy struct {
+	Condition []Condition `json:"condition"`
+	Metric    string      `json:"metric"`
+}
+type Filter struct {
+	Policy []FilterPolicy `json:"policy"`
+}
+type Parameter struct {
+	Key string   `json:"key"`
+	Val []string `json:"val"`
+}
+type Policy struct {
+	Metric    string      `json:"metric"`
+	Parameter []Parameter `json:"parameter"`
+}
+type Priority struct {
+	Policy []Policy `json:"policy"`
+}
+type CreateNsReq struct {
+	Description string `json:"dscription"`
+	Name        string `json:"name"`
+}
+
+type DynamicVmReq struct {
+	CommonImage    string `json:"commonImage"`
+	CommonSpec     string `json:"commonSpec"`
+	ConnectionName string `json:"connectionName"`
+	Description    string `json:"description"`
+	Label          string `json:"label"`
+	Name           string `json:"name"`
+	RootDiskSize   string `json:"rootDiskSize"`
+	RootDiskType   string `json:"rootDiskType"`
+	SubGroupSize   string `json:"subGroupSize"`
+	VMUserPassword string `json:"vmUserPassword"`
+}
+
+type DynamicMcisReq struct {
+	Description     string         `json:"description"`
+	InstallMonAgent string         `json:"installMonAgent"`
+	Label           string         `json:"label"`
+	Name            string         `json:"name"`
+	SystemLabel     string         `json:"systemLabel"`
+	VM              []DynamicVmReq `json:"vm"`
+}

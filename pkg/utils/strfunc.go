@@ -43,3 +43,13 @@ func GetFirstPart(input, delim string) string {
 	parts := strings.Split(input, delim)
 	return parts[0]
 }
+
+// replaceAtIndex replaces the value at the specified index in the given from string.
+func ReplaceAtIndex(from string, newValue string, delim string, index int) (string, error) {
+	parts := strings.Split(from, delim)
+	if index < 0 || index >= len(parts) {
+		return "", fmt.Errorf("index out of range")
+	}
+	parts[index] = newValue
+	return strings.Join(parts, delim), nil
+}

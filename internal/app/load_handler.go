@@ -5,6 +5,7 @@ import (
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
+	"github.com/cloud-barista/cm-ant/pkg/utils"
 	"github.com/labstack/echo/v4"
 )
 
@@ -13,28 +14,54 @@ func (s *AntServer) getAllLoadEnvironments(c echo.Context) error {
 	return c.JSON(http.StatusOK, c.Request().RequestURI)
 }
 
+// installLoadGenerator handler function that handles a load generator installation request.
+// @Id InstallLoadGenerator
+// @Summary Install Load Generator
+// @Description Install a load generator either locally or remotely.
+// @Tags LoadGeneratorManagement
+// @Accept json
+// @Produce json
+// @Param body body app.InstallLoadGeneratorReq true "Load Generator Installation Request"
+// @Success 200 {object} app.AntResponse[load.LoadGeneratorInstallInfoResult] "Successfully installed load generator"
+// @Failure 400 {object} app.AntResponse[string] "Load generator installation info is not correct.| available install locations are remote or local."
+// @Failure 500 {object} app.AntResponse[string] "Internal Server Error"
+// @Router /api/v1/load/generator/install [post]
 func (s *AntServer) installLoadGenerator(c echo.Context) error {
 	var req InstallLoadGeneratorReq
 
+	utils.LogInfo("Received request to install load generator")
+
 	if err := c.Bind(&req); err != nil {
+		utils.LogError("Failed to bind request:", err)
 		return errorResponse(http.StatusBadRequest, "load generator installation info is not correct.")
 	}
 
 	if req.InstallLocation == "" ||
 		(req.InstallLocation != constant.Remote && req.InstallLocation != constant.Local) {
+		utils.LogError("Invalid install location:", req.InstallLocation)
 		return errorResponse(http.StatusBadRequest, "available install locations are remote or local.")
 	}
 
-	if req.LoadGeneratorType != constant.Jmeter {
-		req.LoadGeneratorType = constant.Jmeter
-	}
+	utils.LogInfo("Calling service layer to install load generator")
 
 	// call service layer install load generator
+	param := load.InstallLoadGeneratorParam{
+		InstallLocation: req.InstallLocation,
+		Coordinates:     []string{"37.53/127.02"},
+	}
+	result, err := s.services.loadService.InstallLoadGenerator(param)
+
+	if err != nil {
+		utils.LogError("Error installing load generator:", err)
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	utils.LogInfo("Load generator installed successfully")
 
 	return successResponse(
 		c,
 		"load generator is successfully installed",
-		"done",
+		result,
 	)
 }
 

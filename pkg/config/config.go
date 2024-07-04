@@ -30,6 +30,7 @@ type AntConfig struct {
 		Password string `yaml:"password"`
 	} `yaml:"tumblebug"`
 	Load struct {
+		Retry  int `yaml:"retry"`
 		JMeter struct {
 			Dir     string `yaml:"dir"`
 			Version string `yaml:"version"`

@@ -17,13 +17,5 @@ type GetAllMonitoringAgentInfosReq struct {
 }
 
 type InstallLoadGeneratorReq struct {
-	InstallLocation   constant.InstallLocation   `json:"installLocation,omitempty"`
-	LoadGeneratorType constant.LoadGeneratorType `json:"loadGeneratorType,omitempty"`
-	Username          string                     `json:"username,omitempty"`
-	PublicIp          string                     `json:"publicIp,omitempty"`
-	PemKeyPath        string                     `json:"pemKeyPath,omitempty"`
-
-	NsId   string `json:"nsId,omitempty"`
-	McisId string `json:"mcisId,omitempty"`
-	VmId   string `json:"vmId,omitempty"`
+	InstallLocation constant.InstallLocation `json:"installLocation"`
 }

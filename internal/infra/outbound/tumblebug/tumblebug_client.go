@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -12,6 +13,12 @@ import (
 
 	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
+)
+
+var (
+	ErrBadRequest          = errors.New("bad request")
+	ErrNotFound            = errors.New("object not found")
+	ErrInternalServerError = errors.New("tumblebug server has got error")
 )
 
 type TumblebugClient struct {
@@ -71,6 +78,15 @@ func (t *TumblebugClient) requestWithContext(ctx context.Context, method, url st
 	if resp.StatusCode != http.StatusOK {
 		rb, _ := io.ReadAll(resp.Body)
 		log.Printf("[ERROR] Unexpected status code: %d, response: %s", resp.StatusCode, string(rb))
+
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, ErrNotFound
+		} else if resp.StatusCode == http.StatusInternalServerError {
+			return nil, ErrInternalServerError
+		} else if resp.StatusCode == http.StatusBadRequest {
+			return nil, ErrBadRequest
+		}
+
 		return nil, fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(rb))
 	}
 

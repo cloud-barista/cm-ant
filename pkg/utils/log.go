@@ -11,22 +11,55 @@ const (
 	colorGreen = "\033[32m"
 )
 
-// Utility function for logging info messages with color
+// LogLevel type to represent different log levels
+type LogLevel string
+
+const (
+	Info  LogLevel = "INFO"
+	Error LogLevel = "ERROR"
+)
+
+// Utility function for logging messages with color
+func Log(level LogLevel, v ...interface{}) {
+	var color string
+	switch level {
+	case Info:
+		color = colorGreen
+	case Error:
+		color = colorRed
+	default:
+		color = colorReset
+	}
+	log.Println(color+fmt.Sprintf("[%s]", level)+colorReset, fmt.Sprint(v...))
+}
+
+func Logf(level LogLevel, format string, v ...interface{}) {
+	var color string
+	switch level {
+	case Info:
+		color = colorGreen
+	case Error:
+		color = colorRed
+	default:
+		color = colorReset
+	}
+	content := fmt.Sprintf(format, v...)
+	log.Println(color+fmt.Sprintf("[%s]", level)+colorReset, content)
+}
+
+// Wrapper functions for specific log levels
 func LogInfo(v ...interface{}) {
-	log.Println(colorGreen+"[INFO]"+colorReset, v)
+	Log(Info, v...)
 }
 
 func LogInfof(format string, v ...interface{}) {
-	content := fmt.Sprintf(format, v...)
-	log.Println(colorGreen+"[INFO]"+colorReset, content)
+	Logf(Info, format, v...)
 }
 
-// Utility function for logging error messages with color
 func LogError(v ...interface{}) {
-	log.Println(colorRed+"[ERROR]"+colorReset, v)
+	Log(Error, v...)
 }
 
 func LogErrorf(format string, v ...interface{}) {
-	content := fmt.Sprintf(format, v...)
-	log.Println(colorRed+"[ERROR]"+colorReset, content)
+	Logf(Error, format, v...)
 }

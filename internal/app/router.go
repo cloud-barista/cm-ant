@@ -24,11 +24,6 @@ const (
 	colorGreen = "\033[32m"
 )
 
-// @title CM-ANT API
-// @version 0.1
-// @description
-// @basePath /ant
-// InitRouter initializes the routing for CM-ANT API server.
 func (server *AntServer) InitRouter() error {
 	setStatic(server.e)
 	setMiddleware(server.e)
@@ -80,7 +75,7 @@ func (server *AntServer) InitRouter() error {
 
 		{
 			// load tester
-			loadRouter.POST("/tester", server.installLoadGenerator)
+			loadRouter.POST("/generator/install", server.installLoadGenerator)
 			loadRouter.DELETE("/tester/:envId", server.uninstallLoadTester)
 
 			// load test execution

@@ -18,6 +18,9 @@ import (
 func migrateDB(defaultDb *gorm.DB) error {
 	err := defaultDb.AutoMigrate(
 		&load.MonitoringAgentInfo{},
+		&load.LoadGeneratorServer{},
+		&load.LoadGeneratorInstallInfo{},
+
 		&model.LoadEnv{},
 		&model.LoadExecutionConfig{},
 		&model.LoadExecutionState{},
