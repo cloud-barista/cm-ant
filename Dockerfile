@@ -15,7 +15,7 @@ RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 make build
 
 
 # Stage 2: Run the Ant app
-FROM alpine:latest
+FROM alpine:latest as prod
 
 # ANT ROOT PATH
 ENV ANT_ROOT_PATH=/app
