@@ -7,9 +7,9 @@ import (
 	"log"
 	"strings"
 
+	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
-	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 )

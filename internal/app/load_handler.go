@@ -1,7 +1,9 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
@@ -9,9 +11,45 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func (s *AntServer) getAllLoadEnvironments(c echo.Context) error {
+// getAllLoadGeneratorInstallInfo handler function that retrieves all load generator installation information.
+// @Id GetAllLoadGeneratorInstallInfo
+// @Summary Get All Load Generator Install Info
+// @Description Retrieve a list of all installed load generators with pagination support.
+// @Tags LoadGeneratorManagement
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number for pagination (default 1)"
+// @Param size query int false "Number of items per page (default 10, max 10)"
+// @Param status query string false "Filter by status"
+// @Success 200 {object} app.AntResponse[load.GetAllLoadGeneratorInstallInfoResult] "Successfully retrieved monitoring agent information"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Failed to retrieve monitoring agent information"
+// @Router /api/v1/load/generators [get]
+func (s *AntServer) getAllLoadGeneratorInstallInfo(c echo.Context) error {
+	var req GetAllLoadGeneratorInstallInfoReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponse(http.StatusBadRequest, "Invalid request parameters")
+	}
+	if req.Size < 1 || req.Size > 10 {
+		req.Size = 10
+	}
+	if req.Page < 1 {
+		req.Page = 1
+	}
 
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	arg := load.GetAllLoadGeneratorInstallInfoParam{
+		Page:   req.Page,
+		Size:   req.Size,
+		Status: req.Status,
+	}
+
+	result, err := s.services.loadService.GetAllLoadGeneratorInstallInfo(arg)
+
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "Failed to retrieve monitoring agent information")
+	}
+
+	return successResponse(c, "Successfully retrieved monitoring agent information", result)
 }
 
 // installLoadGenerator handler function that handles a load generator installation request.
@@ -25,7 +63,7 @@ func (s *AntServer) getAllLoadEnvironments(c echo.Context) error {
 // @Success 200 {object} app.AntResponse[load.LoadGeneratorInstallInfoResult] "Successfully installed load generator"
 // @Failure 400 {object} app.AntResponse[string] "Load generator installation info is not correct.| available install locations are remote or local."
 // @Failure 500 {object} app.AntResponse[string] "Internal Server Error"
-// @Router /api/v1/load/generator/install [post]
+// @Router /api/v1/load/generators [post]
 func (s *AntServer) installLoadGenerator(c echo.Context) error {
 	var req InstallLoadGeneratorReq
 
@@ -65,9 +103,39 @@ func (s *AntServer) installLoadGenerator(c echo.Context) error {
 	)
 }
 
-func (s *AntServer) uninstallLoadTester(c echo.Context) error {
+// uninstallLoadGenerator handler function that handles a load generator uninstallation request.
+// @Id UninstallLoadGenerator
+// @Summary Uninstall Load Generator
+// @Description Uninstall a previously installed load generator.
+// @Tags LoadGeneratorManagement
+// @Accept json
+// @Produce json
+// @Param loadGeneratorInstallInfoId path string true "load generator install info id"
+// @Success 200 {object} app.AntResponse[string] "Successfully uninstall load generator"
+// @Failure 400 {object} app.AntResponse[string] "Load generator installation info id must be set."
+// @Failure 500 {object} app.AntResponse[string] "Internal Server Error"
+// @Router /api/v1/load/generators/{loadGeneratorInstallInfoId} [delete]
+func (s *AntServer) uninstallLoadGenerator(c echo.Context) error {
+	loadGeneratorInstallInfoId := c.Param("loadGeneratorInstallInfoId")
 
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	if strings.TrimSpace(loadGeneratorInstallInfoId) == "" {
+		return errorResponse(http.StatusBadRequest, "load generator installation info id must be set.")
+	}
+
+	arg := load.UninstallLoadGeneratorParam{
+		LoadGeneratorInstallInfoId: loadGeneratorInstallInfoId,
+	}
+	err := s.services.loadService.UninstallLoadGenerator(arg)
+
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	return successResponse(
+		c,
+		fmt.Sprintf("Successfully uninstall load generator: %s", loadGeneratorInstallInfoId),
+		"done",
+	)
 }
 
 func (s *AntServer) runLoadTest(c echo.Context) error {

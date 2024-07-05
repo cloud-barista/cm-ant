@@ -139,14 +139,19 @@ func (r *LoadRepository) GetAllMonitoringAgentInfosTx(ctx context.Context, param
 
 func (r *LoadRepository) InsertLoadGeneratorInstallInfoTx(ctx context.Context, param *LoadGeneratorInstallInfo) error {
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
-		return d.
+		err := d.
 			Where(
 				"install_location = ? AND install_type = ? AND install_path = ? AND install_version = ? AND status = ?",
-				param.InstallLocation, param.InstallType, param.InstallPath, param.InstallVersion, "completed",
+				param.InstallLocation, param.InstallType, param.InstallPath, param.InstallVersion, "installed",
 			).
-			FirstOrCreate(
-				param,
-			).Error
+			// Omit("LoadGeneratorServers").
+			FirstOrCreate(param).Error
+
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 
 	return err
@@ -155,12 +160,69 @@ func (r *LoadRepository) InsertLoadGeneratorInstallInfoTx(ctx context.Context, p
 
 func (r *LoadRepository) UpdateLoadGeneratorInstallInfoTx(ctx context.Context, param *LoadGeneratorInstallInfo) error {
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
-		return d.
-			Model(param).
-			Save(param).
-			Error
+		// Update() 와 동일한 방식으로 작동
+		// key 충돌이 없는 경우 그냥 save 하기 때문에 association 이 insert 됨
+		// return d.
+		// 	Model(param).
+		// 	Session(&gorm.Session{FullSaveAssociations: true}).
+		// 	Save(param).Error
+
+		// updates 의 경우 foreign key update 없이 키 충돌이 나는 경우 모든 필드 업데이트
+		// key 충돌이 없는 경우 insert association 이 증가
+		// return d.
+		// 	Model(param).
+		// 	Session(&gorm.Session{FullSaveAssociations: true}).
+		// 	Updates(param).
+		// 	Error
+
+		// Association().Replace() 는 update 시 id 충돌의 경우 foreign key 를 null 로 업데이트
+		return d.Model(param).
+			Session(&gorm.Session{FullSaveAssociations: true}).
+			Association("LoadGeneratorServers").
+			Replace(param.LoadGeneratorServers)
+
 	})
 
 	return err
+
+}
+
+func (r *LoadRepository) GetValidLoadGeneratorInstallInfoByIdTx(ctx context.Context, loadGeneratorInstallInfoId string) (LoadGeneratorInstallInfo, error) {
+	var loadGeneratorInstallInfo LoadGeneratorInstallInfo
+
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		return d.
+			Model(loadGeneratorInstallInfo).
+			Preload("LoadGeneratorServers").
+			First(&loadGeneratorInstallInfo, " id = ? AND status = ?", loadGeneratorInstallInfoId, "installed").
+			Error
+	})
+
+	return loadGeneratorInstallInfo, err
+}
+
+func (r *LoadRepository) GetPagingLoadGeneratorInstallInfosTx(ctx context.Context, param GetAllLoadGeneratorInstallInfoParam) ([]LoadGeneratorInstallInfo, int64, error) {
+	var loadGeneratorInstallInfos []LoadGeneratorInstallInfo
+	var totalRows int64
+
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		q := d.Model(&LoadGeneratorInstallInfo{}).
+			Preload("LoadGeneratorServers")
+
+		if param.Status != "" {
+			q = q.Where("status = ?", param.Status)
+		}
+
+		if err := q.Count(&totalRows).Error; err != nil {
+			return err
+		}
+
+		offset := (param.Page - 1) * param.Size
+		return q.Offset(offset).
+			Limit(param.Size).
+			Find(&loadGeneratorInstallInfos).Error
+	})
+
+	return loadGeneratorInstallInfos, totalRows, err
 
 }

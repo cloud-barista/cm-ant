@@ -3,16 +3,13 @@ package handler
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
 
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
-	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 
 	"github.com/labstack/echo/v4"
 
@@ -221,104 +218,6 @@ func GetLoadExecutionStateHandler() echo.HandlerFunc {
 		return c.JSON(http.StatusOK, map[string]any{
 			"message": "success",
 			"result":  result,
-		})
-	}
-}
-
-// InstallLoadTesterHandler
-// @Id				InstallLoadTester
-// @Summary			Install load test tester
-// @Description		Install load test tester in the delivered load test environment
-// @Tags			[Load Test Tester]
-// @Accept			json
-// @Produce			json
-// @Param			loadEnvReq 		body 	api.LoadEnvReq 			true 		"load test environment request"
-// @Success			200	{object}			map[string]string					`{ "message": "success", "result":  createdEnvId }`
-// @Failure			400	{object}			string								"load test environment is not correct"
-// @Failure			500	{object}			string								"sorry, internal server error while executing load test;"
-// @Router			/ant/api/v1/load/tester 		[post]
-func InstallLoadTesterHandler() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		antLoadEnvReq := api.LoadEnvReq{}
-
-		if err := c.Bind(&antLoadEnvReq); err != nil {
-			log.Printf("error while binding request body; %+v\n", err)
-			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": "request body is incorrect",
-			})
-
-		}
-
-		if antLoadEnvReq.InstallLocation == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": "install location must set local/remote",
-			})
-		}
-
-		if antLoadEnvReq.InstallLocation == constant.Remote &&
-			(antLoadEnvReq.NsId == "" || antLoadEnvReq.McisId == "" || antLoadEnvReq.VmId == "") {
-			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": "ns, mcis and vm id is essential if you want to install on remote",
-			})
-		}
-
-		_, err := services.InstallLoadTester(&antLoadEnvReq)
-
-		if err != nil {
-			log.Printf("error while executing load test; %+v", err)
-			if errors.Is(err, context.DeadlineExceeded) {
-				return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-					"message": "execution time is too long",
-				})
-			}
-
-			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-				"message": "something went wrong. try again.",
-			})
-
-		}
-
-		return c.JSON(http.StatusOK, map[string]any{
-			"message": "success",
-		})
-	}
-}
-
-// UninstallLoadTesterHandler
-// @Id				UninstallLoadTester
-// @Summary			Uninstall load test tester
-// @Description		Uninstall load test tester in the delivered load test environment
-// @Tags			[Load Test Tester]
-// @Accept			json
-// @Produce			json
-// @Param			envId 			path 	string 			true 		"load test environment id"
-// @Success			200	{object}			map[string]string					`{ "message": "success" }`
-// @Failure			400	{object}			string								"pass me correct body;"
-// @Failure			500	{object}			string								"something went wrong.try again."
-// @Router			/ant/api/v1/load/tester/{envId} 		[delete]
-func UninstallLoadTesterHandler() echo.HandlerFunc {
-	return func(c echo.Context) error {
-
-		envId := c.Param("envId")
-
-		if strings.TrimSpace(envId) == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": "load tester install environment id is essential",
-			})
-		}
-
-		err := services.UninstallLoadTester(envId)
-
-		if err != nil {
-			log.Printf("error while uninstall load test tool; %+v", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-				"message": "something went wrong.try again.",
-			})
-
-		}
-
-		return c.JSON(http.StatusOK, map[string]any{
-			"message": "success",
 		})
 	}
 }

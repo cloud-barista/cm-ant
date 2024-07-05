@@ -3,7 +3,7 @@ package api
 import (
 	"time"
 
-	"github.com/cloud-barista/cm-ant/pkg/load/constant"
+	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 )
 
 type LoadEnvRes struct {

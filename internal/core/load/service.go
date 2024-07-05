@@ -13,6 +13,7 @@ import (
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"gorm.io/gorm"
 )
 
 // LoadService represents a service for managing load operations.
@@ -53,7 +54,8 @@ type MonitoringAgentInstallationResult struct {
 // InstallMonitoringAgent installs a monitoring agent on specified VMs or all VM on Mcis.
 func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationParams) ([]MonitoringAgentInstallationResult, error) {
 	utils.LogInfo("Starting installation of monitoring agent...")
-
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	var res []MonitoringAgentInstallationResult
 
 	scriptPath := utils.JoinRootPathWith("/script/install-server-agent.sh")
@@ -66,7 +68,7 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 	username := "cb-user"
 
 	utils.LogInfof("Fetching Mcis object for NS: %s, MCIS: %s", param.NsId, param.McisId)
-	mcis, err := l.tumblebugClient.GetMcisWithContext(context.Background(), param.NsId, param.McisId)
+	mcis, err := l.tumblebugClient.GetMcisWithContext(ctx, param.NsId, param.McisId)
 	if err != nil {
 		utils.LogErrorf("Failed to fetch MCIS : %v", err)
 		return res, err
@@ -88,7 +90,7 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 		if mapSet != nil && !utils.Contains(mapSet, vm.ID) {
 			continue
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		m := MonitoringAgentInfo{
 			Username:  username,
@@ -176,7 +178,8 @@ type GetAllMonitoringAgentInfoResult struct {
 func (l *LoadService) GetAllMonitoringAgentInfos(param GetAllMonitoringAgentInfosParam) (GetAllMonitoringAgentInfoResult, error) {
 	var res GetAllMonitoringAgentInfoResult
 	var monitoringAgentInfos []MonitoringAgentInstallationResult
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	utils.LogInfof("GetAllMonitoringAgentInfos called with param: %+v", param)
 	result, totalRows, err := l.loadRepo.GetPagingMonitoringAgentInfosTx(ctx, param)
@@ -305,6 +308,7 @@ type LoadGeneratorInstallInfoResult struct {
 	InstallPath     string
 	InstallVersion  string
 	Status          string
+	CreatedAt       time.Time
 
 	PublicKeyName        string
 	PrivateKeyName       string
@@ -481,7 +485,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		loadGeneratorInstallInfo.PrivateKeyName = antPrivKeyName
 	}
 
-	loadGeneratorInstallInfo.Status = "completed"
+	loadGeneratorInstallInfo.Status = "installed"
 	err = l.loadRepo.UpdateLoadGeneratorInstallInfoTx(ctx, &loadGeneratorInstallInfo)
 	if err != nil {
 		utils.LogError("Error updating LoadGeneratorInstallInfo:", err)
@@ -523,6 +527,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 	result.Status = loadGeneratorInstallInfo.Status
 	result.PublicKeyName = loadGeneratorInstallInfo.PublicKeyName
 	result.PrivateKeyName = loadGeneratorInstallInfo.PrivateKeyName
+	result.CreatedAt = loadGeneratorInstallInfo.CreatedAt
 	result.LoadGeneratorServers = loadGeneratorServerResults
 
 	utils.LogInfo("InstallLoadGenerator completed successfully")
@@ -607,7 +612,7 @@ func (l *LoadService) getAndDefaultMcis(ctx context.Context, antVmCommonSpec, an
 				},
 			}
 			antMcis, err = l.tumblebugClient.DynamicMcisWithContext(ctx, antNsId, dynamicMcisArg)
-			time.Sleep(15 * time.Second)
+			time.Sleep(10 * time.Second)
 			if err != nil {
 				return antMcis, err
 			}
@@ -630,7 +635,7 @@ func (l *LoadService) getAndDefaultMcis(ctx context.Context, antVmCommonSpec, an
 		}
 
 		antMcis, err = l.tumblebugClient.DynamicVmWithContext(ctx, antNsId, antMcisId, dynamicVmArg)
-		time.Sleep(15 * time.Second)
+		time.Sleep(10 * time.Second)
 		if err != nil {
 			return antMcis, err
 		}
@@ -727,4 +732,152 @@ func (l *LoadService) validDefaultNs(ctx context.Context, antNsId string) error 
 	}
 
 	return nil
+}
+
+type UninstallLoadGeneratorParam struct {
+	LoadGeneratorInstallInfoId string
+}
+
+func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	loadGeneratorInstallInfo, err := l.loadRepo.GetValidLoadGeneratorInstallInfoByIdTx(ctx, param.LoadGeneratorInstallInfoId)
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			utils.LogError("Cannot find valid load generator install info:", err)
+			return errors.New("cannot find valid load generator install info")
+		}
+		utils.LogError("Error retrieving load generator install info:", err)
+		return err
+	}
+
+	log.Println(loadGeneratorInstallInfo)
+
+	uninstallScriptPath := utils.JoinRootPathWith("/script/uninstall-jmeter.sh")
+
+	switch loadGeneratorInstallInfo.InstallLocation {
+	case constant.Local:
+		err := utils.Script(uninstallScriptPath, []string{
+			fmt.Sprintf("JMETER_WORK_DIR=%s", config.AppConfig.Load.JMeter.Dir),
+			fmt.Sprintf("JMETER_VERSION=%s", config.AppConfig.Load.JMeter.Version),
+		})
+		if err != nil {
+			utils.LogErrorf("Error while uninstalling load generator: %s", err)
+			return fmt.Errorf("error while uninstalling load generator: %s", err)
+		}
+	case constant.Remote:
+
+		uninstallCommand, err := utils.ReadToString(uninstallScriptPath)
+		if err != nil {
+			utils.LogError("Error reading uninstall script:", err)
+			return err
+		}
+
+		commandReq := tumblebug.SendCommandReq{
+			Command: []string{uninstallCommand},
+		}
+
+		_, err = l.tumblebugClient.CommandToMcisWithContext(ctx, antNsId, antMcisId, commandReq)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				utils.LogError("VM is not in running state. Cannot connect to the VMs.")
+				return errors.New("vm is not running state. cannot connect to the vms")
+			}
+			utils.LogError("Error sending uninstall command to MCIS:", err)
+			return err
+		}
+
+		// err = l.tumblebugClient.ControlLifecycleWithContext(ctx, antNsId, antMcisId, "suspend")
+		// if err != nil {
+		// 	return err
+		// }
+	}
+
+	loadGeneratorInstallInfo.Status = "deleted"
+	for i := range loadGeneratorInstallInfo.LoadGeneratorServers {
+		loadGeneratorInstallInfo.LoadGeneratorServers[i].Status = "deleted"
+	}
+
+	err = l.loadRepo.UpdateLoadGeneratorInstallInfoTx(ctx, &loadGeneratorInstallInfo)
+	if err != nil {
+		utils.LogError("Error updating load generator install info:", err)
+		return err
+	}
+
+	utils.LogInfo("Successfully uninstalled load generator.")
+	return nil
+}
+
+type GetAllLoadGeneratorInstallInfoParam struct {
+	Page   int    `json:"page"`
+	Size   int    `json:"size"`
+	Status string `json:"Status"`
+}
+
+type GetAllLoadGeneratorInstallInfoResult struct {
+	LoadGeneratorInstallInfoResults []LoadGeneratorInstallInfoResult
+	TotalRows                       int64
+}
+
+func (l *LoadService) GetAllLoadGeneratorInstallInfo(param GetAllLoadGeneratorInstallInfoParam) (GetAllLoadGeneratorInstallInfoResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	var result GetAllLoadGeneratorInstallInfoResult
+	var infos []LoadGeneratorInstallInfoResult
+	pagedResult, totalRows, err := l.loadRepo.GetPagingLoadGeneratorInstallInfosTx(ctx, param)
+
+	if err != nil {
+		utils.LogError("Error fetching paged load generator install infos:", err)
+		return result, err
+	}
+
+	for _, l := range pagedResult {
+		loadGeneratorServerResults := make([]LoadGeneratorServerResult, 0)
+		for _, s := range l.LoadGeneratorServers {
+			lsr := LoadGeneratorServerResult{
+				ID:              s.ID,
+				Csp:             s.Csp,
+				Region:          s.Region,
+				Zone:            s.Zone,
+				PublicIp:        s.PublicIp,
+				PrivateIp:       s.PrivateIp,
+				PublicDns:       s.PublicDns,
+				MachineType:     s.MachineType,
+				Status:          s.Status,
+				SshPort:         s.SshPort,
+				Lat:             s.Lat,
+				Lon:             s.Lon,
+				Username:        s.Username,
+				VmId:            s.VmId,
+				StartTime:       s.StartTime,
+				AdditionalVmKey: s.AdditionalVmKey,
+				Label:           s.Label,
+				CreatedAt:       s.CreatedAt,
+			}
+			loadGeneratorServerResults = append(loadGeneratorServerResults, lsr)
+		}
+		lr := LoadGeneratorInstallInfoResult{
+			ID:                   l.ID,
+			InstallLocation:      l.InstallLocation,
+			InstallType:          l.InstallType,
+			InstallPath:          l.InstallPath,
+			InstallVersion:       l.InstallVersion,
+			Status:               l.Status,
+			PublicKeyName:        l.PublicKeyName,
+			PrivateKeyName:       l.PrivateKeyName,
+			CreatedAt:            l.CreatedAt,
+			LoadGeneratorServers: loadGeneratorServerResults,
+		}
+
+		infos = append(infos, lr)
+	}
+
+	result.LoadGeneratorInstallInfoResults = infos
+	result.TotalRows = totalRows
+	utils.LogInfof("Fetched %d load generator install info results.", len(infos))
+
+	return result, nil
 }

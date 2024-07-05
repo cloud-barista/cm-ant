@@ -19,3 +19,9 @@ type GetAllMonitoringAgentInfosReq struct {
 type InstallLoadGeneratorReq struct {
 	InstallLocation constant.InstallLocation `json:"installLocation"`
 }
+
+type GetAllLoadGeneratorInstallInfoReq struct {
+	Page   int    `query:"page"`
+	Size   int    `query:"size"`
+	Status string `query:"status"`
+}

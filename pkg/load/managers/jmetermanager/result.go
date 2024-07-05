@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/pkg/config"
-	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 	"github.com/melbahja/goph"

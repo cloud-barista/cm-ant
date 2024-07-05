@@ -16,39 +16,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/ant/api/v1/env": {
-            "get": {
-                "description": "Get all of the load test environments",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Load Test Environment]"
-                ],
-                "summary": "Get the list of load test environments",
-                "operationId": "LoadEnvironments",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/api.LoadEnvRes"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/ant/api/v1/load/config": {
             "get": {
                 "description": "Get all the load test execution configurations.",
@@ -386,9 +353,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/ant/api/v1/load/tester": {
-            "post": {
-                "description": "Install load test tester in the delivered load test environment",
+        "/api/v1/load/generators": {
+            "get": {
+                "description": "Retrieve a list of all installed load generators with pagination support.",
                 "consumes": [
                     "application/json"
                 ],
@@ -396,49 +363,100 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Test Tester]"
+                    "LoadGeneratorManagement"
                 ],
-                "summary": "Install load test tester",
-                "operationId": "InstallLoadTester",
+                "summary": "Get All Load Generator Install Info",
+                "operationId": "GetAllLoadGeneratorInstallInfo",
                 "parameters": [
                     {
-                        "description": "load test environment request",
-                        "name": "loadEnvReq",
+                        "type": "integer",
+                        "description": "Page number for pagination (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items per page (default 10, max 10)",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved monitoring agent information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_GetAllLoadGeneratorInstallInfoResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve monitoring agent information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Install a load generator either locally or remotely.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LoadGeneratorManagement"
+                ],
+                "summary": "Install Load Generator",
+                "operationId": "InstallLoadGenerator",
+                "parameters": [
+                    {
+                        "description": "Load Generator Installation Request",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.LoadEnvReq"
+                            "$ref": "#/definitions/app.InstallLoadGeneratorReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Successfully installed load generator",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/app.AntResponse-load_LoadGeneratorInstallInfoResult"
                         }
                     },
                     "400": {
-                        "description": "load test environment is not correct",
+                        "description": "Load generator installation info is not correct.| available install locations are remote or local.",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/app.AntResponse-string"
                         }
                     },
                     "500": {
-                        "description": "sorry, internal server error while executing load test;",
+                        "description": "Internal Server Error",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/app.AntResponse-string"
                         }
                     }
                 }
             }
         },
-        "/ant/api/v1/load/tester/{envId}": {
+        "/api/v1/load/generators/{loadGeneratorInstallInfoId}": {
             "delete": {
-                "description": "Uninstall load test tester in the delivered load test environment",
+                "description": "Uninstall a previously installed load generator.",
                 "consumes": [
                     "application/json"
                 ],
@@ -446,39 +464,36 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Test Tester]"
+                    "LoadGeneratorManagement"
                 ],
-                "summary": "Uninstall load test tester",
-                "operationId": "UninstallLoadTester",
+                "summary": "Uninstall Load Generator",
+                "operationId": "UninstallLoadGenerator",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "load test environment id",
-                        "name": "envId",
+                        "description": "load generator install info id",
+                        "name": "loadGeneratorInstallInfoId",
                         "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Successfully uninstall load generator",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/app.AntResponse-string"
                         }
                     },
                     "400": {
-                        "description": "pass me correct body;",
+                        "description": "Load generator installation info id must be set.",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/app.AntResponse-string"
                         }
                     },
                     "500": {
-                        "description": "something went wrong.try again.",
+                        "description": "Internal Server Error",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/app.AntResponse-string"
                         }
                     }
                 }
@@ -873,6 +888,23 @@ const docTemplate = `{
                 }
             }
         },
+        "app.AntResponse-load_GetAllLoadGeneratorInstallInfoResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/load.GetAllLoadGeneratorInstallInfoResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
         "app.AntResponse-load_GetAllMonitoringAgentInfoResult": {
             "type": "object",
             "properties": {
@@ -884,6 +916,23 @@ const docTemplate = `{
                 },
                 "result": {
                     "$ref": "#/definitions/load.GetAllMonitoringAgentInfoResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-load_LoadGeneratorInstallInfoResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/load.LoadGeneratorInstallInfoResult"
                 },
                 "successMessage": {
                     "type": "string"
@@ -921,6 +970,14 @@ const docTemplate = `{
                 },
                 "successMessage": {
                     "type": "string"
+                }
+            }
+        },
+        "app.InstallLoadGeneratorReq": {
+            "type": "object",
+            "properties": {
+                "installLocation": {
+                    "$ref": "#/definitions/constant.InstallLocation"
                 }
             }
         },
@@ -967,6 +1024,20 @@ const docTemplate = `{
                 "Remote"
             ]
         },
+        "load.GetAllLoadGeneratorInstallInfoResult": {
+            "type": "object",
+            "properties": {
+                "loadGeneratorInstallInfoResults": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.LoadGeneratorInstallInfoResult"
+                    }
+                },
+                "totalRows": {
+                    "type": "integer"
+                }
+            }
+        },
         "load.GetAllMonitoringAgentInfoResult": {
             "type": "object",
             "properties": {
@@ -978,6 +1049,103 @@ const docTemplate = `{
                 },
                 "totalRow": {
                     "type": "integer"
+                }
+            }
+        },
+        "load.LoadGeneratorInstallInfoResult": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "installLocation": {
+                    "$ref": "#/definitions/constant.InstallLocation"
+                },
+                "installPath": {
+                    "type": "string"
+                },
+                "installType": {
+                    "type": "string"
+                },
+                "installVersion": {
+                    "type": "string"
+                },
+                "loadGeneratorServers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.LoadGeneratorServerResult"
+                    }
+                },
+                "privateKeyName": {
+                    "type": "string"
+                },
+                "publicKeyName": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "load.LoadGeneratorServerResult": {
+            "type": "object",
+            "properties": {
+                "additionalVmKey": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "csp": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "string"
+                },
+                "lon": {
+                    "type": "string"
+                },
+                "machineType": {
+                    "type": "string"
+                },
+                "privateIp": {
+                    "type": "string"
+                },
+                "publicDns": {
+                    "type": "string"
+                },
+                "publicIp": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "sshPort": {
+                    "type": "string"
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "vmId": {
+                    "type": "string"
+                },
+                "zone": {
+                    "type": "string"
                 }
             }
         },
@@ -1021,12 +1189,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
+	Version:          "0.1",
 	Host:             "",
-	BasePath:         "",
+	BasePath:         "/ant",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "CM-ANT REST API",
+	Description:      "CM-ANT REST API swagger document.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

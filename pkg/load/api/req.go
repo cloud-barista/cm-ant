@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/cloud-barista/cm-ant/pkg/load/constant"
+	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 )
 
 type LoadTestKeyReq struct {

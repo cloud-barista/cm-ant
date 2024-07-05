@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/pkg/database"
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
-	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 )
 

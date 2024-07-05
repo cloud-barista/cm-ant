@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/outbound/tumblebug"
 	"github.com/melbahja/goph"
 
 	"github.com/cloud-barista/cm-ant/pkg/load/api"
-	"github.com/cloud-barista/cm-ant/pkg/load/constant"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"github.com/cloud-barista/cm-ant/pkg/load/domain/repository"
 	"github.com/cloud-barista/cm-ant/pkg/load/managers"
@@ -348,36 +348,6 @@ func InstallLoadTester(antLoadEnvReq *api.LoadEnvReq) (uint, error) {
 	log.Printf("Environment ID %d for load test is successfully created", createdEnvId)
 
 	return createdEnvId, nil
-}
-
-func UninstallLoadTester(envId string) error {
-	manager := managers.NewLoadTestManager()
-
-	var loadEnvReq api.LoadEnvReq
-
-	loadEnv, err := repository.GetEnvironment(envId)
-	if err != nil {
-		return err
-	}
-
-	loadEnvReq.InstallLocation = (*loadEnv).InstallLocation
-	loadEnvReq.Username = (*loadEnv).Username
-	loadEnvReq.NsId = (*loadEnv).NsId
-	loadEnvReq.McisId = (*loadEnv).McisId
-	loadEnvReq.VmId = (*loadEnv).VmId
-	loadEnvReq.PublicIp = (*loadEnv).PublicIp
-	loadEnvReq.PemKeyPath = (*loadEnv).PemKeyPath
-
-	if err := manager.Uninstall(&loadEnvReq); err != nil {
-		return fmt.Errorf("failed to uninstall load tester: %w", err)
-	}
-
-	err = repository.DeleteLoadTestInstallEnv(envId)
-	if err != nil {
-		return fmt.Errorf("failed to delete load test installation environment: %w", err)
-	}
-
-	return nil
 }
 
 func ExecuteLoadTest(loadTestReq *api.LoadExecutionConfigReq) (string, error) {
