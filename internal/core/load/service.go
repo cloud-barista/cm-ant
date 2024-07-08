@@ -1,18 +1,24 @@
 package load
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 	"gorm.io/gorm"
 )
 
@@ -332,6 +338,8 @@ const (
 
 	antPubKeyName  = "id_rsa_ant.pub"
 	antPrivKeyName = "id_rsa_ant"
+
+	defaultDelay = 15 * time.Second
 )
 
 // InstallLoadGenerator installs the load generator either locally or remotely.
@@ -416,7 +424,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 				utils.LogError("Error resuming MCIS:", err)
 				return result, err
 			}
-			time.Sleep(10 * time.Second)
+			time.Sleep(defaultDelay)
 			antMcis, err = l.getAndDefaultMcis(ctx, antVmCommonSpec, antVmCommonImage, antVmConnectionName)
 			if err != nil {
 				utils.LogError("Error getting MCIS after resume attempt:", err)
@@ -457,7 +465,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 
 		loadGeneratorServers := make([]LoadGeneratorServer, 0)
 
-		for _, vm := range antMcis.VMs {
+		for i, vm := range antMcis.VMs {
 			loadGeneratorServer := LoadGeneratorServer{
 				Csp:             vm.ConnectionConfig.ProviderName,
 				Region:          vm.Region.Region,
@@ -475,6 +483,9 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 				StartTime:       vm.CspViewVMDetail.StartTime,
 				AdditionalVmKey: vm.ID,
 				Label:           vm.Label,
+				IsCluster:       false,
+				IsMaster:        i == 0,
+				ClusterSize:     uint64(len(antMcis.VMs)),
 			}
 
 			loadGeneratorServers = append(loadGeneratorServers, loadGeneratorServer)
@@ -612,7 +623,7 @@ func (l *LoadService) getAndDefaultMcis(ctx context.Context, antVmCommonSpec, an
 				},
 			}
 			antMcis, err = l.tumblebugClient.DynamicMcisWithContext(ctx, antNsId, dynamicMcisArg)
-			time.Sleep(10 * time.Second)
+			time.Sleep(defaultDelay)
 			if err != nil {
 				return antMcis, err
 			}
@@ -635,7 +646,7 @@ func (l *LoadService) getAndDefaultMcis(ctx context.Context, antVmCommonSpec, an
 		}
 
 		antMcis, err = l.tumblebugClient.DynamicVmWithContext(ctx, antNsId, antMcisId, dynamicVmArg)
-		time.Sleep(10 * time.Second)
+		time.Sleep(defaultDelay)
 		if err != nil {
 			return antMcis, err
 		}
@@ -735,7 +746,7 @@ func (l *LoadService) validDefaultNs(ctx context.Context, antNsId string) error 
 }
 
 type UninstallLoadGeneratorParam struct {
-	LoadGeneratorInstallInfoId string
+	LoadGeneratorInstallInfoId uint
 }
 
 func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) error {
@@ -752,8 +763,6 @@ func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) 
 		utils.LogError("Error retrieving load generator install info:", err)
 		return err
 	}
-
-	log.Println(loadGeneratorInstallInfo)
 
 	uninstallScriptPath := utils.JoinRootPathWith("/script/uninstall-jmeter.sh")
 
@@ -822,7 +831,7 @@ type GetAllLoadGeneratorInstallInfoResult struct {
 }
 
 func (l *LoadService) GetAllLoadGeneratorInstallInfo(param GetAllLoadGeneratorInstallInfoParam) (GetAllLoadGeneratorInstallInfoResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var result GetAllLoadGeneratorInstallInfoResult
@@ -880,4 +889,369 @@ func (l *LoadService) GetAllLoadGeneratorInstallInfo(param GetAllLoadGeneratorIn
 	utils.LogInfof("Fetched %d load generator install info results.", len(infos))
 
 	return result, nil
+}
+
+type RunLoadGeneratorParam struct {
+	LoadTestKey                string                    `json:"loadTestKey"`
+	InstallLoadGenerator       InstallLoadGeneratorParam `json:"installLoadGenerator"`
+	LoadGeneratorInstallInfoId uint                      `json:"loadGeneratorInstallInfoId"`
+	TestName                   string                    `json:"testName"`
+	VirtualUsers               string                    `json:"virtualUsers"`
+	Duration                   string                    `json:"duration"`
+	RampUpTime                 string                    `json:"rampUpTime"`
+	RampUpSteps                string                    `json:"rampUpSteps"`
+	Hostname                   string                    `json:"hostname"`
+	Port                       string                    `json:"port"`
+	AgentHostname              string                    `json:"agentHostname"`
+
+	HttpReqs []RunLoadGeneratorHttpParam `json:"httpReqs,omitempty"`
+}
+
+type RunLoadGeneratorHttpParam struct {
+	Method   string `json:"method"`
+	Protocol string `json:"protocol"`
+	Hostname string `json:"hostname"`
+	Port     string `json:"port"`
+	Path     string `json:"path,omitempty"`
+	BodyData string `json:"bodyData,omitempty"`
+}
+
+func (l *LoadService) RunLoadGenerator(param RunLoadGeneratorParam) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()
+	param.LoadTestKey = loadTestKey
+
+	if param.LoadGeneratorInstallInfoId == uint(0) {
+		result, err := l.InstallLoadGenerator(param.InstallLoadGenerator)
+		if err != nil {
+			return "", err
+		}
+
+		param.LoadGeneratorInstallInfoId = result.ID
+	}
+
+	if param.LoadGeneratorInstallInfoId == uint(0) {
+		return "", nil
+	}
+
+	result, err := l.loadRepo.GetValidLoadGeneratorInstallInfoByIdTx(ctx, param.LoadGeneratorInstallInfoId)
+
+	if err != nil {
+		return "", err
+	}
+
+	duration, err := strconv.Atoi(param.Duration)
+	if err != nil {
+		return "", err
+	}
+
+	rampUpTime, err := strconv.Atoi(param.RampUpTime)
+
+	if err != nil {
+		return "", err
+	}
+
+	stateArg := LoadTestExecutionState{
+		LoadGeneratorInstallInfoId: result.ID,
+		LoadTestKey:                loadTestKey,
+		ExecutionStatus:            constant.OnPreparing,
+		StartAt:                    time.Now(),
+		TotalExpectSecond:          uint64(duration + rampUpTime),
+	}
+
+	go l.runLoadTest(param, result, &stateArg)
+
+	var hs []LoadTestExecutionHttpInfo
+
+	for _, h := range param.HttpReqs {
+		hh := LoadTestExecutionHttpInfo{
+			Method:   h.Method,
+			Protocol: h.Protocol,
+			Hostname: h.Hostname,
+			Port:     h.Port,
+			Path:     h.Path,
+			BodyData: h.BodyData,
+		}
+
+		hs = append(hs, hh)
+	}
+
+	loadArg := LoadTestExecutionInfo{
+		LoadTestKey:                loadTestKey,
+		TestName:                   param.TestName,
+		VirtualUsers:               param.VirtualUsers,
+		Duration:                   param.Duration,
+		RampUpTime:                 param.RampUpTime,
+		RampUpSteps:                param.RampUpSteps,
+		Hostname:                   param.Hostname,
+		Port:                       param.Port,
+		AgentHostname:              param.AgentHostname,
+		LoadGeneratorInstallInfoId: result.ID,
+		HttpReqs:                   hs,
+	}
+
+	err = l.loadRepo.SaveForLoadTestExecutionTx(ctx, &loadArg, &stateArg)
+
+	if err != nil {
+		return "", err
+	}
+
+	return loadTestKey, nil
+
+}
+
+func (l *LoadService) runLoadTest(param RunLoadGeneratorParam, loadGeneratorInstallInfo LoadGeneratorInstallInfo, loadTestExecutionState *LoadTestExecutionState) {
+
+	testPlanName := fmt.Sprintf("%s.jmx", param.LoadTestKey)
+	resultFileName := fmt.Sprintf("%s_result.csv", param.LoadTestKey)
+	loadGeneratorInstallPath := loadGeneratorInstallInfo.InstallPath
+	loadGeneratorInstallVersion := loadGeneratorInstallInfo.InstallVersion
+	installLocation := loadGeneratorInstallInfo.InstallLocation
+	loadTestKey := param.LoadTestKey
+
+	if installLocation == constant.Remote {
+		var buf bytes.Buffer
+		err := parseTestPlanStructToString(&buf, param, loadGeneratorInstallInfo)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		testPlan := buf.String()
+
+		createFileCmd := fmt.Sprintf("cat << 'EOF' > %s/test_plan/%s \n%s\nEOF", loadGeneratorInstallPath, testPlanName, testPlan)
+
+		commandReq := tumblebug.SendCommandReq{
+			Command: []string{createFileCmd},
+		}
+
+		_, err = l.tumblebugClient.CommandToMcisWithContext(context.Background(), antNsId, antMcisId, commandReq)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		jmeterTestCommand := generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVersion, testPlanName, resultFileName)
+
+		commandReq = tumblebug.SendCommandReq{
+			Command: []string{jmeterTestCommand},
+		}
+
+		stdout, err := l.tumblebugClient.CommandToMcisWithContext(context.Background(), antNsId, antMcisId, commandReq)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if strings.Contains(stdout, "exited with status 1") {
+			log.Fatal(err)
+		}
+	} else if installLocation == constant.Local {
+
+		exist := utils.ExistCheck(loadGeneratorInstallPath)
+
+		if !exist {
+			log.Fatal(errors.New("hello~"))
+		}
+
+		outputFile, err := os.Create(fmt.Sprintf("%s/test_plan/%s.jmx", loadGeneratorInstallPath, loadTestKey))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		defer func() {
+			outputFile.Close()
+			os.Remove(fmt.Sprintf("%s/test_plan/%s.jmx", loadGeneratorInstallPath, loadTestKey))
+		}()
+
+		err = parseTestPlanStructToString(outputFile, param, loadGeneratorInstallInfo)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		jmeterTestCommand := generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVersion, testPlanName, resultFileName)
+		err = utils.InlineCmd(jmeterTestCommand)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// result fetching
+	loadTestExecutionState.ExecutionStatus = constant.OnFetching
+
+	updateErr := l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
+
+	if updateErr != nil {
+		log.Fatal(updateErr)
+	}
+
+	resultsPrefix := []string{""}
+	// resultsPrefix = append(resultsPrefix, "_cpu", "_disk", "_memory", "_network")
+	resultFolderPath := utils.JoinRootPathWith("/result/" + loadTestKey)
+
+	err := utils.CreateFolderIfNotExist(utils.JoinRootPathWith("/result"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = utils.CreateFolderIfNotExist(resultFolderPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+
+	if installLocation == constant.Local {
+		for _, p := range resultsPrefix {
+			wg.Add(1)
+			go func(prefix string) {
+				defer wg.Done()
+				fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
+				fromFilePath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, fileName)
+				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+
+				if exist := utils.ExistCheck(toFilePath); !exist {
+					err = utils.InlineCmd(fmt.Sprintf("cp %s %s", fromFilePath, toFilePath))
+					if err != nil {
+						log.Fatal(err)
+					}
+				}
+			}(p)
+		}
+	} else if installLocation == constant.Remote {
+		var username string
+		var publicIp string
+		var port string
+		for _, s := range loadGeneratorInstallInfo.LoadGeneratorServers {
+			if s.IsMaster {
+				username = s.Username
+				publicIp = s.PublicIp
+				port = s.SshPort
+			}
+		}
+
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		privateKeyPath := fmt.Sprintf("%s/.ssh/%s", home, loadGeneratorInstallInfo.PrivateKeyName)
+
+		privateKey, err := os.ReadFile(privateKeyPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		signer, err := ssh.ParsePrivateKey(privateKey)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		sshConfig := &ssh.ClientConfig{
+			User: username,
+			Auth: []ssh.AuthMethod{
+				ssh.PublicKeys(signer),
+			},
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}
+
+		client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%s", publicIp, port), sshConfig)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer client.Close()
+
+		for _, p := range resultsPrefix {
+			wg.Add(1)
+			go func(prefix string) {
+				defer wg.Done()
+				fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
+				resultFilePath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, fileName)
+				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+
+				if exist := utils.ExistCheck(toFilePath); !exist {
+					sftpClient, err := sftp.NewClient(client)
+					if err != nil {
+						log.Fatal(err)
+					}
+					defer sftpClient.Close()
+
+					localFile, err := os.Create(toFilePath)
+					if err != nil {
+						log.Fatal("create error", err)
+					}
+					defer localFile.Close()
+
+					remoteFile, err := sftpClient.Open(resultFilePath)
+					if err != nil {
+						log.Fatal("open error", err)
+					}
+					defer remoteFile.Close()
+
+					stat, err := remoteFile.Stat()
+					if err != nil {
+						log.Fatal("stat error", err)
+					}
+
+					if stat.Size() == 0 {
+						log.Fatal("size error")
+					}
+
+					_, err = io.Copy(localFile, remoteFile)
+
+					if err != nil {
+						if err == io.EOF {
+							return
+						}
+						log.Fatal("copy error", err)
+					}
+				}
+			}(p)
+		}
+	}
+
+	wg.Wait()
+	// close(errCh)
+
+	// if len(errCh) != 0 {
+	// 	err = <-errCh
+	// 	log.Println(err)
+	// 	return
+	// }
+
+	// if loadTestErr != nil {
+	// 	log.Printf("Error during load test: %v", loadTestErr)
+	// 	if updateErr := repository.UpdateLoadExecutionStateWithNoTime(loadTestKey, constant.Failed); updateErr != nil {
+	// 		log.Println(updateErr)
+	// 	}
+	// } else {
+	// 	log.Printf("load test complete!")
+
+	// 	if updateErr := repository.UpdateLoadExecutionStateWithNoTime(loadTestKey, constant.Success); updateErr != nil {
+	// 		log.Println(updateErr)
+	// 	}
+	// }
+
+	// return loadTestKey, nil
+}
+
+func generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVersion, testPlanName, resultFileName string) string {
+	var builder strings.Builder
+	testPath := fmt.Sprintf("%s/test_plan/%s", loadGeneratorInstallPath, testPlanName)
+	resultPath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, resultFileName)
+
+	builder.WriteString(fmt.Sprintf("%s/apache-jmeter-%s/bin/jmeter.sh", loadGeneratorInstallPath, loadGeneratorInstallVersion))
+	builder.WriteString(" -n -f")
+	builder.WriteString(fmt.Sprintf(" -t=%s", testPath))
+	builder.WriteString(fmt.Sprintf(" -l=%s", resultPath))
+
+	builder.WriteString(fmt.Sprintf(" && sudo rm %s", testPath))
+	return builder.String()
+}
+
+func killCmdGen(loadTestKey string) string {
+	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*%s'", loadTestKey)
+
+	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
 }

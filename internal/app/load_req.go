@@ -25,3 +25,27 @@ type GetAllLoadGeneratorInstallInfoReq struct {
 	Size   int    `query:"size"`
 	Status string `query:"status"`
 }
+
+type RunLoadGeneratorReq struct {
+	InstallLoadGenerator       InstallLoadGeneratorReq `json:"installLoadGenerator"`
+	LoadGeneratorInstallInfoId uint                    `json:"loadGeneratorInstallInfoId"`
+	TestName                   string                  `json:"testName"`
+	VirtualUsers               string                  `json:"virtualUsers"`
+	Duration                   string                  `json:"duration"`
+	RampUpTime                 string                  `json:"rampUpTime"`
+	RampUpSteps                string                  `json:"rampUpSteps"`
+	Hostname                   string                  `json:"hostname"`
+	Port                       string                  `json:"port"`
+	AgentHostname              string                  `json:"agentHostname"`
+
+	HttpReqs []RunLoadGeneratorHttpReq `json:"httpReqs,omitempty"`
+}
+
+type RunLoadGeneratorHttpReq struct {
+	Method   string `json:"method"`
+	Protocol string `json:"protocol"`
+	Hostname string `json:"hostname,omitempty"`
+	Port     string `json:"port,omitempty"`
+	Path     string `json:"path,omitempty"`
+	BodyData string `json:"bodyData,omitempty"`
+}

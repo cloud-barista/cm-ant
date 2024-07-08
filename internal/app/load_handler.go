@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
@@ -113,22 +114,29 @@ func (s *AntServer) installLoadGenerator(c echo.Context) error {
 // @Param loadGeneratorInstallInfoId path string true "load generator install info id"
 // @Success 200 {object} app.AntResponse[string] "Successfully uninstall load generator"
 // @Failure 400 {object} app.AntResponse[string] "Load generator installation info id must be set."
-// @Failure 500 {object} app.AntResponse[string] "Internal Server Error"
+// @Failure 400 {object} app.AntResponse[string] "Load generator install info id must be number."
+// @Failure 500 {object} app.AntResponse[string] "ant server has got error. please try again."
 // @Router /api/v1/load/generators/{loadGeneratorInstallInfoId} [delete]
 func (s *AntServer) uninstallLoadGenerator(c echo.Context) error {
 	loadGeneratorInstallInfoId := c.Param("loadGeneratorInstallInfoId")
 
 	if strings.TrimSpace(loadGeneratorInstallInfoId) == "" {
-		return errorResponse(http.StatusBadRequest, "load generator installation info id must be set.")
+		return errorResponse(http.StatusBadRequest, "Load generator installation info id must be set.")
+	}
+
+	cvt, err := strconv.Atoi(loadGeneratorInstallInfoId)
+	if err != nil {
+		errorResponse(http.StatusBadRequest, "Load generator install info id must be number.")
 	}
 
 	arg := load.UninstallLoadGeneratorParam{
-		LoadGeneratorInstallInfoId: loadGeneratorInstallInfoId,
+		LoadGeneratorInstallInfoId: uint(cvt),
 	}
-	err := s.services.loadService.UninstallLoadGenerator(arg)
+
+	err = s.services.loadService.UninstallLoadGenerator(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
+		return errorResponse(http.StatusInternalServerError, "Ant server has got error. please try again.")
 	}
 
 	return successResponse(
@@ -139,8 +147,62 @@ func (s *AntServer) uninstallLoadGenerator(c echo.Context) error {
 }
 
 func (s *AntServer) runLoadTest(c echo.Context) error {
+	var req RunLoadGeneratorReq
 
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	if err := c.Bind(&req); err != nil {
+		return errorResponse(http.StatusBadRequest, "load generator running info is not correct.")
+	}
+
+	if req.LoadGeneratorInstallInfoId != uint(0) {
+		req.InstallLoadGenerator = InstallLoadGeneratorReq{}
+	} else if req.InstallLoadGenerator.InstallLocation != constant.Local &&
+		req.InstallLoadGenerator.InstallLocation != constant.Remote {
+		return errorResponse(http.StatusBadRequest, "load generator install location is invalid.")
+	}
+
+	var https []load.RunLoadGeneratorHttpParam
+	for _, h := range req.HttpReqs {
+		hh := load.RunLoadGeneratorHttpParam{
+			Method:   h.Method,
+			Protocol: h.Protocol,
+			Hostname: h.Hostname,
+			Port:     h.Port,
+			Path:     h.Path,
+			BodyData: h.BodyData,
+		}
+
+		https = append(https, hh)
+	}
+
+	arg := load.RunLoadGeneratorParam{
+
+		InstallLoadGenerator: load.InstallLoadGeneratorParam{
+			InstallLocation: req.InstallLoadGenerator.InstallLocation,
+			Coordinates:     []string{"37.53/127.02"},
+		},
+		LoadGeneratorInstallInfoId: req.LoadGeneratorInstallInfoId,
+		TestName:                   req.TestName,
+		VirtualUsers:               req.VirtualUsers,
+		Duration:                   req.Duration,
+		RampUpTime:                 req.RampUpTime,
+		RampUpSteps:                req.RampUpSteps,
+		Hostname:                   req.Hostname,
+		Port:                       req.Port,
+		AgentHostname:              req.AgentHostname,
+		HttpReqs:                   https,
+	}
+
+	loadTestKey, err := s.services.loadService.RunLoadGenerator(arg)
+
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	return successResponse(
+		c,
+		fmt.Sprintf("Successfully run load generator. Load test key: %s", loadTestKey),
+		loadTestKey,
+	)
 }
 
 func (s *AntServer) stopLoadTest(c echo.Context) error {

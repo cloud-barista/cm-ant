@@ -16,8 +16,13 @@ const (
 type ExecutionStatus string
 
 const (
+	OnPreparing ExecutionStatus = "on_preparing"
+	OnRunning   ExecutionStatus = "on_running"
+	OnFetching  ExecutionStatus = "on_fetching"
+	Successed   ExecutionStatus = "successed"
+	Failed      ExecutionStatus = "failed"
+
 	Processing ExecutionStatus = "processing"
 	Fetching   ExecutionStatus = "fetching"
 	Success    ExecutionStatus = "success"
-	Failed     ExecutionStatus = "failed"
 )

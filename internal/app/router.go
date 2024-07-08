@@ -68,14 +68,12 @@ func (server *AntServer) InitRouter() error {
 		loadRouter := versionRouter.Group("/load")
 
 		{
-			// load tester
 			loadRouter.GET("/generators", server.getAllLoadGeneratorInstallInfo)
 			loadRouter.POST("/generators", server.installLoadGenerator)
 			loadRouter.DELETE("/generators/:loadGeneratorInstallInfoId", server.uninstallLoadGenerator)
 
-			// load test execution
-			loadRouter.POST("/start", server.runLoadTest)
-			loadRouter.POST("/stop", server.stopLoadTest)
+			loadRouter.POST("/test/run", server.runLoadTest)
+			loadRouter.POST("/test/stop", server.stopLoadTest)
 
 			// load test result
 			loadRouter.GET("/result", server.getLoadTestResult)

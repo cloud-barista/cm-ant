@@ -20,6 +20,9 @@ func migrateDB(defaultDb *gorm.DB) error {
 		&load.MonitoringAgentInfo{},
 		&load.LoadGeneratorServer{},
 		&load.LoadGeneratorInstallInfo{},
+		&load.LoadTestExecutionState{},
+		&load.LoadTestExecutionInfo{},
+		&load.LoadTestExecutionHttpInfo{},
 
 		&model.LoadEnv{},
 		&model.LoadExecutionConfig{},

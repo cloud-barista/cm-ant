@@ -187,7 +187,7 @@ func (r *LoadRepository) UpdateLoadGeneratorInstallInfoTx(ctx context.Context, p
 
 }
 
-func (r *LoadRepository) GetValidLoadGeneratorInstallInfoByIdTx(ctx context.Context, loadGeneratorInstallInfoId string) (LoadGeneratorInstallInfo, error) {
+func (r *LoadRepository) GetValidLoadGeneratorInstallInfoByIdTx(ctx context.Context, loadGeneratorInstallInfoId uint) (LoadGeneratorInstallInfo, error) {
 	var loadGeneratorInstallInfo LoadGeneratorInstallInfo
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
@@ -225,4 +225,64 @@ func (r *LoadRepository) GetPagingLoadGeneratorInstallInfosTx(ctx context.Contex
 
 	return loadGeneratorInstallInfos, totalRows, err
 
+}
+
+func (r *LoadRepository) InsertLoadTestExecutionStateTx(ctx context.Context, param *LoadTestExecutionState) error {
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		err := d.
+			Where(
+				"load_generator_install_info_id = ? AND load_test_key = ?",
+				param.LoadGeneratorInstallInfoId, param.LoadTestKey,
+			).
+			FirstOrCreate(param).Error
+
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+
+}
+
+func (r *LoadRepository) SaveForLoadTestExecutionTx(ctx context.Context, loadParam *LoadTestExecutionInfo, stateParam *LoadTestExecutionState) error {
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+
+		err := d.
+			Where("load_test_key = ?", stateParam.LoadTestKey).
+			FirstOrCreate(&stateParam).
+			Error
+
+		if err != nil {
+			return err
+		}
+		err = d.
+			Where(
+				"load_test_key = ?", loadParam.LoadTestKey,
+			).
+			FirstOrCreate(loadParam).Error
+
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+
+}
+
+func (r *LoadRepository) UpdateLoadTestExecutionStateTx(ctx context.Context, param *LoadTestExecutionState) error {
+
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		return d.
+			Model(param).
+			Save(param).
+			Error
+	})
+
+	return err
 }
