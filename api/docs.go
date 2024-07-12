@@ -184,56 +184,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/ant/api/v1/load/start": {
-            "post": {
-                "description": "Start load test. Load Environment Id must be passed or Load Environment must be defined.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Load Test Execution]"
-                ],
-                "summary": "Start load test",
-                "operationId": "StartLoadTest",
-                "parameters": [
-                    {
-                        "description": "load test execution configuration request",
-                        "name": "loadTestReq",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.LoadExecutionConfigReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "load test environment is not correct",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "sorry, internal server error while executing load test;",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/ant/api/v1/load/state": {
             "get": {
                 "description": "Get all the load test execution state.",
@@ -363,7 +313,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "LoadGeneratorManagement"
+                    "[Load Generator Management]"
                 ],
                 "summary": "Get All Load Generator Install Info",
                 "operationId": "GetAllLoadGeneratorInstallInfo",
@@ -417,7 +367,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "LoadGeneratorManagement"
+                    "[Load Generator Management]"
                 ],
                 "summary": "Install Load Generator",
                 "operationId": "InstallLoadGenerator",
@@ -464,7 +414,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "LoadGeneratorManagement"
+                    "[Load Generator Management]"
                 ],
                 "summary": "Uninstall Load Generator",
                 "operationId": "UninstallLoadGenerator",
@@ -485,13 +435,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Load generator installation info id must be set.",
+                        "description": "Load generator install info id must be number.",
                         "schema": {
                             "$ref": "#/definitions/app.AntResponse-string"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "ant server has got error. please try again.",
                         "schema": {
                             "$ref": "#/definitions/app.AntResponse-string"
                         }
@@ -509,7 +459,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "MonitoringAgentManagement"
+                    "[Monitoring Agent Management]"
                 ],
                 "summary": "Install Metrics Monitoring Agent",
                 "operationId": "InstallMonitoringAgent",
@@ -556,7 +506,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "MonitoringAgentManagement"
+                    "[Monitoring Agent Management]"
                 ],
                 "summary": "Retrieve Monitoring Agent Information",
                 "operationId": "GetAllMonitoringAgentInfos",
@@ -624,7 +574,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "MonitoringAgentManagement"
+                    "[Monitoring Agent Management]"
                 ],
                 "summary": "Uninstall Monitoring Agents",
                 "operationId": "UninstallMonitoringAgent",
@@ -660,35 +610,56 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/v1/load/tests/run": {
+            "post": {
+                "description": "Start a load test using the provided load generator configuration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Management]"
+                ],
+                "summary": "Run Load Test",
+                "operationId": "RunLoadTest",
+                "parameters": [
+                    {
+                        "description": "Run Load Generator Request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.RunLoadGeneratorReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{loadTestKey}",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "400": {
+                        "description": "load generator install location is invalid.",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "ant server has got error. please try again.",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "api.LoadEnvReq": {
-            "type": "object",
-            "properties": {
-                "installLocation": {
-                    "$ref": "#/definitions/constant.InstallLocation"
-                },
-                "mcisId": {
-                    "type": "string"
-                },
-                "nsId": {
-                    "type": "string"
-                },
-                "pemKeyPath": {
-                    "type": "string"
-                },
-                "publicIp": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                },
-                "vmId": {
-                    "type": "string"
-                }
-            }
-        },
         "api.LoadEnvRes": {
             "type": "object",
             "properties": {
@@ -714,64 +685,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "vmId": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.LoadExecutionConfigReq": {
-            "type": "object",
-            "properties": {
-                "duration": {
-                    "type": "string"
-                },
-                "envId": {
-                    "type": "string"
-                },
-                "httpReqs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/api.LoadExecutionHttpReq"
-                    }
-                },
-                "loadEnvReq": {
-                    "$ref": "#/definitions/api.LoadEnvReq"
-                },
-                "loadTestKey": {
-                    "type": "string"
-                },
-                "rampUpSteps": {
-                    "type": "string"
-                },
-                "rampUpTime": {
-                    "type": "string"
-                },
-                "testName": {
-                    "type": "string"
-                },
-                "virtualUsers": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.LoadExecutionHttpReq": {
-            "type": "object",
-            "properties": {
-                "bodyData": {
-                    "type": "string"
-                },
-                "hostname": {
-                    "type": "string"
-                },
-                "method": {
-                    "type": "string"
-                },
-                "path": {
-                    "type": "string"
-                },
-                "port": {
-                    "type": "string"
-                },
-                "protocol": {
                     "type": "string"
                 }
             }
@@ -998,19 +911,100 @@ const docTemplate = `{
                 }
             }
         },
+        "app.RunLoadGeneratorHttpReq": {
+            "type": "object",
+            "properties": {
+                "bodyData": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.RunLoadGeneratorReq": {
+            "type": "object",
+            "properties": {
+                "agentHostname": {
+                    "type": "string"
+                },
+                "agentInstalled": {
+                    "type": "boolean"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "httpReqs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.RunLoadGeneratorHttpReq"
+                    }
+                },
+                "installLoadGenerator": {
+                    "$ref": "#/definitions/app.InstallLoadGeneratorReq"
+                },
+                "loadGeneratorInstallInfoId": {
+                    "type": "integer"
+                },
+                "port": {
+                    "type": "string"
+                },
+                "rampUpSteps": {
+                    "type": "string"
+                },
+                "rampUpTime": {
+                    "type": "string"
+                },
+                "testName": {
+                    "type": "string"
+                },
+                "virtualUsers": {
+                    "type": "string"
+                }
+            }
+        },
         "constant.ExecutionStatus": {
             "type": "string",
             "enum": [
+                "on_preparing",
+                "on_running",
+                "on_fetching",
+                "successed",
+                "test_failed",
+                "update_failed",
+                "result_failed",
+                "failed",
                 "processing",
                 "fetching",
-                "success",
-                "failed"
+                "success"
             ],
             "x-enum-varnames": [
+                "OnPreparing",
+                "OnRunning",
+                "OnFetching",
+                "Successed",
+                "TestFailed",
+                "UpdateFailed",
+                "ResultFailed",
+                "Failed",
                 "Processing",
                 "Fetching",
-                "Success",
-                "Failed"
+                "Success"
             ]
         },
         "constant.InstallLocation": {

@@ -1,22 +1,5 @@
 basePath: /ant
 definitions:
-  api.LoadEnvReq:
-    properties:
-      installLocation:
-        $ref: '#/definitions/constant.InstallLocation'
-      mcisId:
-        type: string
-      nsId:
-        type: string
-      pemKeyPath:
-        type: string
-      publicIp:
-        type: string
-      username:
-        type: string
-      vmId:
-        type: string
-    type: object
   api.LoadEnvRes:
     properties:
       installLocation:
@@ -34,44 +17,6 @@ definitions:
       username:
         type: string
       vmId:
-        type: string
-    type: object
-  api.LoadExecutionConfigReq:
-    properties:
-      duration:
-        type: string
-      envId:
-        type: string
-      httpReqs:
-        items:
-          $ref: '#/definitions/api.LoadExecutionHttpReq'
-        type: array
-      loadEnvReq:
-        $ref: '#/definitions/api.LoadEnvReq'
-      loadTestKey:
-        type: string
-      rampUpSteps:
-        type: string
-      rampUpTime:
-        type: string
-      testName:
-        type: string
-      virtualUsers:
-        type: string
-    type: object
-  api.LoadExecutionHttpReq:
-    properties:
-      bodyData:
-        type: string
-      hostname:
-        type: string
-      method:
-        type: string
-      path:
-        type: string
-      port:
-        type: string
-      protocol:
         type: string
     type: object
   api.LoadExecutionHttpRes:
@@ -218,18 +163,76 @@ definitions:
           type: string
         type: array
     type: object
+  app.RunLoadGeneratorHttpReq:
+    properties:
+      bodyData:
+        type: string
+      hostname:
+        type: string
+      method:
+        type: string
+      path:
+        type: string
+      port:
+        type: string
+      protocol:
+        type: string
+    type: object
+  app.RunLoadGeneratorReq:
+    properties:
+      agentHostname:
+        type: string
+      agentInstalled:
+        type: boolean
+      duration:
+        type: string
+      hostname:
+        type: string
+      httpReqs:
+        items:
+          $ref: '#/definitions/app.RunLoadGeneratorHttpReq'
+        type: array
+      installLoadGenerator:
+        $ref: '#/definitions/app.InstallLoadGeneratorReq'
+      loadGeneratorInstallInfoId:
+        type: integer
+      port:
+        type: string
+      rampUpSteps:
+        type: string
+      rampUpTime:
+        type: string
+      testName:
+        type: string
+      virtualUsers:
+        type: string
+    type: object
   constant.ExecutionStatus:
     enum:
+    - on_preparing
+    - on_running
+    - on_fetching
+    - successed
+    - test_failed
+    - update_failed
+    - result_failed
+    - failed
     - processing
     - fetching
     - success
-    - failed
     type: string
     x-enum-varnames:
+    - OnPreparing
+    - OnRunning
+    - OnFetching
+    - Successed
+    - TestFailed
+    - UpdateFailed
+    - ResultFailed
+    - Failed
     - Processing
     - Fetching
     - Success
-    - Failed
   constant.InstallLocation:
     enum:
     - local
@@ -461,40 +464,6 @@ paths:
       summary: Get the result of single load test metrics
       tags:
       - '[Load Test Result]'
-  /ant/api/v1/load/start:
-    post:
-      consumes:
-      - application/json
-      description: Start load test. Load Environment Id must be passed or Load Environment
-        must be defined.
-      operationId: StartLoadTest
-      parameters:
-      - description: load test execution configuration request
-        in: body
-        name: loadTestReq
-        required: true
-        schema:
-          $ref: '#/definitions/api.LoadExecutionConfigReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: load test environment is not correct
-          schema:
-            type: string
-        "500":
-          description: sorry, internal server error while executing load test;
-          schema:
-            type: string
-      summary: Start load test
-      tags:
-      - '[Load Test Execution]'
   /ant/api/v1/load/state:
     get:
       consumes:
@@ -612,7 +581,7 @@ paths:
             $ref: '#/definitions/app.AntResponse-string'
       summary: Get All Load Generator Install Info
       tags:
-      - LoadGeneratorManagement
+      - '[Load Generator Management]'
     post:
       consumes:
       - application/json
@@ -643,7 +612,7 @@ paths:
             $ref: '#/definitions/app.AntResponse-string'
       summary: Install Load Generator
       tags:
-      - LoadGeneratorManagement
+      - '[Load Generator Management]'
   /api/v1/load/generators/{loadGeneratorInstallInfoId}:
     delete:
       consumes:
@@ -664,16 +633,16 @@ paths:
           schema:
             $ref: '#/definitions/app.AntResponse-string'
         "400":
-          description: Load generator installation info id must be set.
+          description: Load generator install info id must be number.
           schema:
             $ref: '#/definitions/app.AntResponse-string'
         "500":
-          description: Internal Server Error
+          description: ant server has got error. please try again.
           schema:
             $ref: '#/definitions/app.AntResponse-string'
       summary: Uninstall Load Generator
       tags:
-      - LoadGeneratorManagement
+      - '[Load Generator Management]'
   /api/v1/load/monitoring/agent/install:
     post:
       consumes:
@@ -704,7 +673,7 @@ paths:
             $ref: '#/definitions/app.AntResponse-string'
       summary: Install Metrics Monitoring Agent
       tags:
-      - MonitoringAgentManagement
+      - '[Monitoring Agent Management]'
   /api/v1/load/monitoring/agents:
     get:
       consumes:
@@ -749,7 +718,7 @@ paths:
             $ref: '#/definitions/app.AntResponse-string'
       summary: Retrieve Monitoring Agent Information
       tags:
-      - MonitoringAgentManagement
+      - '[Monitoring Agent Management]'
   /api/v1/load/monitoring/agents/uninstall:
     post:
       consumes:
@@ -781,5 +750,36 @@ paths:
             $ref: '#/definitions/app.AntResponse-string'
       summary: Uninstall Monitoring Agents
       tags:
-      - MonitoringAgentManagement
+      - '[Monitoring Agent Management]'
+  /api/v1/load/tests/run:
+    post:
+      consumes:
+      - application/json
+      description: Start a load test using the provided load generator configuration.
+      operationId: RunLoadTest
+      parameters:
+      - description: Run Load Generator Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.RunLoadGeneratorReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{loadTestKey}'
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "400":
+          description: load generator install location is invalid.
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: ant server has got error. please try again.
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Run Load Test
+      tags:
+      - '[Load Test Management]'
 swagger: "2.0"

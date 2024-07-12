@@ -71,25 +71,30 @@ func (server *AntServer) InitRouter() error {
 			loadRouter.POST("/generators", server.installLoadGenerator)
 			loadRouter.DELETE("/generators/:loadGeneratorInstallInfoId", server.uninstallLoadGenerator)
 
-			loadRouter.POST("/test/run", server.runLoadTest)
-			loadRouter.POST("/test/stop", server.stopLoadTest)
-
-			// load test result
-			loadRouter.GET("/result", server.getLoadTestResult)
-			loadRouter.GET("/result/metrics", server.getLoadTestMetrics)
-
-			// load test history
-			loadRouter.GET("/config", server.getAllLoadConfig)
-			loadRouter.GET("/config/:loadTestKey", server.getLoadConfig)
-
-			// load test state
-			loadRouter.GET("/state", server.getAllLoadExecutionState)
-			loadRouter.GET("/state/:loadTestKey", server.getLoadExecutionState)
-
 			// load test metrics agent
 			loadRouter.POST("/monitoring/agent/install", server.installMonitoringAgent, middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(1)))
 			loadRouter.GET("/monitoring/agent", server.getAllMonitoringAgentInfos)
 			loadRouter.POST("/monitoring/agent/uninstall", server.uninstallMonitoringAgent, middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(1)))
+		}
+
+		loadTestRouter := loadRouter.Group("/tests")
+
+		{
+			// load test execution
+			loadTestRouter.POST("/tests/run", server.runLoadTest)
+			loadTestRouter.POST("/tests/stop", server.stopLoadTest)
+
+			// load test state
+			loadTestRouter.GET("/tests/state", server.getAllLoadExecutionState)
+			loadTestRouter.GET("/tests/state/:loadTestKey", server.getLoadExecutionState)
+
+			// load test result
+			loadTestRouter.GET("/tests/result", server.getLoadTestResult)
+			loadTestRouter.GET("/tests/result/metrics", server.getLoadTestMetrics)
+
+			// load test history
+			loadTestRouter.GET("/tests/history", server.getAllLoadConfig)
+			loadTestRouter.GET("/tests/history/:loadTestKey", server.getLoadTestExecutionInfo)
 		}
 
 	}

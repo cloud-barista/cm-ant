@@ -20,7 +20,7 @@ const (
 // @Id GetAllLoadGeneratorInstallInfo
 // @Summary Get All Load Generator Install Info
 // @Description Retrieve a list of all installed load generators with pagination support.
-// @Tags LoadGeneratorManagement
+// @Tags [Load Generator Management]
 // @Accept json
 // @Produce json
 // @Param page query int false "Page number for pagination (default 1)"
@@ -61,7 +61,7 @@ func (s *AntServer) getAllLoadGeneratorInstallInfo(c echo.Context) error {
 // @Id InstallLoadGenerator
 // @Summary Install Load Generator
 // @Description Install a load generator either locally or remotely.
-// @Tags LoadGeneratorManagement
+// @Tags [Load Generator Management]
 // @Accept json
 // @Produce json
 // @Param body body app.InstallLoadGeneratorReq true "Load Generator Installation Request"
@@ -112,7 +112,7 @@ func (s *AntServer) installLoadGenerator(c echo.Context) error {
 // @Id UninstallLoadGenerator
 // @Summary Uninstall Load Generator
 // @Description Uninstall a previously installed load generator.
-// @Tags LoadGeneratorManagement
+// @Tags [Load Generator Management]
 // @Accept json
 // @Produce json
 // @Param loadGeneratorInstallInfoId path string true "load generator install info id"
@@ -150,6 +150,19 @@ func (s *AntServer) uninstallLoadGenerator(c echo.Context) error {
 	)
 }
 
+// runLoadTest handler function that initiates a load test.
+// @Id RunLoadTest
+// @Summary Run Load Test
+// @Description Start a load test using the provided load generator configuration.
+// @Tags [Load Test Management]
+// @Accept json
+// @Produce json
+// @Param body body app.RunLoadGeneratorReq true "Run Load Generator Request"
+// @Success 200 {object} app.AntResponse[string] "{loadTestKey}"
+// @Failure 400 {object} app.AntResponse[string] "load generator running info is not correct."
+// @Failure 400 {object} app.AntResponse[string] "load generator install location is invalid."
+// @Failure 500 {object} app.AntResponse[string] "ant server has got error. please try again."
+// @Router /api/v1/load/tests/run [post]
 func (s *AntServer) runLoadTest(c echo.Context) error {
 	var req RunLoadGeneratorReq
 
@@ -230,7 +243,7 @@ func (s *AntServer) getAllLoadConfig(c echo.Context) error {
 	return c.JSON(http.StatusOK, c.Request().RequestURI)
 }
 
-func (s *AntServer) getLoadConfig(c echo.Context) error {
+func (s *AntServer) getLoadTestExecutionInfo(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, c.Request().RequestURI)
 }
@@ -249,7 +262,7 @@ func (s *AntServer) getLoadExecutionState(c echo.Context) error {
 // @Id				InstallMonitoringAgent
 // @Summary Install Metrics Monitoring Agent
 // @Description Install a monitoring agent on specific MCIS.
-// @Tags MonitoringAgentManagement
+// @Tags [Monitoring Agent Management]
 // @Accept json
 // @Produce json
 // @Param body body app.MonitoringAgentInstallationReq true "Monitoring Agent Installation Request"
@@ -287,7 +300,7 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 // @Id				GetAllMonitoringAgentInfos
 // @Summary Retrieve Monitoring Agent Information
 // @Description Retrieve monitoring agent information based on specified criteria.
-// @Tags MonitoringAgentManagement
+// @Tags [Monitoring Agent Management]
 // @Accept json
 // @Produce json
 // @Param nsId query string false "Namespace ID" default:""
@@ -332,7 +345,7 @@ func (s *AntServer) getAllMonitoringAgentInfos(c echo.Context) error {
 // @Id             UninstallMonitoringAgent
 // @Summary        Uninstall Monitoring Agents
 // @Description    Uninstall monitoring agents from specified VMs or all VMs in an MCIS.
-// @Tags           MonitoringAgentManagement
+// @Tags           [Monitoring Agent Management]
 // @Accept         json
 // @Produce        json
 // @Param body body app.MonitoringAgentInstallationReq true "Monitoring Agent Uninstallation Request"

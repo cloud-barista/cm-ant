@@ -222,46 +222,6 @@ func GetLoadExecutionStateHandler() echo.HandlerFunc {
 	}
 }
 
-// RunLoadTestHandler
-// @Id				StartLoadTest
-// @Summary			Start load test
-// @Description		Start load test. Load Environment Id must be passed or Load Environment must be defined.
-// @Tags			[Load Test Execution]
-// @Accept			json
-// @Produce			json
-// @Param			loadTestReq 	body 	api.LoadExecutionConfigReq 			true 	"load test execution configuration request"
-// @Success			200	{object}			map[string]string					`{ "testKey": testKey, "envId": envId, "loadExecutionConfigId": loadExecutionConfigId, "message": "success" }`
-// @Failure			400	{object}			string								"load test environment is not correct"
-// @Failure			500	{object}			string								"sorry, internal server error while executing load test;"
-// @Router			/ant/api/v1/load/start 		[post]
-func RunLoadTestHandler() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		loadTestReq := api.LoadExecutionConfigReq{}
-
-		if err := c.Bind(&loadTestReq); err != nil {
-			log.Printf("error while binding request body; %+v\n", err)
-			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": fmt.Sprintf("request param is incorrect; %+v", loadTestReq),
-			})
-		}
-
-		loadTestKey, err := services.ExecuteLoadTest(&loadTestReq)
-
-		if err != nil {
-			log.Printf("error while executing load test; %+v\n", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-				"message": "sorry, internal server error while executing load test;",
-			})
-		}
-
-		return c.JSON(http.StatusOK, map[string]any{
-			"loadTestKey": loadTestKey,
-			"message":     "success",
-		})
-
-	}
-}
-
 // StopLoadTestHandler
 // @Id				StopLoadTest
 // @Summary			Stop load test
