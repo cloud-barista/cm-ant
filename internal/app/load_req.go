@@ -36,6 +36,7 @@ type RunLoadGeneratorReq struct {
 	RampUpSteps                string                  `json:"rampUpSteps"`
 	Hostname                   string                  `json:"hostname"`
 	Port                       string                  `json:"port"`
+	AgentInstalled             bool                    `json:"agentInstalled"`
 	AgentHostname              string                  `json:"agentHostname"`
 
 	HttpReqs []RunLoadGeneratorHttpReq `json:"httpReqs,omitempty"`

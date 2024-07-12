@@ -12,6 +12,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const (
+	seoul = "37.53/127.02"
+)
+
 // getAllLoadGeneratorInstallInfo handler function that retrieves all load generator installation information.
 // @Id GetAllLoadGeneratorInstallInfo
 // @Summary Get All Load Generator Install Info
@@ -86,7 +90,7 @@ func (s *AntServer) installLoadGenerator(c echo.Context) error {
 	// call service layer install load generator
 	param := load.InstallLoadGeneratorParam{
 		InstallLocation: req.InstallLocation,
-		Coordinates:     []string{"37.53/127.02"},
+		Coordinates:     []string{seoul},
 	}
 	result, err := s.services.loadService.InstallLoadGenerator(param)
 
@@ -178,7 +182,7 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 
 		InstallLoadGenerator: load.InstallLoadGeneratorParam{
 			InstallLocation: req.InstallLoadGenerator.InstallLocation,
-			Coordinates:     []string{"37.53/127.02"},
+			Coordinates:     []string{seoul},
 		},
 		LoadGeneratorInstallInfoId: req.LoadGeneratorInstallInfoId,
 		TestName:                   req.TestName,
@@ -188,11 +192,12 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 		RampUpSteps:                req.RampUpSteps,
 		Hostname:                   req.Hostname,
 		Port:                       req.Port,
+		AgentInstalled:             req.AgentInstalled,
 		AgentHostname:              req.AgentHostname,
 		HttpReqs:                   https,
 	}
 
-	loadTestKey, err := s.services.loadService.RunLoadGenerator(arg)
+	loadTestKey, err := s.services.loadService.RunLoadTest(arg)
 
 	if err != nil {
 		return errorResponse(http.StatusBadRequest, err.Error())

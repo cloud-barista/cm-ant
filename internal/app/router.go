@@ -1,7 +1,6 @@
 package app
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -43,7 +42,7 @@ func (server *AntServer) InitRouter() error {
 			result, err := services.GetAllLoadExecutionConfig()
 
 			if err != nil {
-				log.Printf("error while get load test execution config; %+v", err)
+				utils.LogErrorf("error while get load test execution config; %+v", err)
 				return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
 					"message": "something went wrong.try again.",
 				})
@@ -166,7 +165,7 @@ func setMiddleware(e *echo.Echo) {
 				Skipper:      middleware.DefaultSkipper,
 				ErrorMessage: "request timeout",
 				OnTimeoutRouteErrorHandler: func(err error, c echo.Context) {
-					log.Println(c.Path())
+					utils.LogInfo(c.Path())
 				},
 				Timeout: 300 * time.Second,
 			},

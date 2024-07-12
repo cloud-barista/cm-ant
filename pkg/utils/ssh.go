@@ -5,12 +5,15 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
 
 	"github.com/melbahja/goph"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -116,4 +119,77 @@ func savePublicKey(key ssh.PublicKey, filename string) error {
 		return fmt.Errorf("failed to save public key: %w", err)
 	}
 	return nil
+}
+
+func DownloadFile(client *ssh.Client, toFilePath string, fromFilePath string) error {
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		return err
+	}
+	defer sftpClient.Close()
+
+	localFile, err := os.Create(toFilePath)
+	if err != nil {
+		return err
+	}
+	defer localFile.Close()
+
+	remoteFile, err := sftpClient.Open(fromFilePath)
+	if err != nil {
+		return err
+	}
+	defer remoteFile.Close()
+
+	stat, err := remoteFile.Stat()
+	if err != nil {
+		return err
+	}
+
+	if stat.Size() == 0 {
+		return errors.New("file is empty")
+	}
+
+	_, err = io.Copy(localFile, remoteFile)
+
+	if err != nil {
+		if err != io.EOF {
+			return err
+		}
+	}
+	return nil
+}
+
+func GetClient(publicIp, port, username, privateKeyName string) (*ssh.Client, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	privateKeyPath := fmt.Sprintf("%s/.ssh/%s", home, privateKeyName)
+
+	privateKey, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := ssh.ParsePrivateKey(privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	sshConfig := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%s", publicIp, port), sshConfig)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }

@@ -286,3 +286,23 @@ func (r *LoadRepository) UpdateLoadTestExecutionStateTx(ctx context.Context, par
 
 	return err
 }
+
+func (r *LoadRepository) UpdateLoadTestExecutionInfoDuration(ctx context.Context, loadTestKey, compileDuration, executionDuration string) error {
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		err := d.
+			Model(&LoadTestExecutionInfo{}).
+			Where(
+				"load_test_key = ?", loadTestKey,
+			).
+			Updates(map[string]interface{}{"compile_duration": compileDuration, "execution_duration": executionDuration}).Error
+
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return err
+
+}
