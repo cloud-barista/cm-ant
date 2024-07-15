@@ -103,6 +103,17 @@ definitions:
       successMessage:
         type: string
     type: object
+  app.AntResponse-load_GetAllLoadTestExecutionStateResult:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        $ref: '#/definitions/load.GetAllLoadTestExecutionStateResult'
+      successMessage:
+        type: string
+    type: object
   app.AntResponse-load_GetAllMonitoringAgentInfoResult:
     properties:
       code:
@@ -122,6 +133,17 @@ definitions:
         type: string
       result:
         $ref: '#/definitions/load.LoadGeneratorInstallInfoResult'
+      successMessage:
+        type: string
+    type: object
+  app.AntResponse-load_LoadTestExecutionStateResult:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        $ref: '#/definitions/load.LoadTestExecutionStateResult'
       successMessage:
         type: string
     type: object
@@ -250,6 +272,15 @@ definitions:
       totalRows:
         type: integer
     type: object
+  load.GetAllLoadTestExecutionStateResult:
+    properties:
+      loadTestExecutionStates:
+        items:
+          $ref: '#/definitions/load.LoadTestExecutionStateResult'
+        type: array
+      totalRow:
+        type: integer
+    type: object
   load.GetAllMonitoringAgentInfoResult:
     properties:
       monitoringAgentInfos:
@@ -321,6 +352,35 @@ definitions:
       vmId:
         type: string
       zone:
+        type: string
+    type: object
+  load.LoadTestExecutionStateResult:
+    properties:
+      compileDuration:
+        type: string
+      createdAt:
+        type: string
+      executionDuration:
+        type: string
+      executionStatus:
+        $ref: '#/definitions/constant.ExecutionStatus'
+      failureMessage:
+        type: string
+      finishAt:
+        type: string
+      id:
+        type: integer
+      loadGeneratorInstallInfo:
+        $ref: '#/definitions/load.LoadGeneratorInstallInfoResult'
+      loadGeneratorInstallInfoId:
+        type: integer
+      loadTestKey:
+        type: string
+      startAt:
+        type: string
+      totalExpectedExecutionSecond:
+        type: integer
+      updatedAt:
         type: string
     type: object
   load.MonitoringAgentInstallationResult:
@@ -782,4 +842,76 @@ paths:
       summary: Run Load Test
       tags:
       - '[Load Test Management]'
+  /api/v1/load/tests/state:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all load test execution states with pagination
+        support.
+      operationId: GetAllLoadTestExecutionState
+      parameters:
+      - description: Page number for pagination (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Number of items per page (default 10, max 10)
+        in: query
+        name: size
+        type: integer
+      - description: Filter by load test key
+        in: query
+        name: loadTestKey
+        type: string
+      - description: Filter by execution status
+        in: query
+        name: executionStatus
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved load test execution state information
+          schema:
+            $ref: '#/definitions/app.AntResponse-load_GetAllLoadTestExecutionStateResult'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve load test execution state information
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get All Load Test Execution State
+      tags:
+      - '[Load Test State Management]'
+  /api/v1/load/tests/state/{loadTestKey}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a load test execution state by load test key.
+      operationId: GetLoadTestExecutionState
+      parameters:
+      - description: Load test key
+        in: path
+        name: loadTestKey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved load test execution state information
+          schema:
+            $ref: '#/definitions/app.AntResponse-load_LoadTestExecutionStateResult'
+        "400":
+          description: Load test key must be set.
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve load test execution state information
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get Load Test Execution State
+      tags:
+      - '[Load Test State Management]'
 swagger: "2.0"

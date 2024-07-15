@@ -657,6 +657,113 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/v1/load/tests/state": {
+            "get": {
+                "description": "Retrieve a list of all load test execution states with pagination support.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test State Management]"
+                ],
+                "summary": "Get All Load Test Execution State",
+                "operationId": "GetAllLoadTestExecutionState",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number for pagination (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items per page (default 10, max 10)",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by load test key",
+                        "name": "loadTestKey",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by execution status",
+                        "name": "executionStatus",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test execution state information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_GetAllLoadTestExecutionStateResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test execution state information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/load/tests/state/{loadTestKey}": {
+            "get": {
+                "description": "Retrieve a load test execution state by load test key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test State Management]"
+                ],
+                "summary": "Get Load Test Execution State",
+                "operationId": "GetLoadTestExecutionState",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Load test key",
+                        "name": "loadTestKey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test execution state information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_LoadTestExecutionStateResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Load test key must be set.",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test execution state information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -818,6 +925,23 @@ const docTemplate = `{
                 }
             }
         },
+        "app.AntResponse-load_GetAllLoadTestExecutionStateResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/load.GetAllLoadTestExecutionStateResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
         "app.AntResponse-load_GetAllMonitoringAgentInfoResult": {
             "type": "object",
             "properties": {
@@ -846,6 +970,23 @@ const docTemplate = `{
                 },
                 "result": {
                     "$ref": "#/definitions/load.LoadGeneratorInstallInfoResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-load_LoadTestExecutionStateResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/load.LoadTestExecutionStateResult"
                 },
                 "successMessage": {
                     "type": "string"
@@ -1032,6 +1173,20 @@ const docTemplate = `{
                 }
             }
         },
+        "load.GetAllLoadTestExecutionStateResult": {
+            "type": "object",
+            "properties": {
+                "loadTestExecutionStates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.LoadTestExecutionStateResult"
+                    }
+                },
+                "totalRow": {
+                    "type": "integer"
+                }
+            }
+        },
         "load.GetAllMonitoringAgentInfoResult": {
             "type": "object",
             "properties": {
@@ -1139,6 +1294,50 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "zone": {
+                    "type": "string"
+                }
+            }
+        },
+        "load.LoadTestExecutionStateResult": {
+            "type": "object",
+            "properties": {
+                "compileDuration": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "executionDuration": {
+                    "type": "string"
+                },
+                "executionStatus": {
+                    "$ref": "#/definitions/constant.ExecutionStatus"
+                },
+                "failureMessage": {
+                    "type": "string"
+                },
+                "finishAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "loadGeneratorInstallInfo": {
+                    "$ref": "#/definitions/load.LoadGeneratorInstallInfoResult"
+                },
+                "loadGeneratorInstallInfoId": {
+                    "type": "integer"
+                },
+                "loadTestKey": {
+                    "type": "string"
+                },
+                "startAt": {
+                    "type": "string"
+                },
+                "totalExpectedExecutionSecond": {
+                    "type": "integer"
+                },
+                "updatedAt": {
                     "type": "string"
                 }
             }
