@@ -244,18 +244,56 @@ func (s *AntServer) getAllLoadConfig(c echo.Context) error {
 }
 
 func (s *AntServer) getLoadTestExecutionInfo(c echo.Context) error {
-
 	return c.JSON(http.StatusOK, c.Request().RequestURI)
 }
 
-func (s *AntServer) getAllLoadExecutionState(c echo.Context) error {
+func (s *AntServer) getAllLoadTestExecutionState(c echo.Context) error {
+	var req GetAllLoadTestExecutionStateReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponse(http.StatusBadRequest, "Invalid request parameters")
+	}
+	if req.Size < 1 || req.Size > 10 {
+		req.Size = 10
+	}
+	if req.Page < 1 {
+		req.Page = 1
+	}
 
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	arg := load.GetAllLoadTestExecutionStateParam{
+		Page:            req.Page,
+		Size:            req.Size,
+		LoadTestKey:     req.LoadTestKey,
+		ExecutionStatus: req.ExecutionStatus,
+	}
+
+	result, err := s.services.loadService.GetAllLoadTestExecutionState(arg)
+
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "Failed to retrieve all load test execution state information")
+	}
+
+	return successResponse(c, "Successfully retrieved load test execution state information", result)
 }
 
-func (s *AntServer) getLoadExecutionState(c echo.Context) error {
+func (s *AntServer) getLoadTestExecutionState(c echo.Context) error {
+	loadTestKey := c.Param("loadTestKey")
 
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	if strings.TrimSpace(loadTestKey) == "" {
+		return errorResponse(http.StatusBadRequest, "Load test key must be set.")
+	}
+
+	arg := load.GetLoadTestExecutionStateParam{
+		LoadTestKey: loadTestKey,
+	}
+
+	result, err := s.services.loadService.GetLoadTestExecutionState(arg)
+
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "Failed to retrieve load test execution state information")
+	}
+
+	return successResponse(c, "Successfully retrieved load test execution state information", result)
+
 }
 
 // installMonitoringAgent handler function that handles a monitoring request request to collect metric.

@@ -50,3 +50,10 @@ type RunLoadGeneratorHttpReq struct {
 	Path     string `json:"path,omitempty"`
 	BodyData string `json:"bodyData,omitempty"`
 }
+
+type GetAllLoadTestExecutionStateReq struct {
+	Page            int                      `query:"page"`
+	Size            int                      `query:"size"`
+	LoadTestKey     string                   `query:"loadTestKey"`
+	ExecutionStatus constant.ExecutionStatus `query:"executionStatus"`
+}

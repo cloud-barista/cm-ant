@@ -1276,3 +1276,141 @@ func killCmdGen(loadTestKey string) string {
 	utils.LogInfof("Generating kill command for load test key: %s", loadTestKey)
 	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
 }
+
+type GetAllLoadTestExecutionStateParam struct {
+	Page            int                      `json:"page"`
+	Size            int                      `json:"size"`
+	LoadTestKey     string                   `json:"loadTestKey"`
+	ExecutionStatus constant.ExecutionStatus `json:"executionStatus"`
+}
+
+type GetAllLoadTestExecutionStateResult struct {
+	LoadTestExecutionStates []LoadTestExecutionStateResult `json:"loadTestExecutionStates"`
+	TotalRow                int64                          `json:"totalRow"`
+}
+
+type LoadTestExecutionStateResult struct {
+	ID                          uint                           `json:"id"`
+	LoadGeneratorInstallInfoId  uint                           `json:"loadGeneratorInstallInfoId,omitempty"`
+	LoadGeneratorInstallInfo    LoadGeneratorInstallInfoResult `json:"loadGeneratorInstallInfo,omitempty"`
+	LoadTestKey                 string                         `json:"loadTestKey"`
+	ExecutionStatus             constant.ExecutionStatus       `json:"executionStatus"`
+	StartAt                     time.Time                      `json:"startAt"`
+	FinishAt                    *time.Time                     `json:"finishAt"`
+	TotalExpectedExcutionSecond uint64                         `json:"totalExpectedExecutionSecond"`
+	FailureMessage              string                         `json:"failureMessage"`
+	CompileDuration             string                         `json:"compileDuration"`
+	ExecutionDuration           string                         `json:"executionDuration"`
+	CreatedAt                   time.Time                      `json:"createdAt"`
+	UpdatedAt                   time.Time                      `json:"updatedAt"`
+}
+
+func (l *LoadService) GetAllLoadTestExecutionState(param GetAllLoadTestExecutionStateParam) (GetAllLoadTestExecutionStateResult, error) {
+	var res GetAllLoadTestExecutionStateResult
+	var loadTestExecutionStates []LoadTestExecutionStateResult
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	utils.LogInfof("GetAllLoadExecutionStates called with param: %+v", param)
+	result, totalRows, err := l.loadRepo.GetPagingLoadTestExecutionStateTx(ctx, param)
+
+	if err != nil {
+		utils.LogErrorf("Error fetching load test execution state infos: %v", err)
+		return res, err
+	}
+
+	utils.LogInfof("Fetched %d monitoring agent infos", len(result))
+
+	for _, loadTestExecutionState := range result {
+		var l LoadTestExecutionStateResult
+		l.ID = loadTestExecutionState.ID
+		l.LoadGeneratorInstallInfoId = loadTestExecutionState.LoadGeneratorInstallInfoId
+		l.LoadTestKey = loadTestExecutionState.LoadTestKey
+		l.ExecutionStatus = loadTestExecutionState.ExecutionStatus
+		l.StartAt = loadTestExecutionState.StartAt
+		l.FinishAt = loadTestExecutionState.FinishAt
+		l.TotalExpectedExcutionSecond = loadTestExecutionState.TotalExpectedExcutionSecond
+		l.FailureMessage = loadTestExecutionState.FailureMessage
+		l.CompileDuration = loadTestExecutionState.CompileDuration
+		l.ExecutionDuration = loadTestExecutionState.ExecutionDuration
+		l.CreatedAt = loadTestExecutionState.CreatedAt
+		l.UpdatedAt = loadTestExecutionState.UpdatedAt
+		loadTestExecutionStates = append(loadTestExecutionStates, l)
+	}
+
+	res.LoadTestExecutionStates = loadTestExecutionStates
+	res.TotalRow = totalRows
+
+	return res, nil
+}
+
+type GetLoadTestExecutionStateParam struct {
+	LoadTestKey string `json:"loadTestKey"`
+}
+
+func (l *LoadService) GetLoadTestExecutionState(param GetLoadTestExecutionStateParam) (LoadTestExecutionStateResult, error) {
+	var res LoadTestExecutionStateResult
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	utils.LogInfof("GetLoadTestExecutionState called with param: %+v", param)
+	state, loadGeneratorInstallInfo, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, param)
+
+	if err != nil {
+		utils.LogErrorf("Error fetching load test execution state infos: %v", err)
+		return res, err
+	}
+
+	res.ID = state.ID
+	res.LoadTestKey = state.LoadTestKey
+	res.ExecutionStatus = state.ExecutionStatus
+	res.StartAt = state.StartAt
+	res.FinishAt = state.FinishAt
+	res.TotalExpectedExcutionSecond = state.TotalExpectedExcutionSecond
+	res.FailureMessage = state.FailureMessage
+	res.CompileDuration = state.CompileDuration
+	res.ExecutionDuration = state.ExecutionDuration
+	res.CreatedAt = state.CreatedAt
+	res.UpdatedAt = state.UpdatedAt
+
+	loadGeneratorServerResults := make([]LoadGeneratorServerResult, 0)
+	for _, s := range loadGeneratorInstallInfo.LoadGeneratorServers {
+		lsr := LoadGeneratorServerResult{
+			ID:              s.ID,
+			Csp:             s.Csp,
+			Region:          s.Region,
+			Zone:            s.Zone,
+			PublicIp:        s.PublicIp,
+			PrivateIp:       s.PrivateIp,
+			PublicDns:       s.PublicDns,
+			MachineType:     s.MachineType,
+			Status:          s.Status,
+			SshPort:         s.SshPort,
+			Lat:             s.Lat,
+			Lon:             s.Lon,
+			Username:        s.Username,
+			VmId:            s.VmId,
+			StartTime:       s.StartTime,
+			AdditionalVmKey: s.AdditionalVmKey,
+			Label:           s.Label,
+			CreatedAt:       s.CreatedAt,
+		}
+		loadGeneratorServerResults = append(loadGeneratorServerResults, lsr)
+	}
+	lr := LoadGeneratorInstallInfoResult{
+		ID:                   loadGeneratorInstallInfo.ID,
+		InstallLocation:      loadGeneratorInstallInfo.InstallLocation,
+		InstallType:          loadGeneratorInstallInfo.InstallType,
+		InstallPath:          loadGeneratorInstallInfo.InstallPath,
+		InstallVersion:       loadGeneratorInstallInfo.InstallVersion,
+		Status:               loadGeneratorInstallInfo.Status,
+		PublicKeyName:        loadGeneratorInstallInfo.PublicKeyName,
+		PrivateKeyName:       loadGeneratorInstallInfo.PrivateKeyName,
+		CreatedAt:            loadGeneratorInstallInfo.CreatedAt,
+		LoadGeneratorServers: loadGeneratorServerResults,
+	}
+
+	res.LoadGeneratorInstallInfo = lr
+
+	return res, nil
+}
