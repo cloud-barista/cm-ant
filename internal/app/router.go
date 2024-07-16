@@ -88,15 +88,14 @@ func (server *AntServer) InitRouter() error {
 			loadTestRouter.GET("/state", server.getAllLoadTestExecutionState)
 			loadTestRouter.GET("/state/:loadTestKey", server.getLoadTestExecutionState)
 
+			// load test history
+			loadTestRouter.GET("/infos", server.getAllLoadTestExecutionInfos)
+			loadTestRouter.GET("/infos/:loadTestKey", server.getLoadTestExecutionInfo)
+
 			// load test result
 			loadTestRouter.GET("/result", server.getLoadTestResult)
 			loadTestRouter.GET("/result/metrics", server.getLoadTestMetrics)
-
-			// load test history
-			loadTestRouter.GET("/history", server.getAllLoadConfig)
-			loadTestRouter.GET("/history/:loadTestKey", server.getLoadTestExecutionInfo)
 		}
-
 	}
 
 	{

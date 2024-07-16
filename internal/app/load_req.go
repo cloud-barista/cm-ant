@@ -57,3 +57,8 @@ type GetAllLoadTestExecutionStateReq struct {
 	LoadTestKey     string                   `query:"loadTestKey"`
 	ExecutionStatus constant.ExecutionStatus `query:"executionStatus"`
 }
+
+type GetAllLoadTestExecutionHistoryReq struct {
+	Page int `query:"page"`
+	Size int `query:"size"`
+}

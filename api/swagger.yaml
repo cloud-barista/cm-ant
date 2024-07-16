@@ -524,54 +524,6 @@ paths:
       summary: Get the result of single load test metrics
       tags:
       - '[Load Test Result]'
-  /ant/api/v1/load/state:
-    get:
-      consumes:
-      - application/json
-      description: Get all the load test execution state.
-      operationId: LoadExecutionStates
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/api.LoadExecutionStateRes'
-            type: array
-        "500":
-          description: something went wrong.try again.
-          schema:
-            type: string
-      summary: Get all load execution state
-      tags:
-      - '[Load Test State]'
-  /ant/api/v1/load/state/{loadTestKey}:
-    get:
-      consumes:
-      - application/json
-      description: Get a load test execution state by load test key.
-      operationId: LoadExecutionState
-      parameters:
-      - description: load test key
-        in: path
-        name: loadTestKey
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/api.LoadExecutionStateRes'
-        "500":
-          description: something went wrong. try again.
-          schema:
-            type: string
-      summary: Get load execution state
-      tags:
-      - '[Load Test State]'
   /ant/api/v1/load/stop:
     post:
       consumes:

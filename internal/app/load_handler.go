@@ -238,13 +238,50 @@ func (s *AntServer) getLoadTestMetrics(c echo.Context) error {
 	return c.JSON(http.StatusOK, c.Request().RequestURI)
 }
 
-func (s *AntServer) getAllLoadConfig(c echo.Context) error {
+func (s *AntServer) getAllLoadTestExecutionInfos(c echo.Context) error {
+	var req GetAllLoadTestExecutionHistoryReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponse(http.StatusBadRequest, "Invalid request parameters")
+	}
+	if req.Size < 1 || req.Size > 10 {
+		req.Size = 10
+	}
+	if req.Page < 1 {
+		req.Page = 1
+	}
 
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	arg := load.GetAllLoadTestExecutionInfosParam{
+		Page: req.Page,
+		Size: req.Size,
+	}
+
+	result, err := s.services.loadService.GetAllLoadTestExecutionInfos(arg)
+
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "Failed to retrieve all load test execution information")
+	}
+
+	return successResponse(c, "Successfully retrieved load test execution information", result)
 }
 
 func (s *AntServer) getLoadTestExecutionInfo(c echo.Context) error {
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	loadTestKey := c.Param("loadTestKey")
+
+	if strings.TrimSpace(loadTestKey) == "" {
+		return errorResponse(http.StatusBadRequest, "Load test key must be set.")
+	}
+
+	arg := load.GetLoadTestExecutionStateParam{
+		LoadTestKey: loadTestKey,
+	}
+
+	result, err := s.services.loadService.GetLoadTestExecutionState(arg)
+
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "Failed to retrieve load test execution state information")
+	}
+
+	return successResponse(c, "Successfully retrieved load test execution state information", result)
 }
 
 // getAllLoadTestExecutionState handler function that retrieves all load test execution states.

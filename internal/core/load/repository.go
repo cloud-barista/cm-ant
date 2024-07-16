@@ -113,7 +113,8 @@ func (r *LoadRepository) GetAllMonitoringAgentInfosTx(ctx context.Context, param
 	var monitoringAgentInfos []MonitoringAgentInfo
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
-		q := d.Model(&monitoringAgentInfos)
+		q := d.Model(&monitoringAgentInfos).
+			Order("monitoring_agent_info.created_at desc")
 
 		if param.NsId != "" {
 			q = q.Where("ns_id = ?", param.NsId)
@@ -207,7 +208,8 @@ func (r *LoadRepository) GetPagingLoadGeneratorInstallInfosTx(ctx context.Contex
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		q := d.Model(&LoadGeneratorInstallInfo{}).
-			Preload("LoadGeneratorServers")
+			Preload("LoadGeneratorServers").
+			Order("load_generator_install_infos.created_at desc")
 
 		if param.Status != "" {
 			q = q.Where("status = ?", param.Status)
@@ -249,20 +251,21 @@ func (r *LoadRepository) InsertLoadTestExecutionStateTx(ctx context.Context, par
 
 func (r *LoadRepository) SaveForLoadTestExecutionTx(ctx context.Context, loadParam *LoadTestExecutionInfo, stateParam *LoadTestExecutionState) error {
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
-
 		err := d.
-			Where("load_test_key = ?", stateParam.LoadTestKey).
-			FirstOrCreate(&stateParam).
-			Error
-
-		if err != nil {
-			return err
-		}
-		err = d.
 			Where(
 				"load_test_key = ?", loadParam.LoadTestKey,
 			).
 			FirstOrCreate(loadParam).Error
+
+		if err != nil {
+			return err
+		}
+
+		stateParam.LoadTestExecutionInfoId = loadParam.ID
+		err = d.
+			Where("load_test_key = ?", stateParam.LoadTestKey).
+			FirstOrCreate(&stateParam).
+			Error
 
 		if err != nil {
 			return err
@@ -312,7 +315,10 @@ func (r *LoadRepository) GetPagingLoadTestExecutionStateTx(ctx context.Context, 
 	var totalRows int64
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
-		q := d.Model(&loadTestExecutionStates)
+		q := d.Model(&LoadTestExecutionState{}).
+			Preload("LoadGeneratorInstallInfo").
+			Preload("LoadGeneratorInstallInfo.LoadGeneratorServers").
+			Order("load_test_execution_states.created_at desc")
 
 		if param.LoadTestKey != "" {
 			q = q.Where("load_test_key like ?", "%"+param.LoadTestKey+"%")
@@ -363,4 +369,32 @@ func (r *LoadRepository) GetLoadTestExecutionStateTx(ctx context.Context, param 
 	})
 
 	return loadTestExecutionState, loadGeneratorInstallInfo, err
+}
+
+func (r *LoadRepository) GetPagingLoadTestExecutionHistoryTx(ctx context.Context, param GetAllLoadTestExecutionInfosParam) ([]LoadTestExecutionInfo, int64, error) {
+	var loadTestExecutionInfo []LoadTestExecutionInfo
+	var totalRows int64
+
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		q := d.Model(&LoadTestExecutionInfo{}).
+			Preload("LoadTestExecutionState").
+			Preload("LoadTestExecutionHttpInfos").
+			Preload("LoadGeneratorInstallInfo").
+			Preload("LoadGeneratorInstallInfo.LoadGeneratorServers").
+			Order("load_test_execution_infos.created_at desc")
+
+		if err := q.Count(&totalRows).Error; err != nil {
+			return err
+		}
+
+		offset := (param.Page - 1) * param.Size
+		if err := q.Offset(offset).Limit(param.Size).Find(&loadTestExecutionInfo).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return loadTestExecutionInfo, totalRows, err
+
 }

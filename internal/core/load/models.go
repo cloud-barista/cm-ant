@@ -66,7 +66,6 @@ type LoadGeneratorInstallInfo struct {
 
 type LoadTestExecutionState struct {
 	gorm.Model
-	LoadGeneratorInstallInfoId  uint
 	LoadTestKey                 string `gorm:"unique_index;not null"`
 	ExecutionStatus             constant.ExecutionStatus
 	StartAt                     time.Time
@@ -75,6 +74,11 @@ type LoadTestExecutionState struct {
 	FailureMessage              string
 	CompileDuration             string `json:"compileDuration"`
 	ExecutionDuration           string `json:"executionDuration"`
+
+	LoadTestExecutionInfoId uint
+
+	LoadGeneratorInstallInfoId uint
+	LoadGeneratorInstallInfo   LoadGeneratorInstallInfo
 }
 
 type LoadTestExecutionInfo struct {
@@ -91,8 +95,12 @@ type LoadTestExecutionInfo struct {
 	AgentInstalled             bool                        `json:"agentInstalled"`
 	CompileDuration            string                      `json:"compileDuration"`
 	ExecutionDuration          string                      `json:"executionDuration"`
-	HttpReqs                   []LoadTestExecutionHttpInfo `json:"httpReqs,omitempty"`
+	LoadTestExecutionHttpInfos []LoadTestExecutionHttpInfo `json:"httpReqs,omitempty"`
+
+	LoadTestExecutionState LoadTestExecutionState
+
 	LoadGeneratorInstallInfoId uint
+	LoadGeneratorInstallInfo   LoadGeneratorInstallInfo
 }
 
 type LoadTestExecutionHttpInfo struct {
@@ -105,5 +113,4 @@ type LoadTestExecutionHttpInfo struct {
 	BodyData string `json:"bodyData,omitempty"`
 
 	LoadTestExecutionInfoId uint
-	LoadTestExecutionInfo   LoadTestExecutionInfo
 }
