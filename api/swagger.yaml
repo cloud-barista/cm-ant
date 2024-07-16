@@ -1,86 +1,5 @@
 basePath: /ant
 definitions:
-  api.LoadEnvRes:
-    properties:
-      installLocation:
-        $ref: '#/definitions/constant.InstallLocation'
-      loadEnvId:
-        type: integer
-      mcisId:
-        type: string
-      nsId:
-        type: string
-      pemKeyPath:
-        type: string
-      publicIp:
-        type: string
-      username:
-        type: string
-      vmId:
-        type: string
-    type: object
-  api.LoadExecutionHttpRes:
-    properties:
-      bodyData:
-        type: string
-      hostname:
-        type: string
-      loadExecutionHttpId:
-        type: integer
-      method:
-        type: string
-      path:
-        type: string
-      port:
-        type: string
-      protocol:
-        type: string
-    type: object
-  api.LoadExecutionRes:
-    properties:
-      duration:
-        type: string
-      loadEnv:
-        $ref: '#/definitions/api.LoadEnvRes'
-      loadExecutionConfigId:
-        type: integer
-      loadExecutionHttp:
-        items:
-          $ref: '#/definitions/api.LoadExecutionHttpRes'
-        type: array
-      loadExecutionState:
-        $ref: '#/definitions/api.LoadExecutionStateRes'
-      loadTestKey:
-        type: string
-      rampUpSteps:
-        type: string
-      rampUpTime:
-        type: string
-      testName:
-        type: string
-      virtualUsers:
-        type: string
-    type: object
-  api.LoadExecutionStateRes:
-    properties:
-      endAt:
-        type: string
-      executionStatus:
-        $ref: '#/definitions/constant.ExecutionStatus'
-      loadExecutionStateId:
-        type: integer
-      loadTestKey:
-        type: string
-      startAt:
-        type: string
-      totalSec:
-        type: integer
-    type: object
-  api.LoadTestKeyReq:
-    properties:
-      loadTestKey:
-        type: string
-    type: object
   app.AntResponse-int64:
     properties:
       code:
@@ -222,7 +141,7 @@ definitions:
       protocol:
         type: string
     type: object
-  app.RunLoadGeneratorReq:
+  app.RunLoadTestReq:
     properties:
       agentHostname:
         type: string
@@ -249,6 +168,11 @@ definitions:
       testName:
         type: string
       virtualUsers:
+        type: string
+    type: object
+  app.StopLoadTestReq:
+    properties:
+      loadTestKey:
         type: string
     type: object
   constant.ExecutionStatus:
@@ -420,14 +344,14 @@ definitions:
         type: string
       hostname:
         type: string
-      httpReqs:
-        items:
-          $ref: '#/definitions/load.LoadTestExecutionHttpInfoResult'
-        type: array
       id:
         type: integer
       loadGeneratorInstallInfo:
         $ref: '#/definitions/load.LoadGeneratorInstallInfoResult'
+      loadTestExecutionHttpInfos:
+        items:
+          $ref: '#/definitions/load.LoadTestExecutionHttpInfoResult'
+        type: array
       loadTestExecutionState:
         $ref: '#/definitions/load.LoadTestExecutionStateResult'
       loadTestKey:
@@ -501,54 +425,6 @@ info:
   title: CM-ANT REST API
   version: "0.1"
 paths:
-  /ant/api/v1/load/config:
-    get:
-      consumes:
-      - application/json
-      description: Get all the load test execution configurations.
-      operationId: LoadExecutionConfigs
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/api.LoadExecutionRes'
-            type: array
-        "500":
-          description: something went wrong.try again.
-          schema:
-            type: string
-      summary: Get all load execution config
-      tags:
-      - '[Load Test Configuration]'
-  /ant/api/v1/load/config/{loadTestKey}:
-    get:
-      consumes:
-      - application/json
-      description: Get a load test execution config by load test key.
-      operationId: LoadExecutionConfig
-      parameters:
-      - description: load test eky
-        in: path
-        name: loadTestKey
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/api.LoadExecutionRes'
-        "500":
-          description: something went wrong. try again.
-          schema:
-            type: string
-      summary: Get load execution config
-      tags:
-      - '[Load Test Configuration]'
   /ant/api/v1/load/result:
     get:
       consumes:
@@ -613,38 +489,6 @@ paths:
       summary: Get the result of single load test metrics
       tags:
       - '[Load Test Result]'
-  /ant/api/v1/load/stop:
-    post:
-      consumes:
-      - application/json
-      description: After start load test, stop the load test by passing the load test
-        key.
-      operationId: StopLoadTest
-      parameters:
-      - description: load test key
-        in: body
-        name: loadTestKeyReq
-        required: true
-        schema:
-          $ref: '#/definitions/api.LoadTestKeyReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: success
-          schema:
-            type: string
-        "400":
-          description: pass propertiesId if you want to stop test
-          schema:
-            type: string
-        "500":
-          description: sorry, internal server error while executing load test;
-          schema:
-            type: string
-      summary: Stop load test
-      tags:
-      - '[Load Test Execution]'
   /api/v1/load/generators:
     get:
       consumes:
@@ -886,19 +730,50 @@ paths:
       summary: Get All Load Test Execution Information
       tags:
       - '[Load Test Execution Management]'
+  /api/v1/load/tests/infos/{loadTestKey}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve the load test execution state information for a specific
+        load test key.
+      operationId: GetLoadTestExecutionInfo
+      parameters:
+      - description: Load test key
+        in: path
+        name: loadTestKey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved load test execution state information
+          schema:
+            $ref: '#/definitions/app.AntResponse-load_LoadTestExecutionInfoResult'
+        "400":
+          description: Load test key must be set.
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve load test execution state information
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get Load Test Execution State
+      tags:
+      - '[Load Test Execution Management]'
   /api/v1/load/tests/run:
     post:
       consumes:
       - application/json
-      description: Start a load test using the provided load generator configuration.
+      description: Start a load test using the provided load test configuration.
       operationId: RunLoadTest
       parameters:
-      - description: Run Load Generator Request
+      - description: Run Load Test Request
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/app.RunLoadGeneratorReq'
+          $ref: '#/definitions/app.RunLoadTestReq'
       produces:
       - application/json
       responses:
@@ -907,7 +782,7 @@ paths:
           schema:
             $ref: '#/definitions/app.AntResponse-string'
         "400":
-          description: load generator install location is invalid.
+          description: load test install location is invalid.
           schema:
             $ref: '#/definitions/app.AntResponse-string'
         "500":
@@ -989,4 +864,35 @@ paths:
       summary: Get Load Test Execution State
       tags:
       - '[Load Test State Management]'
+  /api/v1/load/tests/stop:
+    post:
+      consumes:
+      - application/json
+      description: Stop a running load test using the provided load test key.
+      operationId: StopLoadTest
+      parameters:
+      - description: Stop Load Test Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.StopLoadTestReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: done
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "400":
+          description: load test running info is not correct.
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: ant server has got error. please try again.
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Stop Load Test
+      tags:
+      - '[Load Test Execution Management]'
 swagger: "2.0"

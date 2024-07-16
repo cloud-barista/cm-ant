@@ -4,12 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
-
-	"github.com/cloud-barista/cm-ant/pkg/load/api"
 
 	"github.com/labstack/echo/v4"
 
@@ -83,52 +80,6 @@ func GetLoadTestMetricsHandler() echo.HandlerFunc {
 		c.Response().Write(gzBuf.Bytes())
 
 		return nil
-	}
-}
-
-// StopLoadTestHandler
-// @Id				StopLoadTest
-// @Summary			Stop load test
-// @Description		After start load test, stop the load test by passing the load test key.
-// @Tags			[Load Test Execution]
-// @Accept			json
-// @Produce			json
-// @Param			loadTestKeyReq	body 	api.LoadTestKeyReq	true 	"load test key"
-// @Success			200	{object}			string					"success"
-// @Failure			400	{object}			string					"pass propertiesId if you want to stop test"
-// @Failure			500	{object}			string					"sorry, internal server error while executing load test;"
-// @Router			/ant/api/v1/load/stop 			[post]
-func StopLoadTestHandler() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		loadTestKeyReq := api.LoadTestKeyReq{}
-
-		if err := c.Bind(&loadTestKeyReq); err != nil {
-			log.Printf("error while binding request body; %+v\n", err)
-			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": fmt.Sprintf("request param is incorrect; %+v", loadTestKeyReq),
-			})
-		}
-
-		if loadTestKeyReq.LoadTestKey == "" {
-			log.Println("error while execute [StopLoadTestHandler()]; no passing propertiesId")
-			return echo.NewHTTPError(http.StatusBadRequest, map[string]any{
-				"message": "pass propertiesId if you want to stop test",
-			})
-		}
-
-		err := services.StopLoadTest(loadTestKeyReq)
-
-		if err != nil {
-			log.Printf("error while executing load test; %+v\n", err)
-			return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-				"message": "sorry, internal server error while executing load test;",
-			})
-
-		}
-
-		return c.JSON(http.StatusOK, map[string]any{
-			"message": "success",
-		})
 	}
 }
 

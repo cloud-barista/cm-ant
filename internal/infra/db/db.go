@@ -8,7 +8,6 @@ import (
 
 	"github.com/cloud-barista/cm-ant/internal/core/load"
 	"github.com/cloud-barista/cm-ant/pkg/config"
-	"github.com/cloud-barista/cm-ant/pkg/load/domain/model"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -23,11 +22,6 @@ func migrateDB(defaultDb *gorm.DB) error {
 		&load.LoadTestExecutionState{},
 		&load.LoadTestExecutionInfo{},
 		&load.LoadTestExecutionHttpInfo{},
-
-		&model.LoadEnv{},
-		&model.LoadExecutionConfig{},
-		&model.LoadExecutionState{},
-		&model.LoadExecutionHttp{},
 	)
 
 	if err != nil {

@@ -16,78 +16,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/ant/api/v1/load/config": {
-            "get": {
-                "description": "Get all the load test execution configurations.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Load Test Configuration]"
-                ],
-                "summary": "Get all load execution config",
-                "operationId": "LoadExecutionConfigs",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/api.LoadExecutionRes"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "something went wrong.try again.",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/ant/api/v1/load/config/{loadTestKey}": {
-            "get": {
-                "description": "Get a load test execution config by load test key.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Load Test Configuration]"
-                ],
-                "summary": "Get load execution config",
-                "operationId": "LoadExecutionConfig",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "load test eky",
-                        "name": "loadTestKey",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/api.LoadExecutionRes"
-                        }
-                    },
-                    "500": {
-                        "description": "something went wrong. try again.",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/ant/api/v1/load/result": {
             "get": {
                 "description": "After start load test, get the result of load test.",
@@ -177,53 +105,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "sorry, internal server error while getting load test result;",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/ant/api/v1/load/stop": {
-            "post": {
-                "description": "After start load test, stop the load test by passing the load test key.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Load Test Execution]"
-                ],
-                "summary": "Stop load test",
-                "operationId": "StopLoadTest",
-                "parameters": [
-                    {
-                        "description": "load test key",
-                        "name": "loadTestKeyReq",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.LoadTestKeyReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "success",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "400": {
-                        "description": "pass propertiesId if you want to stop test",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "sorry, internal server error while executing load test;",
                         "schema": {
                             "type": "string"
                         }
@@ -589,9 +470,54 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/load/tests/infos/{loadTestKey}": {
+            "get": {
+                "description": "Retrieve the load test execution state information for a specific load test key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Execution Management]"
+                ],
+                "summary": "Get Load Test Execution State",
+                "operationId": "GetLoadTestExecutionInfo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Load test key",
+                        "name": "loadTestKey",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test execution state information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_LoadTestExecutionInfoResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Load test key must be set.",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test execution state information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/load/tests/run": {
             "post": {
-                "description": "Start a load test using the provided load generator configuration.",
+                "description": "Start a load test using the provided load test configuration.",
                 "consumes": [
                     "application/json"
                 ],
@@ -605,12 +531,12 @@ const docTemplate = `{
                 "operationId": "RunLoadTest",
                 "parameters": [
                     {
-                        "description": "Run Load Generator Request",
+                        "description": "Run Load Test Request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app.RunLoadGeneratorReq"
+                            "$ref": "#/definitions/app.RunLoadTestReq"
                         }
                     }
                 ],
@@ -622,7 +548,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "load generator install location is invalid.",
+                        "description": "load test install location is invalid.",
                         "schema": {
                             "$ref": "#/definitions/app.AntResponse-string"
                         }
@@ -742,133 +668,56 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/v1/load/tests/stop": {
+            "post": {
+                "description": "Stop a running load test using the provided load test key.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Execution Management]"
+                ],
+                "summary": "Stop Load Test",
+                "operationId": "StopLoadTest",
+                "parameters": [
+                    {
+                        "description": "Stop Load Test Request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.StopLoadTestReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "done",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "400": {
+                        "description": "load test running info is not correct.",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "ant server has got error. please try again.",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "api.LoadEnvRes": {
-            "type": "object",
-            "properties": {
-                "installLocation": {
-                    "$ref": "#/definitions/constant.InstallLocation"
-                },
-                "loadEnvId": {
-                    "type": "integer"
-                },
-                "mcisId": {
-                    "type": "string"
-                },
-                "nsId": {
-                    "type": "string"
-                },
-                "pemKeyPath": {
-                    "type": "string"
-                },
-                "publicIp": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                },
-                "vmId": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.LoadExecutionHttpRes": {
-            "type": "object",
-            "properties": {
-                "bodyData": {
-                    "type": "string"
-                },
-                "hostname": {
-                    "type": "string"
-                },
-                "loadExecutionHttpId": {
-                    "type": "integer"
-                },
-                "method": {
-                    "type": "string"
-                },
-                "path": {
-                    "type": "string"
-                },
-                "port": {
-                    "type": "string"
-                },
-                "protocol": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.LoadExecutionRes": {
-            "type": "object",
-            "properties": {
-                "duration": {
-                    "type": "string"
-                },
-                "loadEnv": {
-                    "$ref": "#/definitions/api.LoadEnvRes"
-                },
-                "loadExecutionConfigId": {
-                    "type": "integer"
-                },
-                "loadExecutionHttp": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/api.LoadExecutionHttpRes"
-                    }
-                },
-                "loadExecutionState": {
-                    "$ref": "#/definitions/api.LoadExecutionStateRes"
-                },
-                "loadTestKey": {
-                    "type": "string"
-                },
-                "rampUpSteps": {
-                    "type": "string"
-                },
-                "rampUpTime": {
-                    "type": "string"
-                },
-                "testName": {
-                    "type": "string"
-                },
-                "virtualUsers": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.LoadExecutionStateRes": {
-            "type": "object",
-            "properties": {
-                "endAt": {
-                    "type": "string"
-                },
-                "executionStatus": {
-                    "$ref": "#/definitions/constant.ExecutionStatus"
-                },
-                "loadExecutionStateId": {
-                    "type": "integer"
-                },
-                "loadTestKey": {
-                    "type": "string"
-                },
-                "startAt": {
-                    "type": "string"
-                },
-                "totalSec": {
-                    "type": "integer"
-                }
-            }
-        },
-        "api.LoadTestKeyReq": {
-            "type": "object",
-            "properties": {
-                "loadTestKey": {
-                    "type": "string"
-                }
-            }
-        },
         "app.AntResponse-int64": {
             "type": "object",
             "properties": {
@@ -1087,7 +936,7 @@ const docTemplate = `{
                 }
             }
         },
-        "app.RunLoadGeneratorReq": {
+        "app.RunLoadTestReq": {
             "type": "object",
             "properties": {
                 "agentHostname": {
@@ -1127,6 +976,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "virtualUsers": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.StopLoadTestReq": {
+            "type": "object",
+            "properties": {
+                "loadTestKey": {
                     "type": "string"
                 }
             }
@@ -1377,17 +1234,17 @@ const docTemplate = `{
                 "hostname": {
                     "type": "string"
                 },
-                "httpReqs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/load.LoadTestExecutionHttpInfoResult"
-                    }
-                },
                 "id": {
                     "type": "integer"
                 },
                 "loadGeneratorInstallInfo": {
                     "$ref": "#/definitions/load.LoadGeneratorInstallInfoResult"
+                },
+                "loadTestExecutionHttpInfos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.LoadTestExecutionHttpInfoResult"
+                    }
                 },
                 "loadTestExecutionState": {
                     "$ref": "#/definitions/load.LoadTestExecutionStateResult"
