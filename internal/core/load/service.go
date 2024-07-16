@@ -1313,7 +1313,7 @@ type LoadTestExecutionStateResult struct {
 
 func (l *LoadService) GetAllLoadTestExecutionState(param GetAllLoadTestExecutionStateParam) (GetAllLoadTestExecutionStateResult, error) {
 	var res GetAllLoadTestExecutionStateResult
-	var loadTestExecutionStates []LoadTestExecutionStateResult
+	var states []LoadTestExecutionStateResult
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -1328,67 +1328,12 @@ func (l *LoadService) GetAllLoadTestExecutionState(param GetAllLoadTestExecution
 	utils.LogInfof("Fetched %d monitoring agent infos", len(result))
 
 	for _, loadTestExecutionState := range result {
-
-		var l LoadTestExecutionStateResult
-		l.ID = loadTestExecutionState.ID
-		l.LoadTestKey = loadTestExecutionState.LoadTestKey
-		l.ExecutionStatus = loadTestExecutionState.ExecutionStatus
-		l.StartAt = loadTestExecutionState.StartAt
-		l.FinishAt = loadTestExecutionState.FinishAt
-		l.TotalExpectedExcutionSecond = loadTestExecutionState.TotalExpectedExcutionSecond
-		l.FailureMessage = loadTestExecutionState.FailureMessage
-		l.CompileDuration = loadTestExecutionState.CompileDuration
-		l.ExecutionDuration = loadTestExecutionState.ExecutionDuration
-		l.CreatedAt = loadTestExecutionState.CreatedAt
-		l.UpdatedAt = loadTestExecutionState.UpdatedAt
-
-		installInfo := loadTestExecutionState.LoadGeneratorInstallInfo
-
-		loadGeneratorServerResults := make([]LoadGeneratorServerResult, 0)
-		for _, l := range installInfo.LoadGeneratorServers {
-			lr := LoadGeneratorServerResult{
-				ID:              l.ID,
-				Csp:             l.Csp,
-				Region:          l.Region,
-				Zone:            l.Zone,
-				PublicIp:        l.PublicIp,
-				PrivateIp:       l.PrivateIp,
-				PublicDns:       l.PublicDns,
-				MachineType:     l.MachineType,
-				Status:          l.Status,
-				SshPort:         l.SshPort,
-				Lat:             l.Lat,
-				Lon:             l.Lon,
-				Username:        l.Username,
-				VmId:            l.VmId,
-				StartTime:       l.StartTime,
-				AdditionalVmKey: l.AdditionalVmKey,
-				Label:           l.Label,
-				CreatedAt:       l.CreatedAt,
-				UpdatedAt:       l.UpdatedAt,
-			}
-			loadGeneratorServerResults = append(loadGeneratorServerResults, lr)
-		}
-
-		lr := LoadGeneratorInstallInfoResult{
-			ID:                   installInfo.ID,
-			InstallLocation:      installInfo.InstallLocation,
-			InstallType:          installInfo.InstallType,
-			InstallPath:          installInfo.InstallPath,
-			InstallVersion:       installInfo.InstallVersion,
-			Status:               installInfo.Status,
-			PublicKeyName:        installInfo.PublicKeyName,
-			PrivateKeyName:       installInfo.PrivateKeyName,
-			CreatedAt:            installInfo.CreatedAt,
-			UpdatedAt:            installInfo.UpdatedAt,
-			LoadGeneratorServers: loadGeneratorServerResults,
-		}
-
-		l.LoadGeneratorInstallInfo = lr
-		loadTestExecutionStates = append(loadTestExecutionStates, l)
+		state := mapLoadTestExecutionStateResult(loadTestExecutionState)
+		state.LoadGeneratorInstallInfo = mapLoadGeneratorInstallInfoResult(loadTestExecutionState.LoadGeneratorInstallInfo)
+		states = append(states, state)
 	}
 
-	res.LoadTestExecutionStates = loadTestExecutionStates
+	res.LoadTestExecutionStates = states
 	res.TotalRow = totalRows
 
 	return res, nil
@@ -1404,66 +1349,15 @@ func (l *LoadService) GetLoadTestExecutionState(param GetLoadTestExecutionStateP
 	defer cancel()
 
 	utils.LogInfof("GetLoadTestExecutionState called with param: %+v", param)
-	state, loadGeneratorInstallInfo, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, param)
+	state, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, param)
 
 	if err != nil {
 		utils.LogErrorf("Error fetching load test execution state infos: %v", err)
 		return res, err
 	}
 
-	res.ID = state.ID
-	res.LoadTestKey = state.LoadTestKey
-	res.ExecutionStatus = state.ExecutionStatus
-	res.StartAt = state.StartAt
-	res.FinishAt = state.FinishAt
-	res.TotalExpectedExcutionSecond = state.TotalExpectedExcutionSecond
-	res.FailureMessage = state.FailureMessage
-	res.CompileDuration = state.CompileDuration
-	res.ExecutionDuration = state.ExecutionDuration
-	res.CreatedAt = state.CreatedAt
-	res.UpdatedAt = state.UpdatedAt
-
-	loadGeneratorServerResults := make([]LoadGeneratorServerResult, 0)
-	for _, s := range loadGeneratorInstallInfo.LoadGeneratorServers {
-		lsr := LoadGeneratorServerResult{
-			ID:              s.ID,
-			Csp:             s.Csp,
-			Region:          s.Region,
-			Zone:            s.Zone,
-			PublicIp:        s.PublicIp,
-			PrivateIp:       s.PrivateIp,
-			PublicDns:       s.PublicDns,
-			MachineType:     s.MachineType,
-			Status:          s.Status,
-			SshPort:         s.SshPort,
-			Lat:             s.Lat,
-			Lon:             s.Lon,
-			Username:        s.Username,
-			VmId:            s.VmId,
-			StartTime:       s.StartTime,
-			AdditionalVmKey: s.AdditionalVmKey,
-			Label:           s.Label,
-			CreatedAt:       s.CreatedAt,
-			UpdatedAt:       s.UpdatedAt,
-		}
-		loadGeneratorServerResults = append(loadGeneratorServerResults, lsr)
-	}
-	lr := LoadGeneratorInstallInfoResult{
-		ID:                   loadGeneratorInstallInfo.ID,
-		InstallLocation:      loadGeneratorInstallInfo.InstallLocation,
-		InstallType:          loadGeneratorInstallInfo.InstallType,
-		InstallPath:          loadGeneratorInstallInfo.InstallPath,
-		InstallVersion:       loadGeneratorInstallInfo.InstallVersion,
-		Status:               loadGeneratorInstallInfo.Status,
-		PublicKeyName:        loadGeneratorInstallInfo.PublicKeyName,
-		PrivateKeyName:       loadGeneratorInstallInfo.PrivateKeyName,
-		CreatedAt:            loadGeneratorInstallInfo.CreatedAt,
-		UpdatedAt:            loadGeneratorInstallInfo.UpdatedAt,
-		LoadGeneratorServers: loadGeneratorServerResults,
-	}
-
-	res.LoadGeneratorInstallInfo = lr
-
+	res = mapLoadTestExecutionStateResult(state)
+	res.LoadGeneratorInstallInfo = mapLoadGeneratorInstallInfoResult(state.LoadGeneratorInstallInfo)
 	return res, nil
 }
 
@@ -1473,11 +1367,11 @@ type GetAllLoadTestExecutionInfosParam struct {
 }
 
 type GetAllLoadTestExecutionInfosResult struct {
-	TotalRow                  int64 `json:"totalRow"`
-	LoadTestExecutionHistorys []LoadTestExecutionHistoryResult
+	TotalRow               int64 `json:"totalRow"`
+	LoadTestExecutionInfos []LoadTestExecutionInfoResult
 }
 
-type LoadTestExecutionHistoryResult struct {
+type LoadTestExecutionInfoResult struct {
 	ID                         uint                              `json:"id"`
 	LoadTestKey                string                            `json:"loadTestKey" gorm:"unique_index;not null"`
 	TestName                   string                            `json:"testName"`
@@ -1508,116 +1402,147 @@ type LoadTestExecutionHttpInfoResult struct {
 
 func (l *LoadService) GetAllLoadTestExecutionInfos(param GetAllLoadTestExecutionInfosParam) (GetAllLoadTestExecutionInfosResult, error) {
 	var res GetAllLoadTestExecutionInfosResult
-	var rs []LoadTestExecutionHistoryResult
+	var rs []LoadTestExecutionInfoResult
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	utils.LogInfof("GetAllLoadTestExecutionHistory called with param: %+v", param)
+	utils.LogInfof("GetAllLoadTestExecutionInfos called with param: %+v", param)
 	result, totalRows, err := l.loadRepo.GetPagingLoadTestExecutionHistoryTx(ctx, param)
 
 	if err != nil {
-		utils.LogErrorf("Error fetching load test execution history: %v", err)
+		utils.LogErrorf("Error fetching load test execution infos: %v", err)
 		return res, err
 	}
 
-	utils.LogInfof("Fetched %d load test execution history:", len(result))
+	utils.LogInfof("Fetched %d load test execution infos:", len(result))
 
 	for _, r := range result {
-
-		var httpResults []LoadTestExecutionHttpInfoResult
-		for _, h := range r.LoadTestExecutionHttpInfos {
-			httpResult := LoadTestExecutionHttpInfoResult{
-				ID:       h.ID,
-				Method:   h.Method,
-				Protocol: h.Protocol,
-				Hostname: h.Hostname,
-				Port:     h.Port,
-				Path:     h.Path,
-				BodyData: h.BodyData,
-			}
-			httpResults = append(httpResults, httpResult)
-		}
-
-		state := r.LoadTestExecutionState
-		executionState := LoadTestExecutionStateResult{
-			ID:                          state.ID,
-			LoadTestKey:                 state.LoadTestKey,
-			ExecutionStatus:             state.ExecutionStatus,
-			StartAt:                     state.StartAt,
-			FinishAt:                    state.FinishAt,
-			TotalExpectedExcutionSecond: state.TotalExpectedExcutionSecond,
-			FailureMessage:              state.FailureMessage,
-			CompileDuration:             state.CompileDuration,
-			ExecutionDuration:           state.ExecutionDuration,
-			CreatedAt:                   state.CreatedAt,
-			UpdatedAt:                   state.UpdatedAt,
-		}
-
-		install := r.LoadGeneratorInstallInfo
-		var servers []LoadGeneratorServerResult
-		for _, s := range install.LoadGeneratorServers {
-			serverResult := LoadGeneratorServerResult{
-
-				ID:              s.ID,
-				Csp:             s.Csp,
-				Region:          s.Region,
-				Zone:            s.Zone,
-				PublicIp:        s.PublicIp,
-				PrivateIp:       s.PrivateIp,
-				PublicDns:       s.PublicDns,
-				MachineType:     s.MachineType,
-				Status:          s.Status,
-				SshPort:         s.SshPort,
-				Lat:             s.Lat,
-				Lon:             s.Lon,
-				Username:        s.Username,
-				VmId:            s.VmId,
-				StartTime:       s.StartTime,
-				AdditionalVmKey: s.AdditionalVmKey,
-				Label:           s.Label,
-				CreatedAt:       s.CreatedAt,
-			}
-			servers = append(servers, serverResult)
-		}
-
-		installInfo := LoadGeneratorInstallInfoResult{
-			ID:                   install.ID,
-			InstallLocation:      install.InstallLocation,
-			InstallType:          install.InstallType,
-			InstallPath:          install.InstallPath,
-			InstallVersion:       install.InstallVersion,
-			Status:               install.Status,
-			CreatedAt:            install.CreatedAt,
-			UpdatedAt:            install.UpdatedAt,
-			PublicKeyName:        install.PublicKeyName,
-			PrivateKeyName:       install.PrivateKeyName,
-			LoadGeneratorServers: servers,
-		}
-
-		lehr := LoadTestExecutionHistoryResult{
-			ID:                         r.ID,
-			LoadTestKey:                r.LoadTestKey,
-			TestName:                   r.TestName,
-			VirtualUsers:               r.VirtualUsers,
-			Duration:                   r.Duration,
-			RampUpTime:                 r.RampUpTime,
-			RampUpSteps:                r.RampUpSteps,
-			Hostname:                   r.Hostname,
-			Port:                       r.Port,
-			AgentHostname:              r.AgentHostname,
-			AgentInstalled:             r.AgentInstalled,
-			CompileDuration:            r.CompileDuration,
-			ExecutionDuration:          r.ExecutionDuration,
-			LoadTestExecutionHttpInfos: httpResults,
-			LoadTestExecutionState:     executionState,
-			LoadGeneratorInstallInfo:   installInfo,
-		}
-
-		rs = append(rs, lehr)
+		rs = append(rs, mapLoadTestExecutionInfoResult(r))
 	}
 
 	res.TotalRow = totalRows
-	res.LoadTestExecutionHistorys = rs
+	res.LoadTestExecutionInfos = rs
 
 	return res, nil
+}
+
+type GetLoadTestExecutionInfoParam struct {
+	LoadTestKey string `json:"loadTestKey"`
+}
+
+func (l *LoadService) GetLoadTestExecutionInfo(param GetLoadTestExecutionInfoParam) (LoadTestExecutionInfoResult, error) {
+	var res LoadTestExecutionInfoResult
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	utils.LogInfof("GetLoadTestExecutionInfo called with param: %+v", param)
+	executionInfo, err := l.loadRepo.GetLoadTestExecutionInfoTx(ctx, param)
+
+	if err != nil {
+		utils.LogErrorf("Error fetching load test execution state infos: %v", err)
+		return res, err
+	}
+
+	return mapLoadTestExecutionInfoResult(executionInfo), nil
+}
+
+func mapLoadTestExecutionHttpInfoResult(h LoadTestExecutionHttpInfo) LoadTestExecutionHttpInfoResult {
+	return LoadTestExecutionHttpInfoResult{
+		ID:       h.ID,
+		Method:   h.Method,
+		Protocol: h.Protocol,
+		Hostname: h.Hostname,
+		Port:     h.Port,
+		Path:     h.Path,
+		BodyData: h.BodyData,
+	}
+}
+
+func mapLoadTestExecutionStateResult(state LoadTestExecutionState) LoadTestExecutionStateResult {
+	return LoadTestExecutionStateResult{
+		ID:                          state.ID,
+		LoadTestKey:                 state.LoadTestKey,
+		ExecutionStatus:             state.ExecutionStatus,
+		StartAt:                     state.StartAt,
+		FinishAt:                    state.FinishAt,
+		TotalExpectedExcutionSecond: state.TotalExpectedExcutionSecond,
+		FailureMessage:              state.FailureMessage,
+		CompileDuration:             state.CompileDuration,
+		ExecutionDuration:           state.ExecutionDuration,
+		CreatedAt:                   state.CreatedAt,
+		UpdatedAt:                   state.UpdatedAt,
+	}
+}
+
+func mapLoadGeneratorServerResult(s LoadGeneratorServer) LoadGeneratorServerResult {
+	return LoadGeneratorServerResult{
+		ID:              s.ID,
+		Csp:             s.Csp,
+		Region:          s.Region,
+		Zone:            s.Zone,
+		PublicIp:        s.PublicIp,
+		PrivateIp:       s.PrivateIp,
+		PublicDns:       s.PublicDns,
+		MachineType:     s.MachineType,
+		Status:          s.Status,
+		SshPort:         s.SshPort,
+		Lat:             s.Lat,
+		Lon:             s.Lon,
+		Username:        s.Username,
+		VmId:            s.VmId,
+		StartTime:       s.StartTime,
+		AdditionalVmKey: s.AdditionalVmKey,
+		Label:           s.Label,
+		CreatedAt:       s.CreatedAt,
+	}
+}
+
+func mapLoadGeneratorInstallInfoResult(install LoadGeneratorInstallInfo) LoadGeneratorInstallInfoResult {
+	var servers []LoadGeneratorServerResult
+	for _, s := range install.LoadGeneratorServers {
+		servers = append(servers, mapLoadGeneratorServerResult(s))
+	}
+
+	return LoadGeneratorInstallInfoResult{
+		ID:                   install.ID,
+		InstallLocation:      install.InstallLocation,
+		InstallType:          install.InstallType,
+		InstallPath:          install.InstallPath,
+		InstallVersion:       install.InstallVersion,
+		Status:               install.Status,
+		CreatedAt:            install.CreatedAt,
+		UpdatedAt:            install.UpdatedAt,
+		PublicKeyName:        install.PublicKeyName,
+		PrivateKeyName:       install.PrivateKeyName,
+		LoadGeneratorServers: servers,
+	}
+}
+
+func mapLoadTestExecutionInfoResult(executionInfo LoadTestExecutionInfo) LoadTestExecutionInfoResult {
+	var httpResults []LoadTestExecutionHttpInfoResult
+	for _, h := range executionInfo.LoadTestExecutionHttpInfos {
+		httpResults = append(httpResults, mapLoadTestExecutionHttpInfoResult(h))
+	}
+
+	executionState := mapLoadTestExecutionStateResult(executionInfo.LoadTestExecutionState)
+	installInfo := mapLoadGeneratorInstallInfoResult(executionInfo.LoadGeneratorInstallInfo)
+
+	return LoadTestExecutionInfoResult{
+		ID:                         executionInfo.ID,
+		LoadTestKey:                executionInfo.LoadTestKey,
+		TestName:                   executionInfo.TestName,
+		VirtualUsers:               executionInfo.VirtualUsers,
+		Duration:                   executionInfo.Duration,
+		RampUpTime:                 executionInfo.RampUpTime,
+		RampUpSteps:                executionInfo.RampUpSteps,
+		Hostname:                   executionInfo.Hostname,
+		Port:                       executionInfo.Port,
+		AgentHostname:              executionInfo.AgentHostname,
+		AgentInstalled:             executionInfo.AgentInstalled,
+		CompileDuration:            executionInfo.CompileDuration,
+		ExecutionDuration:          executionInfo.ExecutionDuration,
+		LoadTestExecutionHttpInfos: httpResults,
+		LoadTestExecutionState:     executionState,
+		LoadGeneratorInstallInfo:   installInfo,
+	}
 }

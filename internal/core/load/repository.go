@@ -344,31 +344,17 @@ func (r *LoadRepository) GetPagingLoadTestExecutionStateTx(ctx context.Context, 
 
 }
 
-func (r *LoadRepository) GetLoadTestExecutionStateTx(ctx context.Context, param GetLoadTestExecutionStateParam) (LoadTestExecutionState, LoadGeneratorInstallInfo, error) {
+func (r *LoadRepository) GetLoadTestExecutionStateTx(ctx context.Context, param GetLoadTestExecutionStateParam) (LoadTestExecutionState, error) {
 	var loadTestExecutionState LoadTestExecutionState
-	var loadGeneratorInstallInfo LoadGeneratorInstallInfo
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
-		err := d.Model(&loadTestExecutionState).
-			First(&loadTestExecutionState, "load_test_key = ?", param.LoadTestKey).
+		return d.Model(&loadTestExecutionState).
+			Preload("LoadGeneratorInstallInfo").
+			First(&loadTestExecutionState, "load_test_execution_states.load_test_key = ?", param.LoadTestKey).
 			Error
-
-		if err != nil {
-			return err
-		}
-		err = d.Model(&loadGeneratorInstallInfo).
-			Preload("LoadGeneratorServers").
-			First(&loadGeneratorInstallInfo, "id = ?", loadTestExecutionState.LoadGeneratorInstallInfoId).
-			Error
-
-		if err != nil {
-			return err
-		}
-
-		return nil
 	})
 
-	return loadTestExecutionState, loadGeneratorInstallInfo, err
+	return loadTestExecutionState, err
 }
 
 func (r *LoadRepository) GetPagingLoadTestExecutionHistoryTx(ctx context.Context, param GetAllLoadTestExecutionInfosParam) ([]LoadTestExecutionInfo, int64, error) {
@@ -397,4 +383,20 @@ func (r *LoadRepository) GetPagingLoadTestExecutionHistoryTx(ctx context.Context
 
 	return loadTestExecutionInfo, totalRows, err
 
+}
+
+func (r *LoadRepository) GetLoadTestExecutionInfoTx(ctx context.Context, param GetLoadTestExecutionInfoParam) (LoadTestExecutionInfo, error) {
+	var loadTestExecutionInfo LoadTestExecutionInfo
+
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		return d.Model(&loadTestExecutionInfo).
+			Preload("LoadTestExecutionState").
+			Preload("LoadTestExecutionHttpInfos").
+			Preload("LoadGeneratorInstallInfo").
+			Preload("LoadGeneratorInstallInfo.LoadGeneratorServers").
+			First(&loadTestExecutionInfo, "load_test_execution_infos.load_test_key = ?", param.LoadTestKey).
+			Error
+	})
+
+	return loadTestExecutionInfo, err
 }

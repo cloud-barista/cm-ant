@@ -539,6 +539,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/load/tests/infos": {
+            "get": {
+                "description": "Retrieve a list of all load test execution information with pagination support.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Execution Management]"
+                ],
+                "summary": "Get All Load Test Execution Information",
+                "operationId": "GetAllLoadTestExecutionInfos",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number for pagination (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items per page (default 10, max 10)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test execution information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_GetAllLoadTestExecutionInfosResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve all load test execution information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/load/tests/run": {
             "post": {
                 "description": "Start a load test using the provided load generator configuration.",
@@ -549,7 +599,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Load Test Management]"
+                    "[Load Test Execution Management]"
                 ],
                 "summary": "Run Load Test",
                 "operationId": "RunLoadTest",
@@ -853,6 +903,23 @@ const docTemplate = `{
                 }
             }
         },
+        "app.AntResponse-load_GetAllLoadTestExecutionInfosResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/load.GetAllLoadTestExecutionInfosResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
         "app.AntResponse-load_GetAllLoadTestExecutionStateResult": {
             "type": "object",
             "properties": {
@@ -898,6 +965,23 @@ const docTemplate = `{
                 },
                 "result": {
                     "$ref": "#/definitions/load.LoadGeneratorInstallInfoResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-load_LoadTestExecutionInfoResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/load.LoadTestExecutionInfoResult"
                 },
                 "successMessage": {
                     "type": "string"
@@ -1101,6 +1185,20 @@ const docTemplate = `{
                 }
             }
         },
+        "load.GetAllLoadTestExecutionInfosResult": {
+            "type": "object",
+            "properties": {
+                "loadTestExecutionInfos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.LoadTestExecutionInfoResult"
+                    }
+                },
+                "totalRow": {
+                    "type": "integer"
+                }
+            }
+        },
         "load.GetAllLoadTestExecutionStateResult": {
             "type": "object",
             "properties": {
@@ -1164,6 +1262,9 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
                 }
             }
         },
@@ -1215,6 +1316,9 @@ const docTemplate = `{
                 "status": {
                     "type": "string"
                 },
+                "updatedAt": {
+                    "type": "string"
+                },
                 "username": {
                     "type": "string"
                 },
@@ -1222,6 +1326,88 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "zone": {
+                    "type": "string"
+                }
+            }
+        },
+        "load.LoadTestExecutionHttpInfoResult": {
+            "type": "object",
+            "properties": {
+                "bodyData": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "method": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                }
+            }
+        },
+        "load.LoadTestExecutionInfoResult": {
+            "type": "object",
+            "properties": {
+                "agentHostname": {
+                    "type": "string"
+                },
+                "agentInstalled": {
+                    "type": "boolean"
+                },
+                "compileDuration": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "executionDuration": {
+                    "type": "string"
+                },
+                "hostname": {
+                    "type": "string"
+                },
+                "httpReqs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.LoadTestExecutionHttpInfoResult"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "loadGeneratorInstallInfo": {
+                    "$ref": "#/definitions/load.LoadGeneratorInstallInfoResult"
+                },
+                "loadTestExecutionState": {
+                    "$ref": "#/definitions/load.LoadTestExecutionStateResult"
+                },
+                "loadTestKey": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "string"
+                },
+                "rampUpSteps": {
+                    "type": "string"
+                },
+                "rampUpTime": {
+                    "type": "string"
+                },
+                "testName": {
+                    "type": "string"
+                },
+                "virtualUsers": {
                     "type": "string"
                 }
             }

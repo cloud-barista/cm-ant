@@ -154,7 +154,7 @@ func (s *AntServer) uninstallLoadGenerator(c echo.Context) error {
 // @Id RunLoadTest
 // @Summary Run Load Test
 // @Description Start a load test using the provided load generator configuration.
-// @Tags [Load Test Management]
+// @Tags [Load Test Execution Management]
 // @Accept json
 // @Produce json
 // @Param body body app.RunLoadGeneratorReq true "Run Load Generator Request"
@@ -238,6 +238,19 @@ func (s *AntServer) getLoadTestMetrics(c echo.Context) error {
 	return c.JSON(http.StatusOK, c.Request().RequestURI)
 }
 
+// getAllLoadTestExecutionInfos handler function that retrieves all load test execution information.
+// @Id GetAllLoadTestExecutionInfos
+// @Summary Get All Load Test Execution Information
+// @Description Retrieve a list of all load test execution information with pagination support.
+// @Tags [Load Test Execution Management]
+// @Accept json
+// @Produce json
+// @Param page query int false "Page number for pagination (default 1)"
+// @Param size query int false "Number of items per page (default 10, max 10)"
+// @Success 200 {object} app.AntResponse[load.GetAllLoadTestExecutionInfosResult] "Successfully retrieved load test execution information"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Failed to retrieve all load test execution information"
+// @Router /api/v1/load/tests/infos [get]
 func (s *AntServer) getAllLoadTestExecutionInfos(c echo.Context) error {
 	var req GetAllLoadTestExecutionHistoryReq
 	if err := c.Bind(&req); err != nil {
@@ -264,6 +277,18 @@ func (s *AntServer) getAllLoadTestExecutionInfos(c echo.Context) error {
 	return successResponse(c, "Successfully retrieved load test execution information", result)
 }
 
+// getLoadTestExecutionInfo handler function that retrieves a specific load test execution state by key.
+// @Id GetLoadTestExecutionInfo
+// @Summary Get Load Test Execution State
+// @Description Retrieve the load test execution state information for a specific load test key.
+// @Tags [Load Test Execution Management]
+// @Accept json
+// @Produce json
+// @Param loadTestKey path string true "Load test key"
+// @Success 200 {object} app.AntResponse[load.LoadTestExecutionInfoResult] "Successfully retrieved load test execution state information"
+// @Failure 400 {object} app.AntResponse[string] "Load test key must be set."
+// @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test execution state information"
+// @Router /api/v1/load/tests/state/{loadTestKey} [get]
 func (s *AntServer) getLoadTestExecutionInfo(c echo.Context) error {
 	loadTestKey := c.Param("loadTestKey")
 
@@ -271,11 +296,11 @@ func (s *AntServer) getLoadTestExecutionInfo(c echo.Context) error {
 		return errorResponse(http.StatusBadRequest, "Load test key must be set.")
 	}
 
-	arg := load.GetLoadTestExecutionStateParam{
+	arg := load.GetLoadTestExecutionInfoParam{
 		LoadTestKey: loadTestKey,
 	}
 
-	result, err := s.services.loadService.GetLoadTestExecutionState(arg)
+	result, err := s.services.loadService.GetLoadTestExecutionInfo(arg)
 
 	if err != nil {
 		return errorResponse(http.StatusInternalServerError, "Failed to retrieve load test execution state information")

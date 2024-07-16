@@ -45,8 +45,8 @@ func connectSqliteDB(dbPath string) (*gorm.DB, error) {
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r", log.LstdFlags),
 		logger.Config{
-			SlowThreshold:             time.Second,
-			LogLevel:                  logger.Info,
+			SlowThreshold: time.Second,
+			// LogLevel:                  logger.Info,
 			IgnoreRecordNotFoundError: true,
 			ParameterizedQueries:      true,
 			Colorful:                  true,
