@@ -30,3 +30,10 @@ const (
 	Fetching   ExecutionStatus = "fetching"
 	Success    ExecutionStatus = "success"
 )
+
+type ResultFormat string
+
+const (
+	Normal    ResultFormat = "normal"
+	Aggregate ResultFormat = "aggregate"
+)

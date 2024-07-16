@@ -975,7 +975,7 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 		TotalExpectedExcutionSecond: uint64(duration + rampUpTime),
 	}
 
-	go l.runLoadTest(param, &loadGeneratorInstallInfo, &stateArg)
+	go l.processLoadTest(param, &loadGeneratorInstallInfo, &stateArg)
 
 	var hs []LoadTestExecutionHttpInfo
 
@@ -1020,11 +1020,48 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 
 }
 
-// runLoadTest executes the load test.
+// processLoadTest executes the load test.
 // Depending on whether the installation location is local or remote, it creates the test plan and runs test commands.
 // Fetches and saves test results from the local or remote system.
-func (l *LoadService) runLoadTest(param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo, loadTestExecutionState *LoadTestExecutionState) {
+func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo, loadTestExecutionState *LoadTestExecutionState) {
+
+	done := make(chan bool)
+
+	var username string
+	var publicIp string
+	var port string
+	for _, s := range loadGeneratorInstallInfo.LoadGeneratorServers {
+		if s.IsMaster {
+			username = s.Username
+			publicIp = s.PublicIp
+			port = s.SshPort
+		}
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+
+	dataParam := &fetchDataParam{
+		Done:            done,
+		LoadTestKey:     param.LoadTestKey,
+		InstallLocation: loadGeneratorInstallInfo.InstallLocation,
+		InstallPath:     loadGeneratorInstallInfo.InstallPath,
+		PublicKeyName:   loadGeneratorInstallInfo.PublicKeyName,
+		PrivateKeyName:  loadGeneratorInstallInfo.PrivateKeyName,
+		Username:        username,
+		PublicIp:        publicIp,
+		Port:            port,
+		AgentInstalled:  param.AgentInstalled,
+		Home:            home,
+	}
+
+	go fetchData(dataParam)
+
 	defer func() {
+		done <- true
+		close(done)
 		updateErr := l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
 		if updateErr != nil {
 			utils.LogErrorf("Error updating load test execution state: %v", updateErr)
@@ -1054,21 +1091,133 @@ func (l *LoadService) runLoadTest(param RunLoadTestParam, loadGeneratorInstallIn
 		return
 	}
 
-	resultFetchErr := l.fetchResultFile(param, loadGeneratorInstallInfo)
-
-	if resultFetchErr != nil {
-		loadTestExecutionState.ExecutionStatus = constant.ResultFailed
-		loadTestExecutionState.FailureMessage = resultFetchErr.Error()
-		finishAt := time.Now()
-		loadTestExecutionState.FinishAt = &finishAt
-		return
-	}
-
 	loadTestExecutionState.ExecutionStatus = constant.Successed
-
 }
 
-// executeLoadTest
+type fetchDataParam struct {
+	Done            <-chan bool
+	LoadTestKey     string
+	InstallLocation constant.InstallLocation
+	InstallPath     string
+	PublicKeyName   string
+	PrivateKeyName  string
+	Username        string
+	PublicIp        string
+	Port            string
+	AgentInstalled  bool
+	fetchMx         *sync.Mutex
+	fetchRunning    bool
+	Home            string
+}
+
+func (f *fetchDataParam) setFetchRunning(running bool) {
+	f.fetchMx.Lock()
+	defer f.fetchMx.Unlock()
+	f.fetchRunning = running
+}
+
+func (f *fetchDataParam) isRunning() bool {
+	f.fetchMx.Lock()
+	defer f.fetchMx.Unlock()
+	return f.fetchRunning
+}
+
+const (
+	defaultFetchIntervalSec = 30
+)
+
+func fetchData(f *fetchDataParam) {
+	ticker := time.NewTicker(defaultFetchIntervalSec * time.Second)
+	defer ticker.Stop()
+
+	done := f.Done
+	for {
+		select {
+		case <-ticker.C:
+			if !f.isRunning() {
+				f.setFetchRunning(true)
+				if err := rsyncFiles(f); err != nil {
+					log.Println(err)
+				}
+				f.setFetchRunning(false)
+			}
+		case <-done:
+			if err := rsyncFiles(f); err != nil {
+				log.Println(err)
+			}
+			return
+		}
+	}
+}
+
+func rsyncFiles(f *fetchDataParam) error {
+	loadTestKey := f.LoadTestKey
+	installLocation := f.InstallLocation
+	loadGeneratorInstallPath := f.InstallPath
+
+	var wg sync.WaitGroup
+	resultsPrefix := []string{""}
+
+	if f.AgentInstalled {
+		resultsPrefix = append(resultsPrefix, "_cpu", "_disk", "_memory", "_network")
+	}
+
+	errorChan := make(chan error, len(resultsPrefix))
+
+	resultFolderPath := utils.JoinRootPathWith("/result/" + loadTestKey)
+
+	err := utils.CreateFolderIfNotExist(utils.JoinRootPathWith("/result"))
+	if err != nil {
+		return err
+	}
+
+	err = utils.CreateFolderIfNotExist(resultFolderPath)
+	if err != nil {
+		return err
+	}
+
+	if installLocation == constant.Local {
+		for _, p := range resultsPrefix {
+			wg.Add(1)
+			go func(prefix string) {
+				defer wg.Done()
+				fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
+				fromFilePath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, fileName)
+				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+
+				cmd := fmt.Sprintf(`rsync -az %s %s`, fromFilePath, toFilePath)
+				err := utils.InlineCmd(cmd)
+				errorChan <- err
+			}(p)
+		}
+	} else if installLocation == constant.Remote {
+		for _, p := range resultsPrefix {
+			wg.Add(1)
+			go func(prefix string) {
+				defer wg.Done()
+				fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
+				fromFilePath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, fileName)
+				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+
+				cmd := fmt.Sprintf(`rsync -az -e "ssh -i %s" %s@%s:%s %s`, fmt.Sprintf("%s/.ssh/%s", f.Home, f.PrivateKeyName), f.Username, f.PublicIp, fromFilePath, toFilePath)
+				err := utils.InlineCmd(cmd)
+				errorChan <- err
+			}(p)
+		}
+	}
+
+	wg.Wait()
+	close(errorChan)
+
+	for err := range errorChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo) (string, string, error) {
 	installLocation := loadGeneratorInstallInfo.InstallLocation
 	loadTestKey := param.LoadTestKey
@@ -1166,103 +1315,6 @@ func (l *LoadService) updateLoadTestExecution(loadTestExecutionState *LoadTestEx
 		utils.LogErrorf("Error updating load test execution state: %v", err)
 		return err
 	}
-	return nil
-}
-
-func (l *LoadService) fetchResultFile(param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo) error {
-	installLocation := loadGeneratorInstallInfo.InstallLocation
-	loadTestKey := param.LoadTestKey
-	loadGeneratorInstallPath := loadGeneratorInstallInfo.InstallPath
-	utils.LogInfof("Fetching results for load test key: %s", loadTestKey)
-
-	var wg sync.WaitGroup
-	resultsPrefix := []string{""}
-
-	if param.AgentInstalled {
-		resultsPrefix = append(resultsPrefix, "_cpu", "_disk", "_memory", "_network")
-	}
-
-	errorChan := make(chan error, len(resultsPrefix))
-
-	resultFolderPath := utils.JoinRootPathWith("/result/" + loadTestKey)
-
-	err := utils.CreateFolderIfNotExist(utils.JoinRootPathWith("/result"))
-	if err != nil {
-		return err
-	}
-
-	err = utils.CreateFolderIfNotExist(resultFolderPath)
-	if err != nil {
-		return err
-	}
-
-	if installLocation == constant.Local {
-		for _, p := range resultsPrefix {
-			wg.Add(1)
-			go func(prefix string) {
-				defer wg.Done()
-				fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
-				fromFilePath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, fileName)
-				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
-
-				if exist := utils.ExistCheck(toFilePath); !exist {
-					err := utils.InlineCmd(fmt.Sprintf("cp %s %s", fromFilePath, toFilePath))
-					if err != nil {
-						errorChan <- err
-						return
-					}
-				}
-				errorChan <- nil
-			}(p)
-		}
-	} else if installLocation == constant.Remote {
-		var username string
-		var publicIp string
-		var port string
-		for _, s := range loadGeneratorInstallInfo.LoadGeneratorServers {
-			if s.IsMaster {
-				username = s.Username
-				publicIp = s.PublicIp
-				port = s.SshPort
-			}
-		}
-
-		client, err := utils.GetClient(publicIp, port, username, loadGeneratorInstallInfo.PrivateKeyName)
-
-		if err != nil {
-			return err
-		}
-		defer client.Close()
-
-		for _, p := range resultsPrefix {
-			wg.Add(1)
-			go func(prefix string) {
-				defer wg.Done()
-				fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
-				resultFilePath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, fileName)
-				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
-
-				if exist := utils.ExistCheck(toFilePath); !exist {
-					err := utils.DownloadFile(client, toFilePath, resultFilePath)
-					if err != nil {
-						errorChan <- err
-						return
-					}
-				}
-				errorChan <- nil
-			}(p)
-		}
-	}
-
-	wg.Wait()
-	close(errorChan)
-
-	for err := range errorChan {
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

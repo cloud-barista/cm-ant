@@ -39,7 +39,7 @@ func (s *AntServer) readyz(c echo.Context) error {
 func (s *AntServer) getAllLoadGeneratorInstallInfo(c echo.Context) error {
 	var req GetAllLoadGeneratorInstallInfoReq
 	if err := c.Bind(&req); err != nil {
-		return errorResponse(http.StatusBadRequest, "Invalid request parameters")
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
 	}
 	if req.Size < 1 || req.Size > 10 {
 		req.Size = 10
@@ -57,10 +57,10 @@ func (s *AntServer) getAllLoadGeneratorInstallInfo(c echo.Context) error {
 	result, err := s.services.loadService.GetAllLoadGeneratorInstallInfo(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "Failed to retrieve monitoring agent information")
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve monitoring agent information")
 	}
 
-	return successResponse(c, "Successfully retrieved monitoring agent information", result)
+	return successResponseJson(c, "Successfully retrieved monitoring agent information", result)
 }
 
 // installLoadGenerator handler function that handles a load generator installation request.
@@ -82,13 +82,13 @@ func (s *AntServer) installLoadGenerator(c echo.Context) error {
 
 	if err := c.Bind(&req); err != nil {
 		utils.LogError("Failed to bind request:", err)
-		return errorResponse(http.StatusBadRequest, "load generator installation info is not correct.")
+		return errorResponseJson(http.StatusBadRequest, "load generator installation info is not correct.")
 	}
 
 	if req.InstallLocation == "" ||
 		(req.InstallLocation != constant.Remote && req.InstallLocation != constant.Local) {
 		utils.LogError("Invalid install location:", req.InstallLocation)
-		return errorResponse(http.StatusBadRequest, "available install locations are remote or local.")
+		return errorResponseJson(http.StatusBadRequest, "available install locations are remote or local.")
 	}
 
 	utils.LogInfo("Calling service layer to install load generator")
@@ -102,12 +102,12 @@ func (s *AntServer) installLoadGenerator(c echo.Context) error {
 
 	if err != nil {
 		utils.LogError("Error installing load generator:", err)
-		return errorResponse(http.StatusBadRequest, err.Error())
+		return errorResponseJson(http.StatusBadRequest, err.Error())
 	}
 
 	utils.LogInfo("Load generator installed successfully")
 
-	return successResponse(
+	return successResponseJson(
 		c,
 		"load generator is successfully installed",
 		result,
@@ -131,12 +131,12 @@ func (s *AntServer) uninstallLoadGenerator(c echo.Context) error {
 	loadGeneratorInstallInfoId := c.Param("loadGeneratorInstallInfoId")
 
 	if strings.TrimSpace(loadGeneratorInstallInfoId) == "" {
-		return errorResponse(http.StatusBadRequest, "Load generator installation info id must be set.")
+		return errorResponseJson(http.StatusBadRequest, "Load generator installation info id must be set.")
 	}
 
 	cvt, err := strconv.Atoi(loadGeneratorInstallInfoId)
 	if err != nil {
-		errorResponse(http.StatusBadRequest, "Load generator install info id must be number.")
+		errorResponseJson(http.StatusBadRequest, "Load generator install info id must be number.")
 	}
 
 	arg := load.UninstallLoadGeneratorParam{
@@ -146,10 +146,10 @@ func (s *AntServer) uninstallLoadGenerator(c echo.Context) error {
 	err = s.services.loadService.UninstallLoadGenerator(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "Ant server has got error. please try again.")
+		return errorResponseJson(http.StatusInternalServerError, "Ant server has got error. please try again.")
 	}
 
-	return successResponse(
+	return successResponseJson(
 		c,
 		fmt.Sprintf("Successfully uninstall load generator: %s", loadGeneratorInstallInfoId),
 		"done",
@@ -173,14 +173,14 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 	var req RunLoadTestReq
 
 	if err := c.Bind(&req); err != nil {
-		return errorResponse(http.StatusBadRequest, "load test running info is not correct.")
+		return errorResponseJson(http.StatusBadRequest, "load test running info is not correct.")
 	}
 
 	if req.LoadGeneratorInstallInfoId != uint(0) {
 		req.InstallLoadGenerator = InstallLoadGeneratorReq{}
 	} else if req.InstallLoadGenerator.InstallLocation != constant.Local &&
 		req.InstallLoadGenerator.InstallLocation != constant.Remote {
-		return errorResponse(http.StatusBadRequest, "load test install location is invalid.")
+		return errorResponseJson(http.StatusBadRequest, "load test install location is invalid.")
 	}
 
 	var https []load.RunLoadTestHttpParam
@@ -219,10 +219,10 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 	loadTestKey, err := s.services.loadService.RunLoadTest(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
+		return errorResponseJson(http.StatusBadRequest, err.Error())
 	}
 
-	return successResponse(
+	return successResponseJson(
 		c,
 		fmt.Sprintf("Successfully run load test. Load test key: %s", loadTestKey),
 		loadTestKey,
@@ -245,11 +245,11 @@ func (s *AntServer) stopLoadTest(c echo.Context) error {
 	var req StopLoadTestReq
 
 	if err := c.Bind(&req); err != nil {
-		return errorResponse(http.StatusBadRequest, "load test stop info is not correct.")
+		return errorResponseJson(http.StatusBadRequest, "load test stop info is not correct.")
 	}
 
 	if strings.TrimSpace(req.LoadTestKey) == "" {
-		return errorResponse(http.StatusBadRequest, "load test stop info is not correct.")
+		return errorResponseJson(http.StatusBadRequest, "load test stop info is not correct.")
 	}
 
 	arg := load.StopLoadTestParam{
@@ -259,10 +259,10 @@ func (s *AntServer) stopLoadTest(c echo.Context) error {
 	err := s.services.loadService.StopLoadTest(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusBadRequest, err.Error())
+		return errorResponseJson(http.StatusBadRequest, err.Error())
 	}
 
-	return successResponse(
+	return successResponseJson(
 		c,
 		fmt.Sprintf("Successfully stop load generator. Load test key: %s", req.LoadTestKey),
 		"done",
@@ -270,12 +270,10 @@ func (s *AntServer) stopLoadTest(c echo.Context) error {
 }
 
 func (s *AntServer) getLoadTestResult(c echo.Context) error {
-
 	return c.JSON(http.StatusOK, c.Request().RequestURI)
 }
 
 func (s *AntServer) getLoadTestMetrics(c echo.Context) error {
-
 	return c.JSON(http.StatusOK, c.Request().RequestURI)
 }
 
@@ -295,7 +293,7 @@ func (s *AntServer) getLoadTestMetrics(c echo.Context) error {
 func (s *AntServer) getAllLoadTestExecutionInfos(c echo.Context) error {
 	var req GetAllLoadTestExecutionHistoryReq
 	if err := c.Bind(&req); err != nil {
-		return errorResponse(http.StatusBadRequest, "Invalid request parameters")
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
 	}
 	if req.Size < 1 || req.Size > 10 {
 		req.Size = 10
@@ -312,10 +310,10 @@ func (s *AntServer) getAllLoadTestExecutionInfos(c echo.Context) error {
 	result, err := s.services.loadService.GetAllLoadTestExecutionInfos(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "Failed to retrieve all load test execution information")
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve all load test execution information")
 	}
 
-	return successResponse(c, "Successfully retrieved load test execution information", result)
+	return successResponseJson(c, "Successfully retrieved load test execution information", result)
 }
 
 // getLoadTestExecutionInfo handler function that retrieves a specific load test execution state by key.
@@ -334,7 +332,7 @@ func (s *AntServer) getLoadTestExecutionInfo(c echo.Context) error {
 	loadTestKey := c.Param("loadTestKey")
 
 	if strings.TrimSpace(loadTestKey) == "" {
-		return errorResponse(http.StatusBadRequest, "Load test key must be set.")
+		return errorResponseJson(http.StatusBadRequest, "Load test key must be set.")
 	}
 
 	arg := load.GetLoadTestExecutionInfoParam{
@@ -344,10 +342,10 @@ func (s *AntServer) getLoadTestExecutionInfo(c echo.Context) error {
 	result, err := s.services.loadService.GetLoadTestExecutionInfo(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "Failed to retrieve load test execution state information")
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve load test execution state information")
 	}
 
-	return successResponse(c, "Successfully retrieved load test execution state information", result)
+	return successResponseJson(c, "Successfully retrieved load test execution state information", result)
 }
 
 // getAllLoadTestExecutionState handler function that retrieves all load test execution states.
@@ -368,7 +366,7 @@ func (s *AntServer) getLoadTestExecutionInfo(c echo.Context) error {
 func (s *AntServer) getAllLoadTestExecutionState(c echo.Context) error {
 	var req GetAllLoadTestExecutionStateReq
 	if err := c.Bind(&req); err != nil {
-		return errorResponse(http.StatusBadRequest, "Invalid request parameters")
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
 	}
 	if req.Size < 1 || req.Size > 10 {
 		req.Size = 10
@@ -387,10 +385,10 @@ func (s *AntServer) getAllLoadTestExecutionState(c echo.Context) error {
 	result, err := s.services.loadService.GetAllLoadTestExecutionState(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "Failed to retrieve all load test execution state information")
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve all load test execution state information")
 	}
 
-	return successResponse(c, "Successfully retrieved load test execution state information", result)
+	return successResponseJson(c, "Successfully retrieved load test execution state information", result)
 }
 
 // getLoadTestExecutionState handler function that retrieves a load test execution state by key.
@@ -409,7 +407,7 @@ func (s *AntServer) getLoadTestExecutionState(c echo.Context) error {
 	loadTestKey := c.Param("loadTestKey")
 
 	if strings.TrimSpace(loadTestKey) == "" {
-		return errorResponse(http.StatusBadRequest, "Load test key must be set.")
+		return errorResponseJson(http.StatusBadRequest, "Load test key must be set.")
 	}
 
 	arg := load.GetLoadTestExecutionStateParam{
@@ -419,10 +417,10 @@ func (s *AntServer) getLoadTestExecutionState(c echo.Context) error {
 	result, err := s.services.loadService.GetLoadTestExecutionState(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "Failed to retrieve load test execution state information")
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve load test execution state information")
 	}
 
-	return successResponse(c, "Successfully retrieved load test execution state information", result)
+	return successResponseJson(c, "Successfully retrieved load test execution state information", result)
 
 }
 
@@ -442,7 +440,7 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 	var req MonitoringAgentInstallationReq
 
 	if err := c.Bind(&req); err != nil {
-		return errorResponse(http.StatusBadRequest, "monitoring agent installation info is not correct.")
+		return errorResponseJson(http.StatusBadRequest, "monitoring agent installation info is not correct.")
 	}
 
 	arg := load.MonitoringAgentInstallationParams{
@@ -454,10 +452,10 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 	result, err := s.services.loadService.InstallMonitoringAgent(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, err.Error())
+		return errorResponseJson(http.StatusInternalServerError, err.Error())
 	}
 
-	return successResponse(
+	return successResponseJson(
 		c,
 		"monitoring agent is successfully installed",
 		result,
@@ -483,7 +481,7 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 func (s *AntServer) getAllMonitoringAgentInfos(c echo.Context) error {
 	var req GetAllMonitoringAgentInfosReq
 	if err := c.Bind(&req); err != nil {
-		return errorResponse(http.StatusBadRequest, "Invalid request parameters")
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
 	}
 	if req.Size < 1 || req.Size > 10 {
 		req.Size = 10
@@ -503,10 +501,10 @@ func (s *AntServer) getAllMonitoringAgentInfos(c echo.Context) error {
 	result, err := s.services.loadService.GetAllMonitoringAgentInfos(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "Failed to retrieve monitoring agent information")
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve monitoring agent information")
 	}
 
-	return successResponse(c, "Successfully retrieved monitoring agent information", result)
+	return successResponseJson(c, "Successfully retrieved monitoring agent information", result)
 }
 
 // uninstallMonitoringAgent handler function that initiates the uninstallation of monitoring agents.
@@ -525,7 +523,7 @@ func (s *AntServer) uninstallMonitoringAgent(c echo.Context) error {
 	var req MonitoringAgentInstallationReq
 
 	if err := c.Bind(&req); err != nil {
-		return errorResponse(http.StatusBadRequest, "monitoring agent uninstallation info is not correct.")
+		return errorResponseJson(http.StatusBadRequest, "monitoring agent uninstallation info is not correct.")
 	}
 
 	arg := load.MonitoringAgentInstallationParams{
@@ -537,10 +535,10 @@ func (s *AntServer) uninstallMonitoringAgent(c echo.Context) error {
 	affectedResults, err := s.services.loadService.UninstallMonitoringAgent(arg)
 
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, err.Error())
+		return errorResponseJson(http.StatusInternalServerError, err.Error())
 	}
 
-	return successResponse(
+	return successResponseJson(
 		c,
 		"monitoring agent is successfully uninstalled",
 		affectedResults,

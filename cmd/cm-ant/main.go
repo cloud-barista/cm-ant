@@ -19,10 +19,15 @@ import (
 
 // @basePath /ant
 func main() {
+
+	err := utils.Script(utils.JoinRootPathWith("/script/install_rsync.sh"), []string{})
+	if err != nil {
+		log.Fatal("required tool can not install")
+	}
 	utils.LogInfo("Starting CM-Ant server initialization...")
 
 	// Initialize the configuration for CM-Ant server
-	err := config.InitConfig()
+	err = config.InitConfig()
 	if err != nil {
 		log.Fatalf("[ERROR] CM-Ant server config error: %v", err)
 	}
