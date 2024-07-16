@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -41,16 +42,16 @@ type MonitoringAgentInstallationParams struct {
 
 // MonitoringAgentInstallationResult represents the result of a monitoring agent installation.
 type MonitoringAgentInstallationResult struct {
-	ID        uint      `json:"id"`
-	NsId      string    `json:"nsId"`
-	McisId    string    `json:"mcisId"`
-	VmId      string    `json:"vmId"`
-	VmCount   int       `json:"vmCount"`
-	Status    string    `json:"status"`
-	Username  string    `json:"username"`
-	AgentType string    `json:"agentType"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID        uint      `json:"id,omitempty"`
+	NsId      string    `json:"nsId,omitempty"`
+	McisId    string    `json:"mcisId,omitempty"`
+	VmId      string    `json:"vmId,omitempty"`
+	VmCount   int       `json:"vmCount,omitempty"`
+	Status    string    `json:"status,omitempty"`
+	Username  string    `json:"username,omitempty"`
+	AgentType string    `json:"agentType,omitempty"`
+	CreatedAt time.Time `json:"createdAt,omitempty"`
+	UpdatedAt time.Time `json:"updatedAt,omitempty"`
 }
 
 // InstallMonitoringAgent installs a monitoring agent on specified VMs or all VM on Mcis.
@@ -173,8 +174,8 @@ type GetAllMonitoringAgentInfosParam struct {
 }
 
 type GetAllMonitoringAgentInfoResult struct {
-	MonitoringAgentInfos []MonitoringAgentInstallationResult `json:"monitoringAgentInfos"`
-	TotalRow             int64                               `json:"totalRow"`
+	MonitoringAgentInfos []MonitoringAgentInstallationResult `json:"monitoringAgentInfos,omitempty"`
+	TotalRow             int64                               `json:"totalRow,omitempty"`
 }
 
 func (l *LoadService) GetAllMonitoringAgentInfos(param GetAllMonitoringAgentInfosParam) (GetAllMonitoringAgentInfoResult, error) {
@@ -283,39 +284,39 @@ type InstallLoadGeneratorParam struct {
 }
 
 type LoadGeneratorServerResult struct {
-	ID              uint
-	Csp             string
-	Region          string
-	Zone            string
-	PublicIp        string
-	PrivateIp       string
-	PublicDns       string
-	MachineType     string
-	Status          string
-	SshPort         string
-	Lat             string
-	Lon             string
-	Username        string
-	VmId            string
-	StartTime       time.Time
-	AdditionalVmKey string
-	Label           string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID              uint      `json:"id,omitempty"`
+	Csp             string    `json:"csp,omitempty"`
+	Region          string    `json:"region,omitempty"`
+	Zone            string    `json:"zone,omitempty"`
+	PublicIp        string    `json:"publicIp,omitempty"`
+	PrivateIp       string    `json:"privateIp,omitempty"`
+	PublicDns       string    `json:"publicDns,omitempty"`
+	MachineType     string    `json:"machineType,omitempty"`
+	Status          string    `json:"status,omitempty"`
+	SshPort         string    `json:"sshPort,omitempty"`
+	Lat             string    `json:"lat,omitempty"`
+	Lon             string    `json:"lon,omitempty"`
+	Username        string    `json:"username,omitempty"`
+	VmId            string    `json:"vmId,omitempty"`
+	StartTime       time.Time `json:"startTime,omitempty"`
+	AdditionalVmKey string    `json:"additionalVmKey,omitempty"`
+	Label           string    `json:"label,omitempty"`
+	CreatedAt       time.Time `json:"createdAt,omitempty"`
+	UpdatedAt       time.Time `json:"updatedAt,omitempty"`
 }
 
 type LoadGeneratorInstallInfoResult struct {
 	ID              uint                     `json:"id,omitempty"`
 	InstallLocation constant.InstallLocation `json:"installLocation,omitempty"`
-	InstallType     string
-	InstallPath     string
-	InstallVersion  string
-	Status          string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	InstallType     string                   `json:"installType,omitempty"`
+	InstallPath     string                   `json:"installPath,omitempty"`
+	InstallVersion  string                   `json:"installVersion,omitempty"`
+	Status          string                   `json:"status,omitempty"`
+	CreatedAt       time.Time                `json:"createdAt,omitempty"`
+	UpdatedAt       time.Time                `json:"updatedAt,omitempty"`
 
-	PublicKeyName        string
-	PrivateKeyName       string
+	PublicKeyName        string                      `json:"publicKeyName,omitempty"`
+	PrivateKeyName       string                      `json:"privateKeyName,omitempty"`
 	LoadGeneratorServers []LoadGeneratorServerResult `json:"loadGeneratorServers,omitempty"`
 }
 
@@ -826,8 +827,8 @@ type GetAllLoadGeneratorInstallInfoParam struct {
 }
 
 type GetAllLoadGeneratorInstallInfoResult struct {
-	LoadGeneratorInstallInfoResults []LoadGeneratorInstallInfoResult
-	TotalRows                       int64
+	LoadGeneratorInstallInfoResults []LoadGeneratorInstallInfoResult `json:"loadGeneratorInstallInfoResults,omitempty"`
+	TotalRows                       int64                            `json:"totalRows,omitempty"`
 }
 
 func (l *LoadService) GetAllLoadGeneratorInstallInfo(param GetAllLoadGeneratorInstallInfoParam) (GetAllLoadGeneratorInstallInfoResult, error) {
@@ -893,7 +894,7 @@ func (l *LoadService) GetAllLoadGeneratorInstallInfo(param GetAllLoadGeneratorIn
 	return result, nil
 }
 
-type RunLoadGeneratorParam struct {
+type RunLoadTestParam struct {
 	LoadTestKey                string                    `json:"loadTestKey"`
 	InstallLoadGenerator       InstallLoadGeneratorParam `json:"installLoadGenerator"`
 	LoadGeneratorInstallInfoId uint                      `json:"loadGeneratorInstallInfoId"`
@@ -907,10 +908,10 @@ type RunLoadGeneratorParam struct {
 	AgentInstalled             bool                      `json:"agentInstalled"`
 	AgentHostname              string                    `json:"agentHostname"`
 
-	HttpReqs []RunLoadGeneratorHttpParam `json:"httpReqs,omitempty"`
+	HttpReqs []RunLoadTestHttpParam `json:"httpReqs,omitempty"`
 }
 
-type RunLoadGeneratorHttpParam struct {
+type RunLoadTestHttpParam struct {
 	Method   string `json:"method"`
 	Protocol string `json:"protocol"`
 	Hostname string `json:"hostname"`
@@ -922,7 +923,7 @@ type RunLoadGeneratorHttpParam struct {
 // RunLoadTest initiates the load test and performs necessary initializations.
 // Generates a load test key, installs the load generator or retrieves existing installation information,
 // saves the load test execution state, and then asynchronously runs the load test.
-func (l *LoadService) RunLoadTest(param RunLoadGeneratorParam) (string, error) {
+func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -1022,39 +1023,53 @@ func (l *LoadService) RunLoadTest(param RunLoadGeneratorParam) (string, error) {
 // runLoadTest executes the load test.
 // Depending on whether the installation location is local or remote, it creates the test plan and runs test commands.
 // Fetches and saves test results from the local or remote system.
-func (l *LoadService) runLoadTest(param RunLoadGeneratorParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo, loadTestExecutionState *LoadTestExecutionState) {
+func (l *LoadService) runLoadTest(param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo, loadTestExecutionState *LoadTestExecutionState) {
+	defer func() {
+		updateErr := l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
+		if updateErr != nil {
+			utils.LogErrorf("Error updating load test execution state: %v", updateErr)
+			return
+		}
+	}()
 
 	compileDuration, executionDuration, loadTestErr := l.executeLoadTest(param, loadGeneratorInstallInfo)
 
 	loadTestExecutionState.CompileDuration = compileDuration
 	loadTestExecutionState.ExecutionDuration = executionDuration
 
-	updateErr := l.updateLoadTestExecution(loadTestExecutionState)
-	resultFetchErr := l.fetchResultFile(param, loadGeneratorInstallInfo)
-
 	if loadTestErr != nil {
 		loadTestExecutionState.ExecutionStatus = constant.TestFailed
 		loadTestExecutionState.FailureMessage = loadTestErr.Error()
-	} else if updateErr != nil {
-		loadTestExecutionState.ExecutionStatus = constant.UpdateFailed
-		loadTestExecutionState.FailureMessage = updateErr.Error()
-	} else if resultFetchErr != nil {
-		loadTestExecutionState.ExecutionStatus = constant.ResultFailed
-		loadTestExecutionState.FailureMessage = resultFetchErr.Error()
-	} else {
-		loadTestExecutionState.ExecutionStatus = constant.Successed
-	}
-	finishAt := time.Now()
-	loadTestExecutionState.FinishAt = &finishAt
-	updateErr = l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
-	if updateErr != nil {
-		utils.LogErrorf("Error updating load test execution state: %v", updateErr)
+		finishAt := time.Now()
+		loadTestExecutionState.FinishAt = &finishAt
 		return
 	}
+
+	updateErr := l.updateLoadTestExecution(loadTestExecutionState)
+	if updateErr != nil {
+		loadTestExecutionState.ExecutionStatus = constant.UpdateFailed
+		loadTestExecutionState.FailureMessage = updateErr.Error()
+		finishAt := time.Now()
+		loadTestExecutionState.FinishAt = &finishAt
+		return
+	}
+
+	resultFetchErr := l.fetchResultFile(param, loadGeneratorInstallInfo)
+
+	if resultFetchErr != nil {
+		loadTestExecutionState.ExecutionStatus = constant.ResultFailed
+		loadTestExecutionState.FailureMessage = resultFetchErr.Error()
+		finishAt := time.Now()
+		loadTestExecutionState.FinishAt = &finishAt
+		return
+	}
+
+	loadTestExecutionState.ExecutionStatus = constant.Successed
+
 }
 
 // executeLoadTest
-func (l *LoadService) executeLoadTest(param RunLoadGeneratorParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo) (string, string, error) {
+func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo) (string, string, error) {
 	installLocation := loadGeneratorInstallInfo.InstallLocation
 	loadTestKey := param.LoadTestKey
 	loadGeneratorInstallPath := loadGeneratorInstallInfo.InstallPath
@@ -1068,7 +1083,7 @@ func (l *LoadService) executeLoadTest(param RunLoadGeneratorParam, loadGenerator
 	start := time.Now()
 
 	if installLocation == constant.Remote {
-		utils.LogInfo("Remote installation detected.")
+		utils.LogInfo("Remote execute detected.")
 		var buf bytes.Buffer
 		err := parseTestPlanStructToString(&buf, param, loadGeneratorInstallInfo)
 		if err != nil {
@@ -1099,15 +1114,14 @@ func (l *LoadService) executeLoadTest(param RunLoadGeneratorParam, loadGenerator
 		if err != nil {
 			return compileDuration, executionDuration, err
 		}
-
-		if strings.Contains(stdout, "exited with status 1") {
-			return compileDuration, executionDuration, err
-		}
-
 		executionDuration = utils.DurationString(start)
 
+		if strings.Contains(stdout, "exited with status 1") {
+			return compileDuration, executionDuration, errors.New("jmeter test stopped unexpectedly")
+		}
+
 	} else if installLocation == constant.Local {
-		utils.LogInfo("Local installation detected.")
+		utils.LogInfo("Local execute detected.")
 
 		exist := utils.ExistCheck(loadGeneratorInstallPath)
 
@@ -1120,11 +1134,6 @@ func (l *LoadService) executeLoadTest(param RunLoadGeneratorParam, loadGenerator
 			return compileDuration, executionDuration, err
 		}
 
-		defer func() {
-			outputFile.Close()
-			os.Remove(fmt.Sprintf("%s/test_plan/%s.jmx", loadGeneratorInstallPath, loadTestKey))
-		}()
-
 		err = parseTestPlanStructToString(outputFile, param, loadGeneratorInstallInfo)
 
 		if err != nil {
@@ -1135,11 +1144,10 @@ func (l *LoadService) executeLoadTest(param RunLoadGeneratorParam, loadGenerator
 		compileDuration = utils.DurationString(start)
 
 		err = utils.InlineCmd(jmeterTestCommand)
-
-		if err != nil {
-			return compileDuration, executionDuration, err
-		}
 		executionDuration = utils.DurationString(start)
+		if err != nil {
+			return compileDuration, executionDuration, fmt.Errorf("jmeter test stopped unexpectedly; %w", err)
+		}
 	}
 
 	return compileDuration, executionDuration, nil
@@ -1161,7 +1169,7 @@ func (l *LoadService) updateLoadTestExecution(loadTestExecutionState *LoadTestEx
 	return nil
 }
 
-func (l *LoadService) fetchResultFile(param RunLoadGeneratorParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo) error {
+func (l *LoadService) fetchResultFile(param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo) error {
 	installLocation := loadGeneratorInstallInfo.InstallLocation
 	loadTestKey := param.LoadTestKey
 	loadGeneratorInstallPath := loadGeneratorInstallInfo.InstallPath
@@ -1277,12 +1285,6 @@ func generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVe
 	return builder.String()
 }
 
-func killCmdGen(loadTestKey string) string {
-	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*%s'", loadTestKey)
-	utils.LogInfof("Generating kill command for load test key: %s", loadTestKey)
-	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
-}
-
 type GetAllLoadTestExecutionStateParam struct {
 	Page            int                      `json:"page"`
 	Size            int                      `json:"size"`
@@ -1291,24 +1293,24 @@ type GetAllLoadTestExecutionStateParam struct {
 }
 
 type GetAllLoadTestExecutionStateResult struct {
-	LoadTestExecutionStates []LoadTestExecutionStateResult `json:"loadTestExecutionStates"`
-	TotalRow                int64                          `json:"totalRow"`
+	LoadTestExecutionStates []LoadTestExecutionStateResult `json:"loadTestExecutionStates,omitempty"`
+	TotalRow                int64                          `json:"totalRow,omitempty"`
 }
 
 type LoadTestExecutionStateResult struct {
 	ID                          uint                           `json:"id"`
 	LoadGeneratorInstallInfoId  uint                           `json:"loadGeneratorInstallInfoId,omitempty"`
 	LoadGeneratorInstallInfo    LoadGeneratorInstallInfoResult `json:"loadGeneratorInstallInfo,omitempty"`
-	LoadTestKey                 string                         `json:"loadTestKey"`
-	ExecutionStatus             constant.ExecutionStatus       `json:"executionStatus"`
-	StartAt                     time.Time                      `json:"startAt"`
-	FinishAt                    *time.Time                     `json:"finishAt"`
-	TotalExpectedExcutionSecond uint64                         `json:"totalExpectedExecutionSecond"`
-	FailureMessage              string                         `json:"failureMessage"`
-	CompileDuration             string                         `json:"compileDuration"`
-	ExecutionDuration           string                         `json:"executionDuration"`
-	CreatedAt                   time.Time                      `json:"createdAt"`
-	UpdatedAt                   time.Time                      `json:"updatedAt"`
+	LoadTestKey                 string                         `json:"loadTestKey,omitempty"`
+	ExecutionStatus             constant.ExecutionStatus       `json:"executionStatus,omitempty"`
+	StartAt                     time.Time                      `json:"startAt,omitempty"`
+	FinishAt                    *time.Time                     `json:"finishAt,omitempty"`
+	TotalExpectedExcutionSecond uint64                         `json:"totalExpectedExecutionSecond,omitempty"`
+	FailureMessage              string                         `json:"failureMessage,omitempty"`
+	CompileDuration             string                         `json:"compileDuration,omitempty"`
+	ExecutionDuration           string                         `json:"executionDuration,omitempty"`
+	CreatedAt                   time.Time                      `json:"createdAt,omitempty"`
+	UpdatedAt                   time.Time                      `json:"updatedAt,omitempty"`
 }
 
 func (l *LoadService) GetAllLoadTestExecutionState(param GetAllLoadTestExecutionStateParam) (GetAllLoadTestExecutionStateResult, error) {
@@ -1367,35 +1369,35 @@ type GetAllLoadTestExecutionInfosParam struct {
 }
 
 type GetAllLoadTestExecutionInfosResult struct {
-	TotalRow               int64 `json:"totalRow"`
-	LoadTestExecutionInfos []LoadTestExecutionInfoResult
+	TotalRow               int64                         `json:"totalRow,omitempty"`
+	LoadTestExecutionInfos []LoadTestExecutionInfoResult `json:"loadTestExecutionInfos,omitempty"`
 }
 
 type LoadTestExecutionInfoResult struct {
 	ID                         uint                              `json:"id"`
-	LoadTestKey                string                            `json:"loadTestKey" gorm:"unique_index;not null"`
-	TestName                   string                            `json:"testName"`
-	VirtualUsers               string                            `json:"virtualUsers"`
-	Duration                   string                            `json:"duration"`
-	RampUpTime                 string                            `json:"rampUpTime"`
-	RampUpSteps                string                            `json:"rampUpSteps"`
-	Hostname                   string                            `json:"hostname"`
-	Port                       string                            `json:"port"`
-	AgentHostname              string                            `json:"agentHostname"`
-	AgentInstalled             bool                              `json:"agentInstalled"`
-	CompileDuration            string                            `json:"compileDuration"`
-	ExecutionDuration          string                            `json:"executionDuration"`
-	LoadTestExecutionHttpInfos []LoadTestExecutionHttpInfoResult `json:"httpReqs,omitempty"`
-	LoadTestExecutionState     LoadTestExecutionStateResult      `json:"loadTestExecutionState"`
-	LoadGeneratorInstallInfo   LoadGeneratorInstallInfoResult    `json:"loadGeneratorInstallInfo"`
+	LoadTestKey                string                            `json:"loadTestKey,omitempty"`
+	TestName                   string                            `json:"testName,omitempty"`
+	VirtualUsers               string                            `json:"virtualUsers,omitempty"`
+	Duration                   string                            `json:"duration,omitempty"`
+	RampUpTime                 string                            `json:"rampUpTime,omitempty"`
+	RampUpSteps                string                            `json:"rampUpSteps,omitempty"`
+	Hostname                   string                            `json:"hostname,omitempty"`
+	Port                       string                            `json:"port,omitempty"`
+	AgentHostname              string                            `json:"agentHostname,omitempty"`
+	AgentInstalled             bool                              `json:"agentInstalled,omitempty"`
+	CompileDuration            string                            `json:"compileDuration,omitempty"`
+	ExecutionDuration          string                            `json:"executionDuration,omitempty"`
+	LoadTestExecutionHttpInfos []LoadTestExecutionHttpInfoResult `json:"loadTestExecutionHttpInfos,omitempty"`
+	LoadTestExecutionState     LoadTestExecutionStateResult      `json:"loadTestExecutionState,omitempty"`
+	LoadGeneratorInstallInfo   LoadGeneratorInstallInfoResult    `json:"loadGeneratorInstallInfo,omitempty"`
 }
 
 type LoadTestExecutionHttpInfoResult struct {
 	ID       uint   `json:"id"`
-	Method   string `json:"method"`
-	Protocol string `json:"protocol"`
-	Hostname string `json:"hostname"`
-	Port     string `json:"port"`
+	Method   string `json:"method,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
+	Hostname string `json:"hostname,omitempty"`
+	Port     string `json:"port,omitempty"`
 	Path     string `json:"path,omitempty"`
 	BodyData string `json:"bodyData,omitempty"`
 }
@@ -1545,4 +1547,58 @@ func mapLoadTestExecutionInfoResult(executionInfo LoadTestExecutionInfo) LoadTes
 		LoadTestExecutionState:     executionState,
 		LoadGeneratorInstallInfo:   installInfo,
 	}
+}
+
+type StopLoadTestParam struct {
+	LoadTestKey string `json:"loadTestKey"`
+}
+
+func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	state, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, GetLoadTestExecutionStateParam{
+		LoadTestKey: param.LoadTestKey,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if state.ExecutionStatus == constant.Successed {
+		return nil
+	}
+
+	installInfo := state.LoadGeneratorInstallInfo
+
+	killCmd := killCmdGen(param.LoadTestKey)
+
+	if installInfo.InstallLocation == constant.Remote {
+
+		commandReq := tumblebug.SendCommandReq{
+			Command: []string{killCmd},
+		}
+		_, err := l.tumblebugClient.CommandToMcisWithContext(ctx, antNsId, antMcisId, commandReq)
+
+		if err != nil {
+			return err
+		}
+
+	} else if installInfo.InstallLocation == constant.Local {
+		err := utils.InlineCmd(killCmd)
+
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+	}
+
+	return nil
+
+}
+
+func killCmdGen(loadTestKey string) string {
+	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*%s'", loadTestKey)
+	utils.LogInfof("Generating kill command for load test key: %s", loadTestKey)
+	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
 }

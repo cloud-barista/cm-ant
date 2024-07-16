@@ -1,10 +1,8 @@
 package app
 
 import (
-	"net/http"
 	"time"
 
-	"github.com/cloud-barista/cm-ant/pkg/load/services"
 	"github.com/cloud-barista/cm-ant/pkg/render"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
 
@@ -15,12 +13,6 @@ import (
 
 	zerolog "github.com/rs/zerolog/log"
 	echoSwagger "github.com/swaggo/echo-swagger"
-)
-
-const (
-	colorReset = "\033[0m"
-	colorRed   = "\033[31m"
-	colorGreen = "\033[32m"
 )
 
 func (server *AntServer) InitRouter() error {
@@ -34,33 +26,12 @@ func (server *AntServer) InitRouter() error {
 
 	{
 		antRouter.GET("/swagger/*", echoSwagger.WrapHandler)
-		antRouter.GET("", func(c echo.Context) error {
-			return c.Render(http.StatusOK, "home.page.tmpl", nil)
-		})
-
-		antRouter.GET("/results", func(c echo.Context) error {
-			result, err := services.GetAllLoadExecutionConfig()
-
-			if err != nil {
-				utils.LogErrorf("error while get load test execution config; %+v", err)
-				return echo.NewHTTPError(http.StatusInternalServerError, map[string]any{
-					"message": "something went wrong.try again.",
-				})
-
-			}
-
-			return c.Render(http.StatusOK, "results.page.tmpl", result)
-		})
 	}
 
 	apiRouter := antRouter.Group("/api")
 	versionRouter := apiRouter.Group("/v1")
 
-	versionRouter.GET("/health", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{
-			"message": "CM-Ant API server is running",
-		})
-	})
+	versionRouter.GET("/readyz", server.readyz)
 
 	{
 
@@ -75,26 +46,26 @@ func (server *AntServer) InitRouter() error {
 			loadRouter.POST("/monitoring/agent/install", server.installMonitoringAgent, middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(1)))
 			loadRouter.GET("/monitoring/agent", server.getAllMonitoringAgentInfos)
 			loadRouter.POST("/monitoring/agent/uninstall", server.uninstallMonitoringAgent, middleware.RateLimiter(middleware.NewRateLimiterMemoryStore(1)))
-		}
 
-		loadTestRouter := loadRouter.Group("/tests")
+			loadTestRouter := loadRouter.Group("/tests")
 
-		{
-			// load test execution
-			loadTestRouter.POST("/run", server.runLoadTest)
-			loadTestRouter.POST("/stop", server.stopLoadTest)
+			{
+				// load test execution
+				loadTestRouter.POST("/run", server.runLoadTest)
+				loadTestRouter.POST("/stop", server.stopLoadTest)
 
-			// load test state
-			loadTestRouter.GET("/state", server.getAllLoadTestExecutionState)
-			loadTestRouter.GET("/state/:loadTestKey", server.getLoadTestExecutionState)
+				// load test state
+				loadTestRouter.GET("/state", server.getAllLoadTestExecutionState)
+				loadTestRouter.GET("/state/:loadTestKey", server.getLoadTestExecutionState)
 
-			// load test history
-			loadTestRouter.GET("/infos", server.getAllLoadTestExecutionInfos)
-			loadTestRouter.GET("/infos/:loadTestKey", server.getLoadTestExecutionInfo)
+				// load test history
+				loadTestRouter.GET("/infos", server.getAllLoadTestExecutionInfos)
+				loadTestRouter.GET("/infos/:loadTestKey", server.getLoadTestExecutionInfo)
 
-			// load test result
-			loadTestRouter.GET("/result", server.getLoadTestResult)
-			loadTestRouter.GET("/result/metrics", server.getLoadTestMetrics)
+				// load test result
+				loadTestRouter.GET("/result", server.getLoadTestResult)
+				loadTestRouter.GET("/result/metrics", server.getLoadTestMetrics)
+			}
 		}
 	}
 

@@ -350,6 +350,7 @@ func (r *LoadRepository) GetLoadTestExecutionStateTx(ctx context.Context, param 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		return d.Model(&loadTestExecutionState).
 			Preload("LoadGeneratorInstallInfo").
+			Preload("LoadGeneratorInstallInfo.LoadGeneratorServers").
 			First(&loadTestExecutionState, "load_test_execution_states.load_test_key = ?", param.LoadTestKey).
 			Error
 	})

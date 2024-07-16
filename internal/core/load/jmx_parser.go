@@ -105,7 +105,7 @@ var jmxHttpSamplerTemplate = map[string]string{
 	`,
 }
 
-func parseTestPlanStructToString(w io.Writer, param RunLoadGeneratorParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo) error {
+func parseTestPlanStructToString(w io.Writer, param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo) error {
 	resultPath := fmt.Sprintf("%s/result", loadGeneratorInstallInfo.InstallPath)
 	httpRequests, err := httpReqParseToJmx(param.Hostname, param.Port, param.HttpReqs)
 	if err != nil {
@@ -150,7 +150,7 @@ func parseTestPlanStructToString(w io.Writer, param RunLoadGeneratorParam, loadG
 	return nil
 }
 
-func httpReqParseToJmx(hostname, port string, httpReqs []RunLoadGeneratorHttpParam) (string, error) {
+func httpReqParseToJmx(hostname, port string, httpReqs []RunLoadTestHttpParam) (string, error) {
 	var builder strings.Builder
 	for i, req := range httpReqs {
 		method := strings.ToUpper(req.Method)

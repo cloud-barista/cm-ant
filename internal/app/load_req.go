@@ -26,7 +26,7 @@ type GetAllLoadGeneratorInstallInfoReq struct {
 	Status string `query:"status"`
 }
 
-type RunLoadGeneratorReq struct {
+type RunLoadTestReq struct {
 	InstallLoadGenerator       InstallLoadGeneratorReq `json:"installLoadGenerator"`
 	LoadGeneratorInstallInfoId uint                    `json:"loadGeneratorInstallInfoId"`
 	TestName                   string                  `json:"testName"`
@@ -61,4 +61,8 @@ type GetAllLoadTestExecutionStateReq struct {
 type GetAllLoadTestExecutionHistoryReq struct {
 	Page int `query:"page"`
 	Size int `query:"size"`
+}
+
+type StopLoadTestReq struct {
+	LoadTestKey string `json:"loadTestKey"`
 }

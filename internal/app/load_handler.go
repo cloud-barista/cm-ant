@@ -16,6 +16,12 @@ const (
 	seoul = "37.53/127.02"
 )
 
+func (s *AntServer) readyz(c echo.Context) error {
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "CM-Ant API server is running",
+	})
+}
+
 // getAllLoadGeneratorInstallInfo handler function that retrieves all load generator installation information.
 // @Id GetAllLoadGeneratorInstallInfo
 // @Summary Get All Load Generator Install Info
@@ -153,33 +159,33 @@ func (s *AntServer) uninstallLoadGenerator(c echo.Context) error {
 // runLoadTest handler function that initiates a load test.
 // @Id RunLoadTest
 // @Summary Run Load Test
-// @Description Start a load test using the provided load generator configuration.
+// @Description Start a load test using the provided load test configuration.
 // @Tags [Load Test Execution Management]
 // @Accept json
 // @Produce json
-// @Param body body app.RunLoadGeneratorReq true "Run Load Generator Request"
+// @Param body body app.RunLoadTestReq true "Run Load Test Request"
 // @Success 200 {object} app.AntResponse[string] "{loadTestKey}"
-// @Failure 400 {object} app.AntResponse[string] "load generator running info is not correct."
-// @Failure 400 {object} app.AntResponse[string] "load generator install location is invalid."
+// @Failure 400 {object} app.AntResponse[string] "load test running info is not correct."
+// @Failure 400 {object} app.AntResponse[string] "load test install location is invalid."
 // @Failure 500 {object} app.AntResponse[string] "ant server has got error. please try again."
 // @Router /api/v1/load/tests/run [post]
 func (s *AntServer) runLoadTest(c echo.Context) error {
-	var req RunLoadGeneratorReq
+	var req RunLoadTestReq
 
 	if err := c.Bind(&req); err != nil {
-		return errorResponse(http.StatusBadRequest, "load generator running info is not correct.")
+		return errorResponse(http.StatusBadRequest, "load test running info is not correct.")
 	}
 
 	if req.LoadGeneratorInstallInfoId != uint(0) {
 		req.InstallLoadGenerator = InstallLoadGeneratorReq{}
 	} else if req.InstallLoadGenerator.InstallLocation != constant.Local &&
 		req.InstallLoadGenerator.InstallLocation != constant.Remote {
-		return errorResponse(http.StatusBadRequest, "load generator install location is invalid.")
+		return errorResponse(http.StatusBadRequest, "load test install location is invalid.")
 	}
 
-	var https []load.RunLoadGeneratorHttpParam
+	var https []load.RunLoadTestHttpParam
 	for _, h := range req.HttpReqs {
-		hh := load.RunLoadGeneratorHttpParam{
+		hh := load.RunLoadTestHttpParam{
 			Method:   h.Method,
 			Protocol: h.Protocol,
 			Hostname: h.Hostname,
@@ -191,7 +197,7 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 		https = append(https, hh)
 	}
 
-	arg := load.RunLoadGeneratorParam{
+	arg := load.RunLoadTestParam{
 
 		InstallLoadGenerator: load.InstallLoadGeneratorParam{
 			InstallLocation: req.InstallLoadGenerator.InstallLocation,
@@ -218,14 +224,49 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 
 	return successResponse(
 		c,
-		fmt.Sprintf("Successfully run load generator. Load test key: %s", loadTestKey),
+		fmt.Sprintf("Successfully run load test. Load test key: %s", loadTestKey),
 		loadTestKey,
 	)
 }
 
+// stopLoadTest handler function that stops a running load test.
+// @Id StopLoadTest
+// @Summary Stop Load Test
+// @Description Stop a running load test using the provided load test key.
+// @Tags [Load Test Execution Management]
+// @Accept json
+// @Produce json
+// @Param body body app.StopLoadTestReq true "Stop Load Test Request"
+// @Success 200 {object} app.AntResponse[string] "done"
+// @Failure 400 {object} app.AntResponse[string] "load test running info is not correct."
+// @Failure 500 {object} app.AntResponse[string] "ant server has got error. please try again."
+// @Router /api/v1/load/tests/stop [post]
 func (s *AntServer) stopLoadTest(c echo.Context) error {
+	var req StopLoadTestReq
 
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	if err := c.Bind(&req); err != nil {
+		return errorResponse(http.StatusBadRequest, "load test stop info is not correct.")
+	}
+
+	if strings.TrimSpace(req.LoadTestKey) == "" {
+		return errorResponse(http.StatusBadRequest, "load test stop info is not correct.")
+	}
+
+	arg := load.StopLoadTestParam{
+		LoadTestKey: req.LoadTestKey,
+	}
+
+	err := s.services.loadService.StopLoadTest(arg)
+
+	if err != nil {
+		return errorResponse(http.StatusBadRequest, err.Error())
+	}
+
+	return successResponse(
+		c,
+		fmt.Sprintf("Successfully stop load generator. Load test key: %s", req.LoadTestKey),
+		"done",
+	)
 }
 
 func (s *AntServer) getLoadTestResult(c echo.Context) error {
@@ -288,7 +329,7 @@ func (s *AntServer) getAllLoadTestExecutionInfos(c echo.Context) error {
 // @Success 200 {object} app.AntResponse[load.LoadTestExecutionInfoResult] "Successfully retrieved load test execution state information"
 // @Failure 400 {object} app.AntResponse[string] "Load test key must be set."
 // @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test execution state information"
-// @Router /api/v1/load/tests/state/{loadTestKey} [get]
+// @Router /api/v1/load/tests/infos/{loadTestKey} [get]
 func (s *AntServer) getLoadTestExecutionInfo(c echo.Context) error {
 	loadTestKey := c.Param("loadTestKey")
 
