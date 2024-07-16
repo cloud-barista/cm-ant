@@ -24,9 +24,9 @@ logging:
   level: info
 
 database:
-  driver: "sqlite"
-  host: "${ROOT}/meta/ant_meta.db"
-  port: 
-  user:
-  password:
-  name:
+  driver: "postgres"
+  host: "ant-postgres"
+  port: "5432"
+  user: "cm-ant-user"
+  password: "cm-ant-secret"
+  name: "cm-ant-db"

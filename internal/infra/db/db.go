@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/cloud-barista/cm-ant/internal/core/load"
 	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -88,6 +90,18 @@ func NewDBConnection() (*gorm.DB, error) {
 		}
 		db = sqliteDB
 		log.Printf("[INFO] Initialized SQLite database successfully [%s]\n", d.Driver)
+	} else if d.Driver == "postgres" {
+		postgresDb, err := connectPostgresDB(d.Host, d.Port, d.User, d.Password, d.Name)
+		if err != nil {
+			log.Fatalf("[ERROR] Failed to establish Postgres DB connection: %v\n", err)
+		}
+
+		err = migrateDB(postgresDb)
+		if err != nil {
+			log.Fatalf("[ERROR] Failed to migrate Postgres database: %v\n", err)
+		}
+		db = postgresDb
+		log.Printf("[INFO] Initialized Postgres database successfully [%s]\n", d.Driver)
 	}
 
 	dbConfig, _ := db.DB()
@@ -95,5 +109,32 @@ func NewDBConnection() (*gorm.DB, error) {
 	dbConfig.SetMaxIdleConns(125)
 	dbConfig.SetConnMaxLifetime(time.Hour)
 
+	return db, nil
+}
+
+func connectPostgresDB(host, port, user, password, name string) (*gorm.DB, error) {
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r", log.LstdFlags),
+		logger.Config{
+			SlowThreshold: time.Second,
+			// LogLevel:                  logger.Info,
+			IgnoreRecordNotFoundError: true,
+			ParameterizedQueries:      true,
+			Colorful:                  true,
+		},
+	).LogMode(logger.Info)
+
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		host, port, user, password, name)
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: newLogger,
+	})
+	if err != nil {
+		log.Printf("[ERROR] Failed to connect to Postgresql database: %v\n", err)
+		return nil, err
+	}
+
+	log.Println("[INFO] Connected to Postgresql database successfully")
 	return db, nil
 }

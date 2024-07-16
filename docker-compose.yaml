@@ -32,6 +32,11 @@ services:
       - SPIDER_REST_URL=http://cb-spider:1024/spider
       - API_USERNAME=default
       - API_PASSWORD=default
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:1323/tumblebug/readyz" ]
+      interval: 10s
+      timeout: 10s
+      retries: 3
 
   cm-ant:
     build:
@@ -42,9 +47,24 @@ services:
     ports:
         - 8880:8880
     depends_on:
-      - cb-tumblebug
+      cb-tumblebug:
+        condition: service_healthy
+      ant-postgres:
+        condition: service_healthy
     environment:
       - ANT_SPIDER_HOST=http://cb-spider
       - ANT_SPIDER_PORT=1024
       - ANT_TUMBLEBUG_HOST=http://cb-tumblebug
       - ANT_TUMBLEBUG_PORT=1323
+
+  ant-postgres:
+    image: postgres:16.2-alpine3.19
+    environment:
+      - POSTGRES_USER=cm-ant-user
+      - POSTGRES_PASSWORD=cm-ant-secret
+      - POSTGRES_DB=cm-ant-db
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "root", "-d", "mom_bank" ]
+      interval: 3s
+      timeout: 3s
+      retries: 5

@@ -1,6 +1,9 @@
 # Stage 1: Build the Ant app
 FROM golang:1.21.6-alpine AS builder
 
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
 RUN apk add --no-cache make gcc sqlite-libs sqlite-dev build-base
 
 WORKDIR /go/src/github.com/cloud-barista/cm-ant
@@ -11,7 +14,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 make build
+RUN CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH make build
 
 
 # Stage 2: Run the Ant app
