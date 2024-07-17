@@ -32,28 +32,6 @@ func (l *LoadExecutionState) IsFinished() bool {
 	return l.ExecutionStatus != constant.Processing
 }
 
-type LoadExecutionConfig struct {
-	gorm.Model
-	LoadEnvID          uint
-	LoadTestKey        string              `gorm:"unique_index;not null" json:"loadTestKey"`
-	TestName           string              `json:"testName"`
-	VirtualUsers       string              `json:"virtualUsers"`
-	Duration           string              `json:"duration"`
-	RampUpTime         string              `json:"rampUpTime"`
-	RampUpSteps        string              `json:"rampUpSteps"`
-	LoadExecutionHttps []LoadExecutionHttp `gorm:"constraint:OnUpdate:CASCADE"`
-}
-
-type LoadExecutionHttp struct {
-	gorm.Model
-	LoadExecutionConfigID uint
-	Method                string `json:"method"`
-	Protocol              string `json:"protocol"`
-	Hostname              string `json:"hostname"`
-	Port                  string `json:"port"`
-	Path                  string `json:"path"`
-	BodyData              string `json:"bodyData"`
-}
 
 type LoadTestStatistics struct {
 	Label         string  `json:"label"`

@@ -20,8 +20,10 @@ type AntConfig struct {
 		Port string `yaml:"port"`
 	} `yaml:"server"`
 	Spider struct {
-		Host string `yaml:"host"`
-		Port string `yaml:"port"`
+		Host     string `yaml:"host"`
+		Port     string `yaml:"port"`
+		Username string `yaml:"username"`
+		Password string `yaml:"password"`
 	} `yaml:"spider"`
 	Tumblebug struct {
 		Host     string `yaml:"host"`

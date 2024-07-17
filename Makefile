@@ -127,10 +127,6 @@ up: run-db image-build
 			--name $(ANT_CONTAINER_NAME) \
 			--network $(ANT_NETWORK) \
 			-p 8880:8880 \
-			-e ANT_SPIDER_HOST=http://cb-spider \
-			-e ANT_SPIDER_PORT=1024 \
-			-e ANT_TUMBLEBUG_HOST=http://cb-tumblebug \
-			-e ANT_TUMBLEBUG_PORT=1323 \
 			-e ANT_DATABASE_HOST=ant-postgres \
 			-d --rm \
 			$(ANT_CONTAINER_NAME):latest; \

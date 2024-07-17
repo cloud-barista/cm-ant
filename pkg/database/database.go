@@ -49,9 +49,7 @@ func InitDatabase() error {
 func migrateDB(defaultDb *gorm.DB) error {
 	err := defaultDb.AutoMigrate(
 		&model.LoadEnv{},
-		&model.LoadExecutionConfig{},
 		&model.LoadExecutionState{},
-		&model.LoadExecutionHttp{},
 	)
 
 	if err != nil {

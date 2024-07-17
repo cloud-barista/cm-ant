@@ -7,6 +7,8 @@ server:
 spider:
   host: http://localhost
   port: 1024
+  username:
+  password:
 
 tumblebug:
   host: http://localhost

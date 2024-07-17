@@ -70,9 +70,9 @@ func (server *AntServer) InitRouter() error {
 	}
 
 	{
-		priceRouter := versionRouter.Group("/price")
+		costRouter := versionRouter.Group("/cost")
 		{
-			priceRouter.POST("", server.getPriceInfo)
+			costRouter.POST("", server.getPriceInfo)
 		}
 	}
 

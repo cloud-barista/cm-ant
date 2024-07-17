@@ -1,6 +1,5 @@
-package api
+package app
 
-// PriceInfoReq is
 type PriceInfoReq struct {
 	ProviderName string `json:"providerName,omitempty"`
 

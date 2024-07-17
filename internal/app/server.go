@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/core/cost"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
 	"github.com/cloud-barista/cm-ant/internal/infra/db"
+	"github.com/cloud-barista/cm-ant/internal/infra/outbound/spider"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/labstack/echo/v4"
@@ -16,11 +18,13 @@ import (
 // antRepositories holds the various Repositorie used by the application.
 type antRepositories struct {
 	loadRepo *load.LoadRepository
+	costRepo *cost.CostRepository
 }
 
 // antServices holds the various Service used by the application.
 type antServices struct {
 	loadService *load.LoadService
+	costService *cost.CostService
 }
 
 // AntServer represents the server instance for the CM-Ant application.
@@ -47,8 +51,9 @@ func NewAntServer() (*AntServer, error) {
 	}
 
 	tumblebugClient := tumblebug.NewTumblebugClient(client)
+	spiderClient := spider.NewSpiderClient(client)
 	repos := initializeRepositories(conn)
-	services := initializeServices(repos, tumblebugClient)
+	services := initializeServices(repos, tumblebugClient, spiderClient)
 
 	return &AntServer{
 		e:        e,
@@ -69,18 +74,22 @@ func initializeDBConn() (*gorm.DB, error) {
 // initializeRepositories initializes the repositories with the given database connection.
 func initializeRepositories(conn *gorm.DB) *antRepositories {
 	loadRepo := load.NewLoadRepository(conn)
+	costRepo := cost.NewCostRepository(conn)
 
 	return &antRepositories{
 		loadRepo: loadRepo,
+		costRepo: costRepo,
 	}
 }
 
 // initializeServices initializes the services with the given repositories and various client.
-func initializeServices(repos *antRepositories, tbClient *tumblebug.TumblebugClient) *antServices {
+func initializeServices(repos *antRepositories, tbClient *tumblebug.TumblebugClient, sClient *spider.SpiderClient) *antServices {
 	loadServ := load.NewLoadService(repos.loadRepo, tbClient)
+	costServ := cost.NewCostService(repos.costRepo, sClient)
 
 	return &antServices{
 		loadService: loadServ,
+		costService: costServ,
 	}
 }
 
