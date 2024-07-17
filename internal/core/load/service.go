@@ -1105,7 +1105,7 @@ type fetchDataParam struct {
 	PublicIp        string
 	Port            string
 	AgentInstalled  bool
-	fetchMx         *sync.Mutex
+	fetchMx         sync.Mutex
 	fetchRunning    bool
 	Home            string
 }
@@ -1185,7 +1185,7 @@ func rsyncFiles(f *fetchDataParam) error {
 				fromFilePath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, fileName)
 				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
 
-				cmd := fmt.Sprintf(`rsync -az %s %s`, fromFilePath, toFilePath)
+				cmd := fmt.Sprintf(`rsync -avz %s %s`, fromFilePath, toFilePath)
 				err := utils.InlineCmd(cmd)
 				errorChan <- err
 			}(p)
@@ -1199,7 +1199,7 @@ func rsyncFiles(f *fetchDataParam) error {
 				fromFilePath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, fileName)
 				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
 
-				cmd := fmt.Sprintf(`rsync -az -e "ssh -i %s" %s@%s:%s %s`, fmt.Sprintf("%s/.ssh/%s", f.Home, f.PrivateKeyName), f.Username, f.PublicIp, fromFilePath, toFilePath)
+				cmd := fmt.Sprintf(`rsync -avz -e "ssh -i %s" %s@%s:%s %s`, fmt.Sprintf("%s/.ssh/%s", f.Home, f.PrivateKeyName), f.Username, f.PublicIp, fromFilePath, toFilePath)
 				err := utils.InlineCmd(cmd)
 				errorChan <- err
 			}(p)

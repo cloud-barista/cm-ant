@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -21,22 +22,22 @@ func migrateDB(defaultDb *gorm.DB) error {
 		&load.MonitoringAgentInfo{},
 		&load.LoadGeneratorServer{},
 		&load.LoadGeneratorInstallInfo{},
-		&load.LoadTestExecutionState{},
 		&load.LoadTestExecutionInfo{},
 		&load.LoadTestExecutionHttpInfo{},
+		&load.LoadTestExecutionState{},
 	)
 
 	if err != nil {
-		log.Printf("[ERROR] Failed to auto migrate database tables: %v\n", err)
+		utils.LogErrorf("Failed to auto migrate database tables: %v\n", err)
 		return err
 	}
 
-	log.Println("[INFO] Database tables auto migration completed successfully")
+	utils.LogInfo("Database tables auto migration completed successfully")
 	return nil
 }
 
 func connectSqliteDB(dbPath string) (*gorm.DB, error) {
-	log.Printf("[INFO] SQLite configuration: meta SQLite DB path is %s\n", dbPath)
+	utils.LogInfof("SQLite configuration: meta SQLite DB path is %s\n", dbPath)
 
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r", log.LstdFlags),
@@ -77,31 +78,32 @@ func NewDBConnection() (*gorm.DB, error) {
 	d := config.AppConfig.Database
 
 	var db *gorm.DB
-	if d.Driver == "sqlite" || d.Driver == "sqlite3" {
+	driver := strings.ToLower(d.Driver)
+	if driver == "sqlite" || driver == "sqlite3" {
 		sqlFilePath := sqliteFilePath(d.Host)
 		sqliteDB, err := connectSqliteDB(sqlFilePath)
 		if err != nil {
-			log.Fatalf("[ERROR] Failed to establish SQLite DB connection: %v\n", err)
+			utils.LogErrorf("Failed to establish SQLite DB connection: %v\n", err)
+			return nil, err
 		}
 
-		err = migrateDB(sqliteDB)
-		if err != nil {
-			log.Fatalf("[ERROR] Failed to migrate SQLite database: %v\n", err)
-		}
 		db = sqliteDB
-		log.Printf("[INFO] Initialized SQLite database successfully [%s]\n", d.Driver)
-	} else if d.Driver == "postgres" {
+		utils.LogInfof("Initialized SQLite database successfully [%s]\n", d.Driver)
+	} else if driver == "postgres" {
 		postgresDb, err := connectPostgresDB(d.Host, d.Port, d.User, d.Password, d.Name)
 		if err != nil {
-			log.Fatalf("[ERROR] Failed to establish Postgres DB connection: %v\n", err)
+			utils.LogErrorf("Failed to establish Postgres DB connection: %v\n", err)
+			return nil, err
 		}
 
-		err = migrateDB(postgresDb)
-		if err != nil {
-			log.Fatalf("[ERROR] Failed to migrate Postgres database: %v\n", err)
-		}
 		db = postgresDb
-		log.Printf("[INFO] Initialized Postgres database successfully [%s]\n", d.Driver)
+		utils.LogInfof("Initialized Postgres database successfully [%s]\n", d.Driver)
+	}
+
+	err := migrateDB(db)
+	if err != nil {
+		utils.LogErrorf("Failed to migrate database: %v\n", err)
+		return nil, err
 	}
 
 	dbConfig, _ := db.DB()
@@ -113,6 +115,9 @@ func NewDBConnection() (*gorm.DB, error) {
 }
 
 func connectPostgresDB(host, port, user, password, name string) (*gorm.DB, error) {
+	if host == "" || port == "" || user == "" || password == "" || name == "" {
+		return nil, errors.New("database connection info is incorrect")
+	}
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r", log.LstdFlags),
 		logger.Config{
@@ -122,7 +127,7 @@ func connectPostgresDB(host, port, user, password, name string) (*gorm.DB, error
 			ParameterizedQueries:      true,
 			Colorful:                  true,
 		},
-	).LogMode(logger.Info)
+	)
 
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, name)
@@ -131,10 +136,10 @@ func connectPostgresDB(host, port, user, password, name string) (*gorm.DB, error
 		Logger: newLogger,
 	})
 	if err != nil {
-		log.Printf("[ERROR] Failed to connect to Postgresql database: %v\n", err)
+		utils.LogErrorf("Failed to connect to Postgresql database: %v\n", err)
 		return nil, err
 	}
 
-	log.Println("[INFO] Connected to Postgresql database successfully")
+	utils.LogInfo("Connected to Postgresql database successfully")
 	return db, nil
 }

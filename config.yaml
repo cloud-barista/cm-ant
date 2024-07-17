@@ -25,7 +25,7 @@ logging:
 
 database:
   driver: "postgres"
-  host: "ant-postgres"
+  host: "localhost"
   port: "5432"
   user: "cm-ant-user"
   password: "cm-ant-secret"
