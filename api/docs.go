@@ -16,102 +16,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/ant/api/v1/load/result": {
-            "get": {
-                "description": "After start load test, get the result of load test.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Load Test Result]"
-                ],
-                "summary": "Get the result of single load test result",
-                "operationId": "LoadTestResult",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "load test key",
-                        "name": "loadTestKey",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "format of load test result aggregate",
-                        "name": "format",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "loadTestKey must be passed",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "sorry, internal server error while getting load test result;",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/ant/api/v1/load/result/metrics": {
-            "get": {
-                "description": "Get the result of metrics for target server.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Load Test Result]"
-                ],
-                "summary": "Get the result of single load test metrics",
-                "operationId": "LoadTestMetrics",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "load test key",
-                        "name": "loadTestKey",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "loadTestKey must be passed",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "500": {
-                        "description": "sorry, internal server error while getting load test result;",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/load/generators": {
             "get": {
                 "description": "Retrieve a list of all installed load generators with pagination support.",
@@ -420,6 +324,117 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/load/test/metrics": {
+            "get": {
+                "description": "Retrieve load test metrics based on provided parameters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Result]"
+                ],
+                "summary": "Get load test metrics",
+                "operationId": "GetLoadTestMetrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Load test key",
+                        "name": "loadTestKey",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test metrics",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-array_load_MetricsSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test metrics",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/load/test/result": {
+            "get": {
+                "description": "Retrieve load test result based on provided parameters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Result]"
+                ],
+                "summary": "Get load test result",
+                "operationId": "GetLoadTestResult",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Load test key",
+                        "name": "loadTestKey",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Result format (normal or aggregate)",
+                        "name": "format",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test metrics",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/app.JsonResult"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "[aggregate]": {
+                                            "$ref": "#/definitions/app.AntResponse-array_load_LoadTestStatistics"
+                                        },
+                                        "[normal]": {
+                                            "$ref": "#/definitions/app.AntResponse-array_load_ResultSummary"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test result",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/load/tests/infos": {
             "get": {
                 "description": "Retrieve a list of all load test execution information with pagination support.",
@@ -718,6 +733,66 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "app.AntResponse-array_load_LoadTestStatistics": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.LoadTestStatistics"
+                    }
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-array_load_MetricsSummary": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.MetricsSummary"
+                    }
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-array_load_ResultSummary": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.ResultSummary"
+                    }
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
         "app.AntResponse-int64": {
             "type": "object",
             "properties": {
@@ -895,6 +970,9 @@ const docTemplate = `{
                     "$ref": "#/definitions/constant.InstallLocation"
                 }
             }
+        },
+        "app.JsonResult": {
+            "type": "object"
         },
         "app.MonitoringAgentInstallationReq": {
             "type": "object",
@@ -1313,6 +1391,81 @@ const docTemplate = `{
                 }
             }
         },
+        "load.LoadTestStatistics": {
+            "type": "object",
+            "properties": {
+                "average": {
+                    "type": "number"
+                },
+                "errorPercent": {
+                    "type": "number"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "maxTime": {
+                    "type": "number"
+                },
+                "median": {
+                    "type": "number"
+                },
+                "minTime": {
+                    "type": "number"
+                },
+                "ninetyFive": {
+                    "type": "number"
+                },
+                "ninetyNine": {
+                    "type": "number"
+                },
+                "ninetyPercent": {
+                    "type": "number"
+                },
+                "receivedKB": {
+                    "type": "number"
+                },
+                "requestCount": {
+                    "type": "integer"
+                },
+                "sentKB": {
+                    "type": "number"
+                },
+                "throughput": {
+                    "type": "number"
+                }
+            }
+        },
+        "load.MetricsRawData": {
+            "type": "object",
+            "properties": {
+                "isError": {
+                    "type": "boolean"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "load.MetricsSummary": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.MetricsRawData"
+                    }
+                }
+            }
+        },
         "load.MonitoringAgentInstallationResult": {
             "type": "object",
             "properties": {
@@ -1345,6 +1498,59 @@ const docTemplate = `{
                 },
                 "vmId": {
                     "type": "string"
+                }
+            }
+        },
+        "load.ResultRawData": {
+            "type": "object",
+            "properties": {
+                "bytes": {
+                    "type": "integer"
+                },
+                "connection": {
+                    "description": "time to establish connection",
+                    "type": "integer"
+                },
+                "elapsed": {
+                    "description": "time to last byte",
+                    "type": "integer"
+                },
+                "idleTime": {
+                    "description": "time not spent sampling in jmeter (milliseconds) (generally 0)",
+                    "type": "integer"
+                },
+                "isError": {
+                    "type": "boolean"
+                },
+                "latency": {
+                    "description": "time to first byte",
+                    "type": "integer"
+                },
+                "no": {
+                    "type": "integer"
+                },
+                "sentBytes": {
+                    "type": "integer"
+                },
+                "timestamp": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "load.ResultSummary": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.ResultRawData"
+                    }
                 }
             }
         }

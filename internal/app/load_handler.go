@@ -269,7 +269,22 @@ func (s *AntServer) stopLoadTest(c echo.Context) error {
 	)
 }
 
+// getLoadTestResult handler function that retrieves a specific load test result.
+// @Id GetLoadTestResult
+// @Summary Get load test result
+// @Description Retrieve load test result based on provided parameters.
+// @Tags [Load Test Result]
+// @Accept json
+// @Produce json
+// @Param loadTestKey query string true "Load test key"
+// @Param format query string false "Result format (normal or aggregate)"
+// @Success 200 {object} app.JsonResult{[normal]=app.AntResponse[[]load.ResultSummary],[aggregate]=app.AntResponse[[]load.LoadTestStatistics]} "Successfully retrieved load test metrics"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test result"
+// @Router /api/v1/load/test/result [get]
 func (s *AntServer) getLoadTestResult(c echo.Context) error {
+	// @Success 200 {object} app.AntResponse[{[normal]=map[string][]resultRawData,[aggregate]=[]load.LoadTestStatistics}] "Successfully retrieved load test metrics"
+
 	var req GetLoadTestResultReq
 	if err := c.Bind(&req); err != nil {
 		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
@@ -280,6 +295,8 @@ func (s *AntServer) getLoadTestResult(c echo.Context) error {
 	}
 
 	if req.Format == "" {
+		req.Format = constant.Normal
+	} else if req.Format != constant.Normal && req.Format != constant.Aggregate {
 		req.Format = constant.Normal
 	}
 
@@ -297,6 +314,18 @@ func (s *AntServer) getLoadTestResult(c echo.Context) error {
 	return successResponseJson(c, "Successfully retrieved load test result", result)
 }
 
+// getLoadTestMetrics handler function that retrieves metrics for a specific load test.
+// @Id GetLoadTestMetrics
+// @Summary Get load test metrics
+// @Description Retrieve load test metrics based on provided parameters.
+// @Tags [Load Test Result]
+// @Accept json
+// @Produce json
+// @Param loadTestKey query string true "Load test key"
+// @success 200 {object} app.AntResponse[[]load.MetricsSummary] "Successfully retrieved load test metrics"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test metrics"
+// @Router /api/v1/load/test/metrics [get]
 func (s *AntServer) getLoadTestMetrics(c echo.Context) error {
 	var req GetLoadTestResultReq
 	if err := c.Bind(&req); err != nil {
@@ -309,7 +338,7 @@ func (s *AntServer) getLoadTestMetrics(c echo.Context) error {
 
 	arg := load.GetLoadTestResultParam{
 		LoadTestKey: req.LoadTestKey,
-		Format:      req.Format,
+		Format:      constant.Normal,
 	}
 
 	result, err := s.services.loadService.GetLoadTestMetrics(arg)

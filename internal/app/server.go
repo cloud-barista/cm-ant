@@ -15,6 +15,10 @@ import (
 	"gorm.io/gorm"
 )
 
+// JsonResult is a dummy struct for swagger annotations.
+type JsonResult struct {
+}
+
 // antRepositories holds the various Repositorie used by the application.
 type antRepositories struct {
 	loadRepo *load.LoadRepository

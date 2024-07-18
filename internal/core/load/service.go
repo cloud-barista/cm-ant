@@ -1666,7 +1666,17 @@ func killCmdGen(loadTestKey string) string {
 	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
 }
 
-type resultRawData struct {
+type ResultSummary struct {
+	Label   string
+	Results []*ResultRawData
+}
+
+type MetricsSummary struct {
+	Label   string
+	Metrics []*MetricsRawData
+}
+
+type ResultRawData struct {
 	No         int
 	Elapsed    int // time to last byte
 	Bytes      int
@@ -1679,7 +1689,7 @@ type resultRawData struct {
 	Timestamp  time.Time
 }
 
-type metricsRawData struct {
+type MetricsRawData struct {
 	Value     string
 	Unit      string
 	IsError   bool
@@ -1766,12 +1776,21 @@ func (l *LoadService) GetLoadTestResult(param GetLoadTestResultParam) (interface
 	fileName := fmt.Sprintf("%s_result.csv", loadTestKey)
 	resultFolderPath := utils.JoinRootPathWith("/result/" + loadTestKey)
 	toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
-	resultRawData, err := appendResultRawData(toFilePath)
+	resultMap, err := appendResultRawData(toFilePath)
 	if err != nil {
 		return nil, err
 	}
 
-	formattedDate, err := resultFormat(param.Format, resultRawData)
+	var resultSummaries []ResultSummary
+
+	for label, results := range resultMap {
+		resultSummaries = append(resultSummaries, ResultSummary{
+			Label:   label,
+			Results: results,
+		})
+	}
+
+	formattedDate, err := resultFormat(param.Format, resultSummaries)
 
 	if err != nil {
 		return nil, err
@@ -1780,32 +1799,39 @@ func (l *LoadService) GetLoadTestResult(param GetLoadTestResultParam) (interface
 	return formattedDate, nil
 }
 
-func (l *LoadService) GetLoadTestMetrics(param GetLoadTestResultParam) (interface{}, error) {
+func (l *LoadService) GetLoadTestMetrics(param GetLoadTestResultParam) ([]MetricsSummary, error) {
 	loadTestKey := param.LoadTestKey
 	metrics := []string{"cpu", "disk", "memory", "network"}
 	resultFolderPath := utils.JoinRootPathWith("/result/" + loadTestKey)
 
-	var metricsRawData map[string][]*metricsRawData
+	metricsMap := make(map[string][]*MetricsRawData)
 	var err error
 	for _, v := range metrics {
 
 		fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, v)
 		toPath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
 
-		metricsRawData, err = appendMetricsRawData(metricsRawData, toPath)
+		metricsMap, err = appendMetricsRawData(metricsMap, toPath)
 		if err != nil {
 			return nil, err
 		}
 
 	}
 
-	formattedDate, err := metricFormat(param.Format, metricsRawData)
+	var metricsSummaries []MetricsSummary
+
+	for label, metrics := range metricsMap {
+		metricsSummaries = append(metricsSummaries, MetricsSummary{
+			Label:   label,
+			Metrics: metrics,
+		})
+	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	return formattedDate, nil
+	return metricsSummaries, nil
 }
 
 func calculatePercentile(elapsedList []int, percentile float64) float64 {
@@ -1858,8 +1884,9 @@ func calculateSentKBPerSec(totalBytes int, totalMillTime int) float64 {
 	return (float64(totalBytes) / 1024) / (float64(totalMillTime)) * 1000
 }
 
-func appendResultRawData(filePath string) (map[string][]*resultRawData, error) {
-	var res = make(map[string][]*resultRawData)
+func appendResultRawData(filePath string) (map[string][]*ResultRawData, error) {
+	var resultMap = make(map[string][]*ResultRawData)
+
 	csvRows, err := utils.ReadCSV(filePath)
 	if err != nil || csvRows == nil {
 		return nil, err
@@ -1868,7 +1895,6 @@ func appendResultRawData(filePath string) (map[string][]*resultRawData, error) {
 	if len(*csvRows) <= 1 {
 		return nil, errors.New("result data file is empty")
 	}
-
 	// every time is basically millisecond
 	for i, row := range (*csvRows)[1:] {
 		label := row[2]
@@ -1913,7 +1939,7 @@ func appendResultRawData(filePath string) (map[string][]*resultRawData, error) {
 		url := row[13]
 		t := time.UnixMilli(unixMilliseconds)
 
-		tr := &resultRawData{
+		tr := &ResultRawData{
 			No:         i,
 			Elapsed:    elapsed,
 			Bytes:      bytes,
@@ -1925,17 +1951,17 @@ func appendResultRawData(filePath string) (map[string][]*resultRawData, error) {
 			Connection: connection,
 			Timestamp:  t,
 		}
-		if _, ok := res[label]; !ok {
-			res[label] = []*resultRawData{tr}
+		if _, ok := resultMap[label]; !ok {
+			resultMap[label] = []*ResultRawData{tr}
 		} else {
-			res[label] = append(res[label], tr)
+			resultMap[label] = append(resultMap[label], tr)
 		}
 	}
 
-	return res, nil
+	return resultMap, nil
 }
 
-func appendMetricsRawData(mrds map[string][]*metricsRawData, filePath string) (map[string][]*metricsRawData, error) {
+func appendMetricsRawData(mrds map[string][]*MetricsRawData, filePath string) (map[string][]*MetricsRawData, error) {
 	csvRows, err := utils.ReadCSV(filePath)
 	if err != nil || csvRows == nil {
 		return nil, err
@@ -1981,7 +2007,7 @@ func appendMetricsRawData(mrds map[string][]*metricsRawData, filePath string) (m
 
 		t := time.UnixMilli(unixMilliseconds)
 
-		rd := &metricsRawData{
+		rd := &MetricsRawData{
 			Value:     value,
 			Unit:      u,
 			IsError:   isError,
@@ -1989,7 +2015,7 @@ func appendMetricsRawData(mrds map[string][]*metricsRawData, filePath string) (m
 		}
 
 		if _, ok := mrds[label]; !ok {
-			mrds[label] = []*metricsRawData{rd}
+			mrds[label] = []*MetricsRawData{rd}
 		} else {
 			mrds[label] = append(mrds[label], rd)
 		}
@@ -1998,19 +2024,21 @@ func appendMetricsRawData(mrds map[string][]*metricsRawData, filePath string) (m
 	return mrds, nil
 }
 
-func aggregate(resultRawDatas map[string][]*resultRawData) *[]LoadTestStatistics {
-	var statistics []LoadTestStatistics
+func aggregate(resultRawDatas []ResultSummary) []*LoadTestStatistics {
+	var statistics []*LoadTestStatistics
 
-	for label, records := range resultRawDatas {
+	for i := range resultRawDatas {
+
+		record := resultRawDatas[i]
 		var requestCount, totalElapsed, totalBytes, totalSentBytes, errorCount int
 		var elapsedList []int
-		if len(records) < 1 {
+		if len(record.Results) < 1 {
 			continue
 		}
 
-		startTime := records[0].Timestamp
-		endTime := records[0].Timestamp
-		for _, record := range records {
+		startTime := record.Results[0].Timestamp
+		endTime := record.Results[0].Timestamp
+		for _, record := range record.Results {
 			requestCount++
 			if !record.IsError {
 				totalElapsed += record.Elapsed
@@ -2052,7 +2080,7 @@ func aggregate(resultRawDatas map[string][]*resultRawData) *[]LoadTestStatistics
 		sentKB := calculateSentKBPerSec(totalSentBytes, int(runningTime))
 
 		labelStat := LoadTestStatistics{
-			Label:         label,
+			Label:         record.Label,
 			RequestCount:  requestCount,
 			Average:       average,
 			Median:        median,
@@ -2067,34 +2095,21 @@ func aggregate(resultRawDatas map[string][]*resultRawData) *[]LoadTestStatistics
 			SentKB:        sentKB,
 		}
 
-		statistics = append(statistics, labelStat)
+		statistics = append(statistics, &labelStat)
 	}
 
-	return &statistics
+	return statistics
 }
 
-func resultFormat(format constant.ResultFormat, resultRawDatas map[string][]*resultRawData) (interface{}, error) {
-	if resultRawDatas == nil {
+func resultFormat(format constant.ResultFormat, resultSummaries []ResultSummary) (any, error) {
+	if resultSummaries == nil {
 		return nil, nil
 	}
 
 	switch format {
 	case constant.Aggregate:
-		return aggregate(resultRawDatas), nil
+		return aggregate(resultSummaries), nil
 	}
 
-	return resultRawDatas, nil
-}
-
-func metricFormat(format constant.ResultFormat, metricsRawDatas map[string][]*metricsRawData) (interface{}, error) {
-	if metricsRawDatas == nil {
-		return nil, nil
-	}
-
-	switch format {
-	case constant.Aggregate:
-		return nil, nil
-	}
-
-	return metricsRawDatas, nil
+	return resultSummaries, nil
 }

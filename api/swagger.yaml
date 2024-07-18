@@ -1,5 +1,44 @@
 basePath: /ant
 definitions:
+  app.AntResponse-array_load_LoadTestStatistics:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        items:
+          $ref: '#/definitions/load.LoadTestStatistics'
+        type: array
+      successMessage:
+        type: string
+    type: object
+  app.AntResponse-array_load_MetricsSummary:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        items:
+          $ref: '#/definitions/load.MetricsSummary'
+        type: array
+      successMessage:
+        type: string
+    type: object
+  app.AntResponse-array_load_ResultSummary:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        items:
+          $ref: '#/definitions/load.ResultSummary'
+        type: array
+      successMessage:
+        type: string
+    type: object
   app.AntResponse-int64:
     properties:
       code:
@@ -114,6 +153,8 @@ definitions:
     properties:
       installLocation:
         $ref: '#/definitions/constant.InstallLocation'
+    type: object
+  app.JsonResult:
     type: object
   app.MonitoringAgentInstallationReq:
     properties:
@@ -396,6 +437,55 @@ definitions:
       updatedAt:
         type: string
     type: object
+  load.LoadTestStatistics:
+    properties:
+      average:
+        type: number
+      errorPercent:
+        type: number
+      label:
+        type: string
+      maxTime:
+        type: number
+      median:
+        type: number
+      minTime:
+        type: number
+      ninetyFive:
+        type: number
+      ninetyNine:
+        type: number
+      ninetyPercent:
+        type: number
+      receivedKB:
+        type: number
+      requestCount:
+        type: integer
+      sentKB:
+        type: number
+      throughput:
+        type: number
+    type: object
+  load.MetricsRawData:
+    properties:
+      isError:
+        type: boolean
+      timestamp:
+        type: string
+      unit:
+        type: string
+      value:
+        type: string
+    type: object
+  load.MetricsSummary:
+    properties:
+      label:
+        type: string
+      metrics:
+        items:
+          $ref: '#/definitions/load.MetricsRawData'
+        type: array
+    type: object
   load.MonitoringAgentInstallationResult:
     properties:
       agentType:
@@ -419,76 +509,48 @@ definitions:
       vmId:
         type: string
     type: object
+  load.ResultRawData:
+    properties:
+      bytes:
+        type: integer
+      connection:
+        description: time to establish connection
+        type: integer
+      elapsed:
+        description: time to last byte
+        type: integer
+      idleTime:
+        description: time not spent sampling in jmeter (milliseconds) (generally 0)
+        type: integer
+      isError:
+        type: boolean
+      latency:
+        description: time to first byte
+        type: integer
+      "no":
+        type: integer
+      sentBytes:
+        type: integer
+      timestamp:
+        type: string
+      url:
+        type: string
+    type: object
+  load.ResultSummary:
+    properties:
+      label:
+        type: string
+      results:
+        items:
+          $ref: '#/definitions/load.ResultRawData'
+        type: array
+    type: object
 info:
   contact: {}
   description: CM-ANT REST API swagger document.
   title: CM-ANT REST API
   version: "0.1"
 paths:
-  /ant/api/v1/load/result:
-    get:
-      consumes:
-      - application/json
-      description: After start load test, get the result of load test.
-      operationId: LoadTestResult
-      parameters:
-      - description: load test key
-        in: query
-        name: loadTestKey
-        required: true
-        type: string
-      - description: format of load test result aggregate
-        in: query
-        name: format
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: object
-        "400":
-          description: loadTestKey must be passed
-          schema:
-            type: string
-        "500":
-          description: sorry, internal server error while getting load test result;
-          schema:
-            type: string
-      summary: Get the result of single load test result
-      tags:
-      - '[Load Test Result]'
-  /ant/api/v1/load/result/metrics:
-    get:
-      consumes:
-      - application/json
-      description: Get the result of metrics for target server.
-      operationId: LoadTestMetrics
-      parameters:
-      - description: load test key
-        in: query
-        name: loadTestKey
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: object
-        "400":
-          description: loadTestKey must be passed
-          schema:
-            type: string
-        "500":
-          description: sorry, internal server error while getting load test result;
-          schema:
-            type: string
-      summary: Get the result of single load test metrics
-      tags:
-      - '[Load Test Result]'
   /api/v1/load/generators:
     get:
       consumes:
@@ -696,6 +758,77 @@ paths:
       summary: Uninstall Monitoring Agents
       tags:
       - '[Monitoring Agent Management]'
+  /api/v1/load/test/metrics:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve load test metrics based on provided parameters.
+      operationId: GetLoadTestMetrics
+      parameters:
+      - description: Load test key
+        in: query
+        name: loadTestKey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved load test metrics
+          schema:
+            $ref: '#/definitions/app.AntResponse-array_load_MetricsSummary'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve load test metrics
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get load test metrics
+      tags:
+      - '[Load Test Result]'
+  /api/v1/load/test/result:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve load test result based on provided parameters.
+      operationId: GetLoadTestResult
+      parameters:
+      - description: Load test key
+        in: query
+        name: loadTestKey
+        required: true
+        type: string
+      - description: Result format (normal or aggregate)
+        in: query
+        name: format
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved load test metrics
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.JsonResult'
+            - properties:
+                '[aggregate]':
+                  $ref: '#/definitions/app.AntResponse-array_load_LoadTestStatistics'
+                '[normal]':
+                  $ref: '#/definitions/app.AntResponse-array_load_ResultSummary'
+              type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve load test result
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get load test result
+      tags:
+      - '[Load Test Result]'
   /api/v1/load/tests/infos:
     get:
       consumes:
