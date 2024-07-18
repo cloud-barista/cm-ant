@@ -85,7 +85,7 @@ services:
     restart: unless-stopped
 
   ant-postgres:
-    image: postgres:16.2-alpine3.19
+    image: timescale/timescaledb:latest-pg16
     ports:
       - "5432:5432"
     environment:

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 )
 
 func (t *TumblebugClient) GetMcisIdsWithContext(ctx context.Context, nsId, mcisId string) ([]string, error) {

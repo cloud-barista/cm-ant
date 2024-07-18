@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/spf13/viper"
 )
 

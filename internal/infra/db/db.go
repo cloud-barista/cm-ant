@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/config"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
-	"github.com/cloud-barista/cm-ant/pkg/config"
-	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -79,17 +79,18 @@ func NewDBConnection() (*gorm.DB, error) {
 
 	var db *gorm.DB
 	driver := strings.ToLower(d.Driver)
-	if driver == "sqlite" || driver == "sqlite3" {
-		sqlFilePath := sqliteFilePath(d.Host)
-		sqliteDB, err := connectSqliteDB(sqlFilePath)
-		if err != nil {
-			utils.LogErrorf("Failed to establish SQLite DB connection: %v\n", err)
-			return nil, err
-		}
+	// if driver == "sqlite" || driver == "sqlite3" {
+	// 	sqlFilePath := sqliteFilePath(d.Host)
+	// 	sqliteDB, err := connectSqliteDB(sqlFilePath)
+	// 	if err != nil {
+	// 		utils.LogErrorf("Failed to establish SQLite DB connection: %v\n", err)
+	// 		return nil, err
+	// 	}
 
-		db = sqliteDB
-		utils.LogInfof("Initialized SQLite database successfully [%s]\n", d.Driver)
-	} else if driver == "postgres" {
+	// 	db = sqliteDB
+	// 	utils.LogInfof("Initialized SQLite database successfully [%s]\n", d.Driver)
+	// } else
+	if driver == "postgres" {
 		postgresDb, err := connectPostgresDB(d.Host, d.Port, d.User, d.Password, d.Name)
 		if err != nil {
 			utils.LogErrorf("Failed to establish Postgres DB connection: %v\n", err)
@@ -98,6 +99,8 @@ func NewDBConnection() (*gorm.DB, error) {
 
 		db = postgresDb
 		utils.LogInfof("Initialized Postgres database successfully [%s]\n", d.Driver)
+	} else {
+		return nil, errors.New("unsuppored database driver")
 	}
 
 	err := migrateDB(db)

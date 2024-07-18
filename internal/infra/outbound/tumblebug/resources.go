@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 )
 
 func (t *TumblebugClient) GetSecureShellWithContext(ctx context.Context, nsId string) (SecureShellResList, error) {

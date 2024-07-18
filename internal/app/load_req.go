@@ -66,3 +66,8 @@ type GetAllLoadTestExecutionHistoryReq struct {
 type StopLoadTestReq struct {
 	LoadTestKey string `json:"loadTestKey"`
 }
+
+type GetLoadTestResultReq struct {
+	LoadTestKey string                `query:"loadTestKey"`
+	Format      constant.ResultFormat `query:"format"`
+}

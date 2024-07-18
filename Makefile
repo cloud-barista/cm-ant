@@ -61,7 +61,7 @@ run-db: create-network
 			-e POSTGRES_PASSWORD=$(DB_PASSWORD) \
 			-e POSTGRES_DB=$(DB_NAME) \
 			-d --rm \
-			postgres:16.2-alpine3.19; \
+			timescale/timescaledb:latest-pg16; \
 		echo "Started Postgres database container!"; \
 		echo "Waiting for database to be ready..."; \
 		for i in $$(seq 1 10); do \

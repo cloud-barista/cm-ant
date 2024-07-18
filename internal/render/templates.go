@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/labstack/echo/v4"
 )
 

@@ -3,8 +3,8 @@ package app
 import (
 	"time"
 
-	"github.com/cloud-barista/cm-ant/pkg/render"
-	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/cloud-barista/cm-ant/internal/render"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 
 	_ "github.com/cloud-barista/cm-ant/api"
 

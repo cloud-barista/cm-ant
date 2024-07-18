@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/cloud-barista/cm-ant/pkg/config"
-	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/cloud-barista/cm-ant/internal/config"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 )
 
 var (

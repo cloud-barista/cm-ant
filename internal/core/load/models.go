@@ -66,14 +66,14 @@ type LoadGeneratorInstallInfo struct {
 
 type LoadTestExecutionState struct {
 	gorm.Model
-	LoadTestKey                 string `gorm:"unique_index;not null"`
+	LoadTestKey                 string `gorm:"index:idx_state_load_test_key,unique"`
 	ExecutionStatus             constant.ExecutionStatus
 	StartAt                     time.Time
 	FinishAt                    *time.Time
 	TotalExpectedExcutionSecond uint64
 	FailureMessage              string
-	CompileDuration             string `json:"compileDuration"`
-	ExecutionDuration           string `json:"executionDuration"`
+	CompileDuration             string
+	ExecutionDuration           string
 
 	LoadTestExecutionInfoId uint
 
@@ -83,19 +83,19 @@ type LoadTestExecutionState struct {
 
 type LoadTestExecutionInfo struct {
 	gorm.Model
-	LoadTestKey                string                      `json:"loadTestKey" gorm:"unique_index;not null"`
-	TestName                   string                      `json:"testName"`
-	VirtualUsers               string                      `json:"virtualUsers"`
-	Duration                   string                      `json:"duration"`
-	RampUpTime                 string                      `json:"rampUpTime"`
-	RampUpSteps                string                      `json:"rampUpSteps"`
-	Hostname                   string                      `json:"hostname"`
-	Port                       string                      `json:"port"`
-	AgentHostname              string                      `json:"agentHostname"`
-	AgentInstalled             bool                        `json:"agentInstalled"`
-	CompileDuration            string                      `json:"compileDuration"`
-	ExecutionDuration          string                      `json:"executionDuration"`
-	LoadTestExecutionHttpInfos []LoadTestExecutionHttpInfo `json:"httpReqs,omitempty"`
+	LoadTestKey                string `gorm:"index:idx_info_load_test_key,unique"`
+	TestName                   string
+	VirtualUsers               string
+	Duration                   string
+	RampUpTime                 string
+	RampUpSteps                string
+	Hostname                   string
+	Port                       string
+	AgentHostname              string
+	AgentInstalled             bool
+	CompileDuration            string
+	ExecutionDuration          string
+	LoadTestExecutionHttpInfos []LoadTestExecutionHttpInfo
 
 	LoadTestExecutionState LoadTestExecutionState
 
@@ -105,12 +105,12 @@ type LoadTestExecutionInfo struct {
 
 type LoadTestExecutionHttpInfo struct {
 	gorm.Model
-	Method   string `json:"method"`
-	Protocol string `json:"protocol"`
-	Hostname string `json:"hostname"`
-	Port     string `json:"port"`
-	Path     string `json:"path,omitempty"`
-	BodyData string `json:"bodyData,omitempty"`
+	Method   string
+	Protocol string
+	Hostname string
+	Port     string
+	Path     string
+	BodyData string
 
 	LoadTestExecutionInfoId uint
 }

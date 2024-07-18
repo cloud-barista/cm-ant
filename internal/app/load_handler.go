@@ -8,7 +8,7 @@ import (
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
-	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/labstack/echo/v4"
 )
 
@@ -270,11 +270,55 @@ func (s *AntServer) stopLoadTest(c echo.Context) error {
 }
 
 func (s *AntServer) getLoadTestResult(c echo.Context) error {
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	var req GetLoadTestResultReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
+	}
+
+	if strings.TrimSpace(req.LoadTestKey) == "" {
+		return errorResponseJson(http.StatusBadRequest, "pass correct load test key")
+	}
+
+	if req.Format == "" {
+		req.Format = constant.Normal
+	}
+
+	arg := load.GetLoadTestResultParam{
+		LoadTestKey: req.LoadTestKey,
+		Format:      req.Format,
+	}
+
+	result, err := s.services.loadService.GetLoadTestResult(arg)
+
+	if err != nil {
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve load test result")
+	}
+
+	return successResponseJson(c, "Successfully retrieved load test result", result)
 }
 
 func (s *AntServer) getLoadTestMetrics(c echo.Context) error {
-	return c.JSON(http.StatusOK, c.Request().RequestURI)
+	var req GetLoadTestResultReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
+	}
+
+	if strings.TrimSpace(req.LoadTestKey) == "" {
+		return errorResponseJson(http.StatusBadRequest, "pass correct load test key")
+	}
+
+	arg := load.GetLoadTestResultParam{
+		LoadTestKey: req.LoadTestKey,
+		Format:      req.Format,
+	}
+
+	result, err := s.services.loadService.GetLoadTestMetrics(arg)
+
+	if err != nil {
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve load test metrics")
+	}
+
+	return successResponseJson(c, "Successfully retrieved load test metrics", result)
 }
 
 // getAllLoadTestExecutionInfos handler function that retrieves all load test execution information.

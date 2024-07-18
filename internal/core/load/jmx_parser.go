@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 )
 
 type jmxTemplateData struct {

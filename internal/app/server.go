@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/config"
 	"github.com/cloud-barista/cm-ant/internal/core/cost"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
 	"github.com/cloud-barista/cm-ant/internal/infra/db"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/spider"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
-	"github.com/cloud-barista/cm-ant/pkg/config"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 )

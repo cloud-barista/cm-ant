@@ -19,7 +19,7 @@ func getRootPath() string {
 
 	_, b, _, _ := runtime.Caller(0)
 	basePath := filepath.Dir(b)
-	return basePath[0 : len(basePath)-len("/pkg/utils")]
+	return basePath[0 : len(basePath)-len("/internal/utils")]
 }
 
 func RootPath() string {

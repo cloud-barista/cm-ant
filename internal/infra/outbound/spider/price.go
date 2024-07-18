@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 )
 
 func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, productfamily, regionName string, body PriceInfoReq) (CloudPriceDataRes, error) {

@@ -50,10 +50,9 @@ func CreateFolder(filePath string) error {
 }
 
 func ReadCSV(filename string) (*[][]string, error) {
-	// 파일 열기
 	file, err := os.Open(filename)
 	if err != nil {
-		log.Println("파일을 열 수 없습니다:", err)
+		LogErrorf("can not opent files: %s; %s", filename, err)
 		return nil, err
 	}
 	defer file.Close()
@@ -84,10 +83,10 @@ func ExistCheck(path string) bool {
 
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Println("file / folder does not exist on", path)
+			LogErrorf("file / folder does not exist: %s", path)
 
 		} else {
-			log.Println(err)
+			LogError(err)
 		}
 
 		return false

@@ -7,8 +7,8 @@ import (
 	"syscall"
 
 	"github.com/cloud-barista/cm-ant/internal/app"
-	"github.com/cloud-barista/cm-ant/pkg/config"
-	"github.com/cloud-barista/cm-ant/pkg/utils"
+	"github.com/cloud-barista/cm-ant/internal/config"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 )
 
 // InitRouter initializes the routing for CM-ANT API server.
