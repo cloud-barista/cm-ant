@@ -5,6 +5,6 @@ ant
 .DS_Store
 meta/*.db
 result/**
-data/**
-conf/**
-container-volume/**
+data
+conf
+container-volume

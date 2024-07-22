@@ -4,6 +4,6 @@ result/**
 **.properties
 meta/*.db
 ant
-data/**
-conf/**
-container-volume/**
+data
+conf
+container-volume
