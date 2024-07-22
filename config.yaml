@@ -7,6 +7,8 @@ server:
 spider:
   host: http://localhost
   port: 1024
+  username:
+  password:
 
 tumblebug:
   host: http://localhost
@@ -15,17 +17,18 @@ tumblebug:
   password: default
 
 load:
+  retry: 2
   jmeter:
     dir: "/opt/ant/jmeter"
-    version: 5.3
+    version: 5.6
 
 logging:
   level: info
 
 database:
-  driver: "sqlite"
-  host: "${ROOT}/meta/ant_meta.db"
-  port: 
-  user:
-  password:
-  name:
+  driver: "postgres"
+  host: "localhost"
+  port: "5432"
+  user: "cm-ant-user"
+  password: "cm-ant-secret"
+  name: "cm-ant-db"

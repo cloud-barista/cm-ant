@@ -5,7 +5,7 @@ set -e
 JMETER_WORK_DIR=${JMETER_WORK_DIR:="/opt/ant/jmeter"}
 TEST_PLAN_PATH=${JMETER_WORK_DIR}/test_plan
 RESULT_PATH=${JMETER_WORK_DIR}/result
-JMETER_VERSION=${JMETER_VERSION:="5.3"}
+JMETER_VERSION=${JMETER_VERSION:="5.6"}
 JMETER_EXECUTION_PATH=${JMETER_WORK_DIR}/apache-jmeter-${JMETER_VERSION}/bin/jmeter.sh
 
 echo "[Step 1] Test plan path folder check"

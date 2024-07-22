@@ -2,36 +2,57 @@ version: '3.8'
 
 services: 
   cb-spider:
-    image: cloudbaristaorg/cb-spider:0.8.17
+    image: cloudbaristaorg/cb-spider:0.9.0
     container_name: cb-spider
     platform: linux/amd64
     ports:
-      - "0.0.0.0:1024:1024"
-      - "0.0.0.0:2048:2048"
+      - "1024:1024"
+    volumes:
+      - ./conf/store_conf.yaml:/root/go/src/github.com/cloud-barista/cb-spider/conf/store_conf.yaml
+      - ./container-volume/cb-spider-container/meta_db/:/root/go/src/github.com/cloud-barista/cb-spider/meta_db/
+      - ./container-volume/cb-spider-container/log/:/root/go/src/github.com/cloud-barista/cb-spider/log/
+    networks:
+      - default
     environment:
       - PLUGIN_SW=OFF
-      # if you leave these values empty, REST Auth will be disabled.
-      - API_USERNAME=
-      - API_PASSWORD=
+      - SERVER_ADDRESS=cb-spider
       - SPIDER_LOG_LEVEL=info
+    # healthcheck:  # does not have curl
+    #   test: [ "CMD-SHELL",  "curl", "-f", "http://cb-spider:1024/spider/readyz" ]
+    #   interval: 1m
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 20s
+    # restart: unless-stoppedex
 
-
-  # CB-Tumblebug
   cb-tumblebug:
-    image: cloudbaristaorg/cb-tumblebug:0.8.12
+    image: cloudbaristaorg/cb-tumblebug:0.9.0
     container_name: cb-tumblebug
     platform: linux/amd64
     ports:
       - "1323:1323"
+    networks:
+      - default
     depends_on:
       - cb-spider
     volumes:
-      - ./data/cb-tumblebug/meta_db/:/app/meta_db/
-      - ./data/cb-tumblebug/log/:/app/log/
+      - ./conf/:/app/conf/
+      - ./container-volume/cb-tumblebug-container/meta_db/:/app/meta_db/
+      - ./container-volume/cb-tumblebug-container/log/:/app/log/
+      - ${HOME}/.cloud-barista/:/root/.cloud-barista/:ro
     environment:
       - SPIDER_REST_URL=http://cb-spider:1024/spider
       - API_USERNAME=default
       - API_PASSWORD=default
+      - SELF_ENDPOINT=cb-tumblebug:1323
+    # command: ["/app/scripts/init/init.sh"]  #python version is lower
+    # healthcheck:  # does not have curl
+    #   test: [ "CMD-SHELL", "curl", "-f", "http://cb-tumblebug:1323/tumblebug/readyz" ]
+    #   interval: 1m
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 10s
+    # restart: unless-stopped
 
   cm-ant:
     build:
@@ -41,10 +62,48 @@ services:
     platform: linux/amd64
     ports:
         - 8880:8880
+    networks:
+      - default
+      - cm-ant-db-network
     depends_on:
-      - cb-tumblebug
+      # cb-tumblebug:
+      #   condition: service_healthy
+      ant-postgres:
+        condition: service_healthy
     environment:
       - ANT_SPIDER_HOST=http://cb-spider
       - ANT_SPIDER_PORT=1024
       - ANT_TUMBLEBUG_HOST=http://cb-tumblebug
       - ANT_TUMBLEBUG_PORT=1323
+      - ANT_DATABASE_HOST=ant-postgres
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://cm-ant:8880/ant/api/v1/readyz" ]
+      interval: 1m
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  ant-postgres:
+    image: timescale/timescaledb:latest-pg16
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=cm-ant-user
+      - POSTGRES_PASSWORD=cm-ant-secret
+      - POSTGRES_DB=cm-ant-db
+    networks:
+      - cm-ant-db-network
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "cm-ant-user", "-d", "cm-ant-db" ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+networks:
+  cm-ant-db-network:
+    driver: bridge
+  default:
+    driver: bridge
