@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH make build
 
 
 # Stage 2: Run the Ant app
-FROM ubuntu:22.04
+FROM ubuntu:22.04 as prod
 
 RUN apt update && \
     apt install -y sudo curl
