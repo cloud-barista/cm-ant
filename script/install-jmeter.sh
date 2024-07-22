@@ -5,7 +5,7 @@ echo "[CM-ANT] JMeter Installation"
 
 # Base setup
 JMETER_WORK_DIR=${JMETER_WORK_DIR:="/opt/ant/jmeter"}
-JMETER_VERSION=${JMETER_VERSION:="5.3"}
+JMETER_VERSION=${JMETER_VERSION:="5.6"}
 JMETER_FOLDER="apache-jmeter-${JMETER_VERSION}"
 JMETER_FULL_PATH="${JMETER_WORK_DIR}/${JMETER_FOLDER}"
 JMETER_INSTALL_URL="https://archive.apache.org/dist/jmeter/binaries/${JMETER_FOLDER}.tgz"
@@ -35,7 +35,7 @@ fi
 
 
 echo "[CM-ANT] [Step 1/6] Installing default required tools..."
-sudo apt-get update -y | sudo apt-get install -y wget default-jre
+sudo apt-get update -y | sudo apt-get install -y wget openjdk-17-jre
 
 unzip_jmeter() {
   sudo tar -xf "${JMETER_FULL_PATH}.tgz" -C "${JMETER_WORK_DIR}" && sudo rm "${JMETER_FULL_PATH}.tgz"
@@ -53,13 +53,11 @@ elif [ -f "${JMETER_FULL_PATH}.tgz" ]; then
   echo "[CM-ANT] Jmeter gzip file is installed on ${JMETER_WORK_DIR}. Let's do remaining installation."
   unzip_jmeter
 else
-  # jmeter is not installed
   echo "[CM-ANT] JMeter is installing on path ${JMETER_WORK_DIR}"
   sudo wget "${JMETER_INSTALL_URL}" -P "${JMETER_WORK_DIR}"
   unzip_jmeter
 fi
 
-# give permission to user
 sudo chmod -R 777 ${JMETER_WORK_DIR}
 
 echo
@@ -71,7 +69,9 @@ CMD_RUNNER_VERSION="2.2.1"
 CMD_RUNNER_JAR="cmdrunner-$CMD_RUNNER_VERSION.jar"
 
 if [ ! -e "$CMD_RUNNER_JAR" ]; then
-    wget "https://repo1.maven.org/maven2/kg/apc/cmdrunner/$CMD_RUNNER_VERSION/$CMD_RUNNER_JAR"
+    wget "https://repo1.maven.org/maven2/kg/apc/cmdrunner/$CMD_RUNNER_VERSION/$CMD_RUNNER_JAR" &&
+    sudo chmod +x "$CMD_RUNNER_JAR" &&
+    sudo mv $CMD_RUNNER_JAR "$JMETER_FULL_PATH/lib/"
     echo "[CB-ANT] Installed cmd runner."
 fi
 
@@ -85,16 +85,15 @@ PLUGIN_MANAGER_VERSION="1.6"
 PLUGIN_MANAGER_JAR="jmeter-plugins-manager-$PLUGIN_MANAGER_VERSION.jar"
 
 if [ ! -e "$PLUGIN_MANAGER_JAR" ]; then
-    wget "https://repo1.maven.org/maven2/kg/apc/jmeter-plugins-manager/$PLUGIN_MANAGER_VERSION/$PLUGIN_MANAGER_JAR"
+    wget "https://repo1.maven.org/maven2/kg/apc/jmeter-plugins-manager/$PLUGIN_MANAGER_VERSION/$PLUGIN_MANAGER_JAR" &&
+    sudo chmod +x "$PLUGIN_MANAGER_JAR" &&
+    sudo mv $PLUGIN_MANAGER_JAR "$JMETER_FULL_PATH/lib/ext/"
     echo "[CB-ANT] Installed plugin manager."
 fi
 
-sudo mv $CMD_RUNNER_JAR "$JMETER_FULL_PATH/lib/"
-sudo mv $PLUGIN_MANAGER_JAR "$JMETER_FULL_PATH/lib/ext/"
 
 echo
 echo
-
 
 # install perfmon plugin
 echo "[CM-ANT] [Step 5/6] Install required plugins to do load test..."

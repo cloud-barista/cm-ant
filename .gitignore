@@ -5,3 +5,5 @@ result/**
 meta/*.db
 ant
 data/**
+conf/**
+container-volume/**
