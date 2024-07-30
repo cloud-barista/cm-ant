@@ -8,32 +8,35 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-var onDemandPricingPolicyMap = map[string]string{
-	"aws":        "OnDemand",
-	"gcp":        "OnDemand",
-	"azure":      "",
-	"tencent":    "POSTPAID_BY_HOUR",
-	"alibaba":    "PayAsYouGo",
-	"ibm":        "",
-	"ncp":        "",
-	"ncpvpc":     "",
-	"nhncloud":   "",
-	"ktcloud":    "",
-	"ktcloudvpc": "",
-}
-
 func (server *AntServer) getPriceInfo(c echo.Context) error {
 	var req PriceInfoReq
 	if err := c.Bind(&req); err != nil {
-		return err
+		return errorResponseJson(http.StatusBadRequest, err.Error())
 	}
 
-	arg := GetPriceInfoParam(req)
+	if strings.TrimSpace(req.RegionName) == "" ||
+		strings.TrimSpace(req.ConnectionName) == "" ||
+		strings.TrimSpace(req.ProviderName) == "" ||
+		strings.TrimSpace(req.InstanceType) == "" {
+		return errorResponseJson(http.StatusBadRequest, "Region Name, Connection Name, Provider Name, Instance type must be set")
+	}
+
+	arg := cost.GetPriceInfoParam{
+		ProviderName:   strings.TrimSpace(req.ProviderName),
+		ConnectionName: strings.TrimSpace(req.ConnectionName),
+		RegionName:     strings.TrimSpace(req.RegionName),
+		InstanceType:   strings.TrimSpace(req.InstanceType),
+		ZoneName:       strings.TrimSpace(req.ZoneName),
+		VCpu:           strings.TrimSpace(req.VCpu),
+		Memory:         strings.TrimSpace(req.Memory),
+		Storage:        strings.TrimSpace(req.Storage),
+		OsType:         strings.TrimSpace(req.OsType),
+	}
 
 	r, err := server.services.costService.GetPriceInfo(arg)
 
 	if err != nil {
-		return errorResponseJson(http.StatusBadRequest, err.Error())
+		return errorResponseJson(http.StatusInternalServerError, err.Error())
 	}
 
 	return successResponseJson(
@@ -41,43 +44,4 @@ func (server *AntServer) getPriceInfo(c echo.Context) error {
 		"Successfully get price info.",
 		r,
 	)
-}
-
-func GetPriceInfoParam(req PriceInfoReq) cost.PriceInfoParam {
-
-	providerName := strings.ToLower(req.ProviderName)
-
-	param := cost.PriceInfoParam{
-		RegionName:     req.RegionName,
-		ConnectionName: req.ConnectionName,
-		FilterList: []cost.FilterParam{
-			{
-				Key:   "instanceType",
-				Value: req.CspSpecName,
-			},
-			{
-				Key:   "pricingPolicy",
-				Value: onDemandPricingPolicyMap[providerName],
-			},
-		},
-	}
-
-	if req.VCpu != "" {
-		param.FilterList = append(param.FilterList, cost.FilterParam{
-			Key:   "vcpu",
-			Value: req.VCpu,
-		})
-	} else if req.MemoryGiB != "" {
-		param.FilterList = append(param.FilterList, cost.FilterParam{
-			Key:   "memory",
-			Value: req.MemoryGiB,
-		})
-	} else if req.OsType != "" {
-		param.FilterList = append(param.FilterList, cost.FilterParam{
-			Key:   "operatingSystem",
-			Value: req.OsType,
-		})
-	}
-
-	return param
 }

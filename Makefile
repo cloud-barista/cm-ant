@@ -65,7 +65,7 @@ run-db: create-network
 		echo "Started Postgres database container!"; \
 		echo "Waiting for database to be ready..."; \
 		for i in $$(seq 1 10); do \
-			docker exec $(DB_CONTAINER_NAME) pg_isready -U $(DB_USER) -d $(DB_NAME); \
+			docker container exec $(DB_CONTAINER_NAME) pg_isready -U $(DB_USER) -d $(DB_NAME); \
 			if [ $$? -eq 0 ]; then \
 				echo "Database is ready!"; \
 				break; \
