@@ -3,7 +3,6 @@ package spider
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,11 +10,15 @@ import (
 	"github.com/cloud-barista/cm-ant/internal/utils"
 )
 
-func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, productfamily, regionName string, body PriceInfoReq) (CloudPriceDataRes, error) {
+const (
+	productFamily = "ComputeInstance"
+)
+
+func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, regionName string, body PriceInfoReq) (CloudPriceDataRes, error) {
 
 	var cloudPriceData CloudPriceDataRes
 
-	url := s.withUrl(fmt.Sprintf("/priceinfo/%s/%s", productfamily, regionName))
+	url := s.withUrl(fmt.Sprintf("/priceinfo/%s/%s", productFamily, regionName))
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
@@ -28,9 +31,6 @@ func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, productfamil
 	if err != nil {
 		utils.LogError("error sending get price info data request:", err)
 
-		if errors.Is(err, ErrInternalServerError) {
-			return cloudPriceData, ErrNotFound
-		}
 		return cloudPriceData, fmt.Errorf("failed to send request: %w", err)
 	}
 

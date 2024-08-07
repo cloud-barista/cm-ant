@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/config"
+	"github.com/cloud-barista/cm-ant/internal/core/cost"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
 	"github.com/cloud-barista/cm-ant/internal/utils"
 	"gorm.io/driver/postgres"
@@ -25,6 +26,8 @@ func migrateDB(defaultDb *gorm.DB) error {
 		&load.LoadTestExecutionInfo{},
 		&load.LoadTestExecutionHttpInfo{},
 		&load.LoadTestExecutionState{},
+
+		&cost.PriceInfo{},
 	)
 
 	if err != nil {

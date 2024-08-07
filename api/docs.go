@@ -730,6 +730,102 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/v1/price/info": {
+            "get": {
+                "description": "Retrieve pricing information for cloud resources based on specified parameters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Pricing Management]"
+                ],
+                "summary": "Get Price Information",
+                "operationId": "GetPriceInfo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Name of the region",
+                        "name": "RegionName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name of the connection",
+                        "name": "ConnectionName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name of the cloud provider",
+                        "name": "ProviderName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Type of the instance",
+                        "name": "InstanceType",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name of the zone",
+                        "name": "ZoneName",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Number of virtual CPUs",
+                        "name": "VCpu",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Amount of memory. Don't need to pass unit like 'gb'",
+                        "name": "Memory",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Amount of storage",
+                        "name": "Storage",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Operating system type",
+                        "name": "OsType",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved pricing information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-cost_AllPriceInfoResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve pricing information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -787,6 +883,23 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/load.ResultSummary"
                     }
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-cost_AllPriceInfoResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/cost.AllPriceInfoResult"
                 },
                 "successMessage": {
                     "type": "string"
@@ -1105,6 +1218,113 @@ const docTemplate = `{
                 "Local",
                 "Remote"
             ]
+        },
+        "constant.PriceCurrency": {
+            "type": "string",
+            "enum": [
+                "USD",
+                "KRW"
+            ],
+            "x-enum-varnames": [
+                "USD",
+                "KRW"
+            ]
+        },
+        "constant.PricePolicy": {
+            "type": "string",
+            "enum": [
+                "OnDemand"
+            ],
+            "x-enum-varnames": [
+                "OnDemand"
+            ]
+        },
+        "constant.PriceUnit": {
+            "type": "string",
+            "enum": [
+                "PerHour",
+                "PerYear"
+            ],
+            "x-enum-varnames": [
+                "PerHour",
+                "PerYear"
+            ]
+        },
+        "cost.AllPriceInfoResult": {
+            "type": "object",
+            "properties": {
+                "infoSource": {
+                    "type": "string"
+                },
+                "priceInfoList": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cost.PriceInfoResult"
+                    }
+                },
+                "resultCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cost.PriceInfoResult": {
+            "type": "object",
+            "properties": {
+                "calculatedMonthlyPrice": {
+                    "type": "string"
+                },
+                "connectionName": {
+                    "type": "string"
+                },
+                "currency": {
+                    "$ref": "#/definitions/constant.PriceCurrency"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "instanceType": {
+                    "type": "string"
+                },
+                "lastUpdatedAt": {
+                    "type": "string"
+                },
+                "memory": {
+                    "type": "string"
+                },
+                "osType": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "string"
+                },
+                "priceDescription": {
+                    "type": "string"
+                },
+                "pricePolicy": {
+                    "$ref": "#/definitions/constant.PricePolicy"
+                },
+                "productDescription": {
+                    "type": "string"
+                },
+                "providerName": {
+                    "type": "string"
+                },
+                "regionName": {
+                    "type": "string"
+                },
+                "storage": {
+                    "type": "string"
+                },
+                "unit": {
+                    "$ref": "#/definitions/constant.PriceUnit"
+                },
+                "vCpu": {
+                    "type": "string"
+                },
+                "zoneName": {
+                    "type": "string"
+                }
+            }
         },
         "load.GetAllLoadGeneratorInstallInfoResult": {
             "type": "object",

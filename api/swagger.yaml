@@ -39,6 +39,17 @@ definitions:
       successMessage:
         type: string
     type: object
+  app.AntResponse-cost_AllPriceInfoResult:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        $ref: '#/definitions/cost.AllPriceInfoResult'
+      successMessage:
+        type: string
+    type: object
   app.AntResponse-int64:
     properties:
       code:
@@ -250,6 +261,78 @@ definitions:
     x-enum-varnames:
     - Local
     - Remote
+  constant.PriceCurrency:
+    enum:
+    - USD
+    - KRW
+    type: string
+    x-enum-varnames:
+    - USD
+    - KRW
+  constant.PricePolicy:
+    enum:
+    - OnDemand
+    type: string
+    x-enum-varnames:
+    - OnDemand
+  constant.PriceUnit:
+    enum:
+    - PerHour
+    - PerYear
+    type: string
+    x-enum-varnames:
+    - PerHour
+    - PerYear
+  cost.AllPriceInfoResult:
+    properties:
+      infoSource:
+        type: string
+      priceInfoList:
+        items:
+          $ref: '#/definitions/cost.PriceInfoResult'
+        type: array
+      resultCount:
+        type: integer
+    type: object
+  cost.PriceInfoResult:
+    properties:
+      calculatedMonthlyPrice:
+        type: string
+      connectionName:
+        type: string
+      currency:
+        $ref: '#/definitions/constant.PriceCurrency'
+      id:
+        type: integer
+      instanceType:
+        type: string
+      lastUpdatedAt:
+        type: string
+      memory:
+        type: string
+      osType:
+        type: string
+      price:
+        type: string
+      priceDescription:
+        type: string
+      pricePolicy:
+        $ref: '#/definitions/constant.PricePolicy'
+      productDescription:
+        type: string
+      providerName:
+        type: string
+      regionName:
+        type: string
+      storage:
+        type: string
+      unit:
+        $ref: '#/definitions/constant.PriceUnit'
+      vCpu:
+        type: string
+      zoneName:
+        type: string
+    type: object
   load.GetAllLoadGeneratorInstallInfoResult:
     properties:
       loadGeneratorInstallInfoResults:
@@ -1028,4 +1111,70 @@ paths:
       summary: Stop Load Test
       tags:
       - '[Load Test Execution Management]'
+  /api/v1/price/info:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve pricing information for cloud resources based on specified
+        parameters.
+      operationId: GetPriceInfo
+      parameters:
+      - description: Name of the region
+        in: query
+        name: RegionName
+        required: true
+        type: string
+      - description: Name of the connection
+        in: query
+        name: ConnectionName
+        required: true
+        type: string
+      - description: Name of the cloud provider
+        in: query
+        name: ProviderName
+        required: true
+        type: string
+      - description: Type of the instance
+        in: query
+        name: InstanceType
+        required: true
+        type: string
+      - description: Name of the zone
+        in: query
+        name: ZoneName
+        type: string
+      - description: Number of virtual CPUs
+        in: query
+        name: VCpu
+        type: string
+      - description: Amount of memory. Don't need to pass unit like 'gb'
+        in: query
+        name: Memory
+        type: string
+      - description: Amount of storage
+        in: query
+        name: Storage
+        type: string
+      - description: Operating system type
+        in: query
+        name: OsType
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved pricing information
+          schema:
+            $ref: '#/definitions/app.AntResponse-cost_AllPriceInfoResult'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve pricing information
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get Price Information
+      tags:
+      - '[Pricing Management]'
 swagger: "2.0"

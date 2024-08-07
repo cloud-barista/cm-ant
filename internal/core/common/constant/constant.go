@@ -37,3 +37,29 @@ const (
 	Normal    ResultFormat = "normal"
 	Aggregate ResultFormat = "aggregate"
 )
+
+type PricePolicy string
+
+const (
+	OnDemand PricePolicy = "OnDemand"
+)
+
+type PriceUnit string
+
+const (
+	PerHour PriceUnit = "PerHour"
+	PerYear PriceUnit = "PerYear"
+)
+
+type PriceCurrency string
+
+const (
+	USD PriceCurrency = "USD"
+	KRW PriceCurrency = "KRW"
+)
+
+type MemoryUnit string
+
+const (
+	GIB MemoryUnit = "GiB"
+)
