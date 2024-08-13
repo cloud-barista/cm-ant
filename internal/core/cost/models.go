@@ -36,18 +36,18 @@ type CostInfos []CostInfo
 
 type CostInfo struct {
 	gorm.Model
-	MigrationId         string
-	Provider            string
+	MigrationId         string `gorm:"index"`
+	Provider            string `gorm:"index"`
 	ConnectionName      string
-	ResourceType        constant.ResourceType
-	Category            string
+	ResourceType        constant.ResourceType `gorm:"index"`
+	Category            string                `gorm:"index"`
 	Cost                float64
 	Unit                string
-	ActualResourceId    string
+	ActualResourceId    string `gorm:"index"`
 	FormattedResourceId string
-	Granularity         string
-	StartDate           time.Time
-	EndDate             time.Time
+	Granularity         string    `gorm:"index"`
+	StartDate           time.Time `gorm:"index"`
+	EndDate             time.Time `gorm:"index"`
 }
 
 type CostUpdateRestrict struct {

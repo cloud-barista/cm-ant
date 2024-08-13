@@ -18,8 +18,6 @@ type GetPriceInfoReq struct {
 type UpdateCostInfo struct {
 	MigrationId       string            `json:"migrationId"`
 	ConnectionName    string            `json:"connectionName"`
-	StartDate         string            `json:"startDate" validate:"require"`
-	EndDate           string            `json:"endDate" validate:"require"`
 	CostResources     []CostResource    `json:"costResources" validate:"require"`
 	AwsAdditionalInfo AwsAdditionalInfo `json:"awsAdditionalInfo"`
 }

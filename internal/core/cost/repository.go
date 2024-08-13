@@ -139,3 +139,46 @@ func (r *CostRepository) InsertAllResult(ctx context.Context, param GetPriceInfo
 	return err
 
 }
+
+func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo CostInfo) (int64, int64, error) {
+	var updateCount = int64(0)
+	var insertCount = int64(0)
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		err := d.
+			Model(costInfo).
+			Where(&CostInfo{
+				Provider:         costInfo.Provider,
+				ResourceType:     costInfo.ResourceType,
+				Category:         costInfo.Category,
+				ActualResourceId: costInfo.ActualResourceId,
+				Granularity:      costInfo.Granularity,
+				StartDate:        costInfo.StartDate,
+				EndDate:          costInfo.EndDate,
+			}).First(&costInfo).Error
+
+		if err != nil && err != gorm.ErrRecordNotFound {
+			return err
+		}
+
+		if err == gorm.ErrRecordNotFound {
+			if err := d.Create(&costInfo).Error; err != nil {
+				return err
+			}
+			insertCount++
+		} else {
+			if err := d.Model(&costInfo).Updates(map[string]interface{}{
+				"cost": costInfo.Cost,
+				"unit": costInfo.Unit,
+			}).Error; err != nil {
+				return err
+			}
+
+			updateCount++
+		}
+
+		return nil
+	})
+
+	return updateCount, insertCount, err
+
+}

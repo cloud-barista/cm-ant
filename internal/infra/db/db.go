@@ -28,6 +28,7 @@ func migrateDB(defaultDb *gorm.DB) error {
 		&load.LoadTestExecutionState{},
 
 		&cost.PriceInfo{},
+		&cost.CostInfo{},
 	)
 
 	if err != nil {

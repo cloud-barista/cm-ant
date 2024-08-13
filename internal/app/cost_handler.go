@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/core/cost"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -78,22 +77,6 @@ func (server *AntServer) updateCostInfo(c echo.Context) error {
 	if len(req.CostResources) == 0 {
 		return errorResponseJson(http.StatusBadRequest, "Migrated resource id list should pass")
 	}
-
-	startDate, err := time.Parse("2006-01-02", req.StartDate)
-	if err != nil {
-		return errorResponseJson(http.StatusBadRequest, "Invalid startDate format")
-	}
-
-	endDate, err := time.Parse("2006-01-02", req.EndDate)
-	if err != nil {
-		return errorResponseJson(http.StatusBadRequest, "Invalid endDate format")
-	}
-
-	duration := endDate.Sub(startDate)
-	if duration.Hours() > 14*24 {
-		return errorResponseJson(http.StatusBadRequest, "The date range cannot exceed 14 days")
-	}
-
 	costResources := make([]cost.CostResourceParam, 0)
 
 	for _, v := range req.CostResources {
@@ -103,8 +86,11 @@ func (server *AntServer) updateCostInfo(c echo.Context) error {
 		})
 	}
 
+
+	endDate := time.Now().Truncate(24*time.Hour).AddDate(0, 0, 1)
+	startDate := endDate.AddDate(0, 0, -14)
 	param := cost.UpdateCostInfoParam{
-		MigrationId:    uuid.New().String(),
+		MigrationId:    req.MigrationId,
 		Provider:       "aws",
 		ConnectionName: req.ConnectionName,
 		StartDate:      startDate,

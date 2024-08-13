@@ -467,27 +467,47 @@ var (
 )
 
 type UpdateCostInfoResult struct {
-	FetchedDataCount int64
-	UpdatedDataCount int64
+	FetchedDataCount  int64
+	UpdatedDataCount  int64
+	InsertedDataCount int64
 }
 
-func (c *CostService) UpdateCostInfo(param UpdateCostInfoParam) (CostInfos, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+func (c *CostService) UpdateCostInfo(param UpdateCostInfoParam) (UpdateCostInfoResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
 	var updateCostInfoResult UpdateCostInfoResult
 
 	r, err := c.costCollector.GetCostInfo(ctx, param)
 	if err != nil {
-		return nil, err
+		return updateCostInfoResult, err
 	}
 
 	updateCostInfoResult.FetchedDataCount = int64(len(r))
 
-	// response 저장
+	var updatedCount int64
+	var insertedCount int64
 
-	return r, nil
+	for _, costInfo := range r {
+		u, i, err := c.costRepo.UpsertCostInfo(ctx, costInfo)
+		if err != nil {
+			utils.LogErrorf("upsert error: %+v", costInfo)
+		}
+
+		updatedCount += u
+		insertedCount += i
+	}
+
+	updateCostInfoResult.UpdatedDataCount = updatedCount
+	updateCostInfoResult.InsertedDataCount = insertedCount
+
+	return updateCostInfoResult, nil
 }
+
+
+// func (c *CostService) GetCostInfos(param GetPriceInfoParam) (AllPriceInfoResult, error) {
+// }
+
 
 // func (c *CostService) GetCostExpect(param GetPriceInfoParam) (AllPriceInfoResult, error) {
 // }
