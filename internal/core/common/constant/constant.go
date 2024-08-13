@@ -113,3 +113,18 @@ const (
 	// AwsS3              AwsService = "Amazon Simple Storage Service"
 	// AwsCloudWatch      AwsService = "AmazonCloudWatch"
 )
+
+type CostAggregationType string
+
+const (
+	Daily   CostAggregationType = "daily"
+	Weekly  CostAggregationType = "weekly"
+	Monthly CostAggregationType = "monthly"
+)
+
+type OrderType string
+
+const (
+	Asc  OrderType = "asc"
+	Desc OrderType = "desc"
+)

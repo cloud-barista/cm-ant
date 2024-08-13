@@ -283,8 +283,6 @@ func (s *AntServer) stopLoadTest(c echo.Context) error {
 // @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test result"
 // @Router /api/v1/load/test/result [get]
 func (s *AntServer) getLoadTestResult(c echo.Context) error {
-	// @Success 200 {object} app.AntResponse[{[normal]=map[string][]resultRawData,[aggregate]=[]load.LoadTestStatistics}] "Successfully retrieved load test metrics"
-
 	var req GetLoadTestResultReq
 	if err := c.Bind(&req); err != nil {
 		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")

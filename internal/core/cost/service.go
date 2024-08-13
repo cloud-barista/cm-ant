@@ -504,10 +504,37 @@ func (c *CostService) UpdateCostInfo(param UpdateCostInfoParam) (UpdateCostInfoR
 	return updateCostInfoResult, nil
 }
 
+type GetCostInfoParam struct {
+	StartDate           time.Time                    
+	EndDate             time.Time                    
+	MigrationIds        []string                     
+	Providers           []string                     
+	ResourceTypes       []constant.ResourceType      
+	ResourceIds         []string                     
+	CostAggregationType constant.CostAggregationType 
+	DateOrder           constant.OrderType           
+	ResourceTypeOrder   constant.OrderType           
+}
 
-// func (c *CostService) GetCostInfos(param GetPriceInfoParam) (AllPriceInfoResult, error) {
-// }
+type GetCostInfoResult struct {
+	Provider         string    `json:"provider"`
+	ResourceType     string    `json:"resourceType"`
+	Category         string    `json:"category"`
+	ActualResourceId string    `json:"resourceId"`
+	Unit             string    `json:"unit"`
+	Date             time.Time `json:"date"`
+	TotalCost        float64   `json:"totalCost"`
+}
 
+func (c *CostService) GetCostInfos(param GetCostInfoParam) (any, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	r, err := c.costRepo.GetCostInfoWithFilter(ctx, param)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
+}
 
 // func (c *CostService) GetCostExpect(param GetPriceInfoParam) (AllPriceInfoResult, error) {
 // }

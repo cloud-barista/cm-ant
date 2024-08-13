@@ -78,6 +78,7 @@ func (server *AntServer) InitRouter() error {
 		costRouter := versionRouter.Group("/cost")
 		{
 			costRouter.POST("/info", server.updateCostInfo)
+			costRouter.GET("/info", server.getCostInfo)
 		}
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"gorm.io/gorm"
 )
 
@@ -147,6 +148,7 @@ func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo CostInfo) 
 		err := d.
 			Model(costInfo).
 			Where(&CostInfo{
+				MigrationId:      costInfo.MigrationId,
 				Provider:         costInfo.Provider,
 				ResourceType:     costInfo.ResourceType,
 				Category:         costInfo.Category,
@@ -181,4 +183,53 @@ func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo CostInfo) 
 
 	return updateCount, insertCount, err
 
+}
+
+func (r *CostRepository) GetCostInfoWithFilter(ctx context.Context, param GetCostInfoParam) (any, error) {
+	var costInfo []GetCostInfoResult
+
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		query := d.Model(&CostInfo{})
+
+		if len(param.Providers) > 0 {
+			query = query.Where("provider IN ?", param.Providers)
+		}
+		if len(param.ResourceTypes) > 0 {
+			query = query.Where("resource_type IN ?", param.ResourceTypes)
+		}
+
+		if len(param.ResourceIds) > 0 {
+			query = query.Where("actual_resource_id IN ?", param.ResourceIds)
+		}
+
+		query = query.Where("start_date >= ? AND end_date <= ?", param.StartDate, param.EndDate)
+
+		switch param.CostAggregationType {
+		case constant.Daily:
+			query = query.Select("provider, resource_type, category, actual_resource_id, unit, DATE(start_date) AS date, SUM(cost) AS total_cost").
+				Group("provider, resource_type, category, actual_resource_id, unit, date")
+		case constant.Weekly:
+			query = query.Select("provider, resource_type, category, actual_resource_id, unit, DATE_TRUNC('week', start_date) AS date, SUM(cost) AS total_cost").
+				Group("provider, resource_type, category, actual_resource_id, unit, date")
+		case constant.Monthly:
+			query = query.Select("provider, resource_type, category, actual_resource_id, unit, DATE_TRUNC('month', start_date) AS date, SUM(cost) AS total_cost").
+				Group("provider, resource_type, category, actual_resource_id, unit, date")
+		}
+
+		if param.DateOrder != "" {
+			query = query.Order("date " + string(param.DateOrder))
+		}
+
+		if param.ResourceTypeOrder != "" {
+			query = query.Order("resource_type " + string(param.ResourceTypeOrder))
+		}
+
+		if err := query.Find(&costInfo).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return costInfo, err
 }

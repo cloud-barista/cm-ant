@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/core/cost"
 	"github.com/labstack/echo/v4"
 )
@@ -68,15 +69,20 @@ func (server *AntServer) getPriceInfo(c echo.Context) error {
 }
 
 func (server *AntServer) updateCostInfo(c echo.Context) error {
-	var req UpdateCostInfo
+	var req UpdateCostInfoReq
 
 	if err := c.Bind(&req); err != nil {
 		return errorResponseJson(http.StatusBadRequest, "request body binding error")
 	}
 
-	if len(req.CostResources) == 0 {
-		return errorResponseJson(http.StatusBadRequest, "Migrated resource id list should pass")
+	if strings.TrimSpace(req.MigrationId) == "" {
+		return errorResponseJson(http.StatusBadRequest, "migration id is required")
 	}
+
+	if len(req.CostResources) == 0 {
+		return errorResponseJson(http.StatusBadRequest, "Migrated resource id list are required")
+	}
+
 	costResources := make([]cost.CostResourceParam, 0)
 
 	for _, v := range req.CostResources {
@@ -85,7 +91,6 @@ func (server *AntServer) updateCostInfo(c echo.Context) error {
 			ResourceIds:  v.ResourceIds,
 		})
 	}
-
 
 	endDate := time.Now().Truncate(24*time.Hour).AddDate(0, 0, 1)
 	startDate := endDate.AddDate(0, 0, -14)
@@ -113,4 +118,57 @@ func (server *AntServer) updateCostInfo(c echo.Context) error {
 		"Successfully get cost info.",
 		r,
 	)
+}
+
+func (s *AntServer) getCostInfo(c echo.Context) error {
+	var req GetCostInfoReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
+	}
+
+	startDate, err := time.Parse("2006-01-02", req.StartDate)
+
+	if err != nil {
+		return errorResponseJson(http.StatusBadRequest, "start date format is incorrect")
+	}
+
+	endDate, err := time.Parse("2006-01-02", req.EndDate)
+
+	if err != nil {
+		return errorResponseJson(http.StatusBadRequest, "end date format is incorrect")
+	}
+
+	sixMonthsLater := startDate.AddDate(0, 6, 0)
+
+	if endDate.After(sixMonthsLater) {
+		return errorResponseJson(http.StatusBadRequest, "date range must in 6 month")
+	}
+
+	if req.CostAggregationType == "" {
+		req.CostAggregationType = constant.Daily
+	}
+
+	if req.DateOrder == "" {
+		req.DateOrder = constant.Asc
+	}
+
+	arg := cost.GetCostInfoParam{
+		StartDate:           startDate,
+		EndDate:             endDate,
+		MigrationIds:        req.MigrationIds,
+		Providers:           req.Providers,
+		ResourceTypes:       req.ResourceTypes,
+		ResourceIds:         req.ResourceIds,
+		CostAggregationType: req.CostAggregationType,
+		DateOrder:           req.DateOrder,
+		ResourceTypeOrder:   req.ResourceTypeOrder,
+	}
+
+	result, err := s.services.costService.GetCostInfos(arg)
+
+	if err != nil {
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve load test result")
+	}
+
+	return successResponseJson(c, "Successfully retrieved load test result", result)
 }
