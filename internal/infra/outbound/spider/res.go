@@ -71,3 +71,48 @@ type PricingPolicyInfoRes struct {
 	OfferingClass       string `json:"OfferingClass"`
 	PurchaseOption      string `json:"PurchaseOption"`
 }
+
+type AnycallRes struct {
+	FID           string     `json:"FID"`
+	IKeyValueList []KeyValue `json:"IKeyValueList"`
+	OKeyValueList []KeyValue `json:"OKeyValueList"`
+}
+
+type CostWithResourcesRes struct {
+	DimensionValueAttributes []*DimensionValuesWithAttributes `json:"DimensionValueAttributes"`
+	GroupDefinitions         []*GroupDefinition               `json:"GroupDefinitions"`
+	NextPageToken            *string                          `json:"NextPageToken"`
+	ResultsByTime            []*ResultByTime                  `json:"ResultsByTime"`
+}
+
+type DimensionValuesWithAttributes struct {
+	Attributes map[string]*string `json:"Attributes"`
+	Value      *string            `json:"Value"`
+}
+
+type GroupDefinition struct {
+	Key  *string `json:"Key"`
+	Type *string `json:"Type"`
+}
+
+type ResultByTime struct {
+	Estimated  *bool                   `json:"Estimated"`
+	Groups     []*Group                `json:"Groups"`
+	TimePeriod *DateInterval           `json:"TimePeriod"`
+	Total      map[string]*MetricValue `json:"Total"`
+}
+
+type Group struct {
+	Keys    []*string               `json:"Keys"`
+	Metrics map[string]*MetricValue `json:"Metrics"`
+}
+
+type DateInterval struct {
+	End   *string `json:"End"`
+	Start *string `json:"Start"`
+}
+
+type MetricValue struct {
+	Amount *string `json:"Amount"`
+	Unit   *string `json:"Unit"`
+}

@@ -3,8 +3,10 @@ package app
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/core/cost"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -29,7 +31,7 @@ import (
 // @Failure 500 {object} app.AntResponse[string] "Failed to retrieve pricing information"
 // @Router /api/v1/price/info [get]
 func (server *AntServer) getPriceInfo(c echo.Context) error {
-	var req PriceInfoReq
+	var req GetPriceInfoReq
 	if err := c.Bind(&req); err != nil {
 		return errorResponseJson(http.StatusBadRequest, err.Error())
 	}
@@ -62,6 +64,67 @@ func (server *AntServer) getPriceInfo(c echo.Context) error {
 	return successResponseJson(
 		c,
 		"Successfully get price info.",
+		r,
+	)
+}
+
+func (server *AntServer) updateCostInfo(c echo.Context) error {
+	var req UpdateCostInfo
+
+	if err := c.Bind(&req); err != nil {
+		return errorResponseJson(http.StatusBadRequest, "request body binding error")
+	}
+
+	if len(req.CostResources) == 0 {
+		return errorResponseJson(http.StatusBadRequest, "Migrated resource id list should pass")
+	}
+
+	startDate, err := time.Parse("2006-01-02", req.StartDate)
+	if err != nil {
+		return errorResponseJson(http.StatusBadRequest, "Invalid startDate format")
+	}
+
+	endDate, err := time.Parse("2006-01-02", req.EndDate)
+	if err != nil {
+		return errorResponseJson(http.StatusBadRequest, "Invalid endDate format")
+	}
+
+	duration := endDate.Sub(startDate)
+	if duration.Hours() > 14*24 {
+		return errorResponseJson(http.StatusBadRequest, "The date range cannot exceed 14 days")
+	}
+
+	costResources := make([]cost.CostResourceParam, 0)
+
+	for _, v := range req.CostResources {
+		costResources = append(costResources, cost.CostResourceParam{
+			ResourceType: v.ResourceType,
+			ResourceIds:  v.ResourceIds,
+		})
+	}
+
+	param := cost.UpdateCostInfoParam{
+		MigrationId:    uuid.New().String(),
+		Provider:       "aws",
+		ConnectionName: req.ConnectionName,
+		StartDate:      startDate,
+		EndDate:        endDate,
+		CostResources:  costResources,
+		AwsAdditionalInfo: cost.AwsAdditionalInfoParam{
+			OwnerId: req.AwsAdditionalInfo.OwnerId,
+			Regions: req.AwsAdditionalInfo.Regions,
+		},
+	}
+
+	r, err := server.services.costService.UpdateCostInfo(param)
+
+	if err != nil {
+		return errorResponseJson(http.StatusInternalServerError, err.Error())
+	}
+
+	return successResponseJson(
+		c,
+		"Successfully get cost info.",
 		r,
 	)
 }

@@ -2,6 +2,7 @@ package cost
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -14,14 +15,16 @@ import (
 )
 
 type CostService struct {
-	costRepo     *CostRepository
-	spiderClient *spider.SpiderClient
+	costRepo      *CostRepository
+	spiderClient  *spider.SpiderClient
+	costCollector CostCollector
 }
 
-func NewCostService(costRepo *CostRepository, client *spider.SpiderClient) *CostService {
+func NewCostService(costRepo *CostRepository, client *spider.SpiderClient, costCollector CostCollector) *CostService {
 	return &CostService{
-		costRepo:     costRepo,
-		spiderClient: client,
+		costRepo:      costRepo,
+		spiderClient:  client,
+		costCollector: costCollector,
 	}
 }
 
@@ -37,6 +40,7 @@ var onDemandPricingPolicyMap = map[string]string{
 }
 
 type GetPriceInfoParam struct {
+	MigrationId    string
 	ProviderName   string
 	ConnectionName string
 	RegionName     string
@@ -435,3 +439,55 @@ func naChecker(originalValue string) string {
 
 	return trimed
 }
+
+type UpdateCostInfoParam struct {
+	MigrationId       string
+	Provider          string // currently only aws
+	ConnectionName    string
+	StartDate         time.Time
+	EndDate           time.Time
+	CostResources     []CostResourceParam
+	AwsAdditionalInfo AwsAdditionalInfoParam
+}
+
+type CostResourceParam struct {
+	ResourceType constant.ResourceType
+	ResourceIds  []string
+}
+
+type AwsAdditionalInfoParam struct {
+	OwnerId string   `json:"ownerId"`
+	Regions []string `json:"regions"`
+}
+
+var (
+	ErrRequestResourceEmpty    = errors.New("cost request info is not enough")
+	ErrCostResultEmpty         = errors.New("cost information does not exist")
+	ErrCostResultFormatInvalid = errors.New("cost result does not matching with interface")
+)
+
+type UpdateCostInfoResult struct {
+	FetchedDataCount int64
+	UpdatedDataCount int64
+}
+
+func (c *CostService) UpdateCostInfo(param UpdateCostInfoParam) (CostInfos, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	var updateCostInfoResult UpdateCostInfoResult
+
+	r, err := c.costCollector.GetCostInfo(ctx, param)
+	if err != nil {
+		return nil, err
+	}
+
+	updateCostInfoResult.FetchedDataCount = int64(len(r))
+
+	// response 저장
+
+	return r, nil
+}
+
+// func (c *CostService) GetCostExpect(param GetPriceInfoParam) (AllPriceInfoResult, error) {
+// }
