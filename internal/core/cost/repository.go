@@ -185,7 +185,7 @@ func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo CostInfo) 
 
 }
 
-func (r *CostRepository) GetCostInfoWithFilter(ctx context.Context, param GetCostInfoParam) (any, error) {
+func (r *CostRepository) GetCostInfoWithFilter(ctx context.Context, param GetCostInfoParam) ([]GetCostInfoResult, error) {
 	var costInfo []GetCostInfoResult
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {

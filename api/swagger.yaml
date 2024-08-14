@@ -1,5 +1,18 @@
 basePath: /ant
 definitions:
+  app.AntResponse-array_cost_GetCostInfoResult:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        items:
+          $ref: '#/definitions/cost.GetCostInfoResult'
+        type: array
+      successMessage:
+        type: string
+    type: object
   app.AntResponse-array_load_LoadTestStatistics:
     properties:
       code:
@@ -47,6 +60,17 @@ definitions:
         type: string
       result:
         $ref: '#/definitions/cost.AllPriceInfoResult'
+      successMessage:
+        type: string
+    type: object
+  app.AntResponse-cost_UpdateCostInfoResult:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        $ref: '#/definitions/cost.UpdateCostInfoResult'
       successMessage:
         type: string
     type: object
@@ -160,6 +184,24 @@ definitions:
       successMessage:
         type: string
     type: object
+  app.AwsAdditionalInfoReq:
+    properties:
+      ownerId:
+        type: string
+      regions:
+        items:
+          type: string
+        type: array
+    type: object
+  app.CostResourceReq:
+    properties:
+      resourceIds:
+        items:
+          type: string
+        type: array
+      resourceType:
+        $ref: '#/definitions/constant.ResourceType'
+    type: object
   app.InstallLoadGeneratorReq:
     properties:
       installLocation:
@@ -227,6 +269,22 @@ definitions:
       loadTestKey:
         type: string
     type: object
+  app.UpdateCostInfoReq:
+    properties:
+      awsAdditionalInfo:
+        $ref: '#/definitions/app.AwsAdditionalInfoReq'
+      connectionName:
+        type: string
+      costResources:
+        items:
+          $ref: '#/definitions/app.CostResourceReq'
+        type: array
+      migrationId:
+        type: string
+    required:
+    - connectionName
+    - costResources
+    type: object
   constant.ExecutionStatus:
     enum:
     - on_preparing
@@ -283,6 +341,18 @@ definitions:
     x-enum-varnames:
     - PerHour
     - PerYear
+  constant.ResourceType:
+    enum:
+    - VM
+    - VNet
+    - DataDisk
+    - Etc
+    type: string
+    x-enum-varnames:
+    - VM
+    - VNet
+    - DataDisk
+    - Etc
   cost.AllPriceInfoResult:
     properties:
       infoSource:
@@ -293,6 +363,23 @@ definitions:
         type: array
       resultCount:
         type: integer
+    type: object
+  cost.GetCostInfoResult:
+    properties:
+      category:
+        type: string
+      date:
+        type: string
+      provider:
+        type: string
+      resourceId:
+        type: string
+      resourceType:
+        type: string
+      totalCost:
+        type: number
+      unit:
+        type: string
     type: object
   cost.PriceInfoResult:
     properties:
@@ -332,6 +419,15 @@ definitions:
         type: string
       zoneName:
         type: string
+    type: object
+  cost.UpdateCostInfoResult:
+    properties:
+      fetchedDataCount:
+        type: integer
+      insertedDataCount:
+        type: integer
+      updatedDataCount:
+        type: integer
     type: object
   load.GetAllLoadGeneratorInstallInfoResult:
     properties:
@@ -632,8 +728,121 @@ info:
   contact: {}
   description: CM-ANT REST API swagger document.
   title: CM-ANT REST API
-  version: "0.1"
+  version: 0.2.2
 paths:
+  /api/v1/cost/info:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve cost information for specified parameters within a defined
+        date range. The date range must be within a 6-month period. Optionally, you
+        can specify cost aggregation type and date order for the results.
+      operationId: GetCostInfo
+      parameters:
+      - description: Start date for the cost information retrieval in 'YYYY-MM-DD'
+          format
+        in: query
+        name: startDate
+        required: true
+        type: string
+      - description: End date for the cost information retrieval in 'YYYY-MM-DD' format
+        in: query
+        name: endDate
+        required: true
+        type: string
+      - collectionFormat: csv
+        description: List of migration IDs to filter the cost information
+        in: query
+        items:
+          type: string
+        name: migrationIds
+        type: array
+      - collectionFormat: csv
+        description: List of cloud providers to filter the cost information
+        in: query
+        items:
+          type: string
+        name: provider
+        type: array
+      - collectionFormat: csv
+        description: List of resource types to filter the cost information
+        in: query
+        items:
+          type: string
+        name: resourceTypes
+        type: array
+      - collectionFormat: csv
+        description: List of resource IDs to filter the cost information
+        in: query
+        items:
+          type: string
+        name: resourceIds
+        type: array
+      - description: Type of cost aggregation for the results (e.g., 'daily', 'weekly',
+          'monthly')
+        in: query
+        name: costAggregationType
+        required: true
+        type: string
+      - description: Order of dates in the result (e.g., 'asc', 'desc')
+        in: query
+        name: dateOrder
+        type: string
+      - description: Order of resource types in the result (e.g., 'asc', 'desc')
+        in: query
+        name: resourceTypeOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved cost information
+          schema:
+            $ref: '#/definitions/app.AntResponse-array_cost_GetCostInfoResult'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve cost information
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get Cost Information
+      tags:
+      - '[Cost Management]'
+    post:
+      consumes:
+      - application/json
+      description: Update cost information for specified resources, including details
+        such as migration ID, cost resources, and additional AWS info if applicable.
+        The request body must include a valid migration ID and a list of cost resources.
+        If AWS-specific details are provided, ensure all required fields are populated.
+      operationId: UpdateCostInfo
+      parameters:
+      - description: Request body containing cost update information
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.UpdateCostInfoReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully updated cost information
+          schema:
+            $ref: '#/definitions/app.AntResponse-cost_UpdateCostInfoResult'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to update cost information
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Update Cost Information
+      tags:
+      - '[Cost Management]'
   /api/v1/load/generators:
     get:
       consumes:
@@ -1121,43 +1330,43 @@ paths:
       parameters:
       - description: Name of the region
         in: query
-        name: RegionName
+        name: regionName
         required: true
         type: string
       - description: Name of the connection
         in: query
-        name: ConnectionName
+        name: connectionName
         required: true
         type: string
       - description: Name of the cloud provider
         in: query
-        name: ProviderName
+        name: providerName
         required: true
         type: string
       - description: Type of the instance
         in: query
-        name: InstanceType
+        name: instanceType
         required: true
         type: string
       - description: Name of the zone
         in: query
-        name: ZoneName
+        name: zoneName
         type: string
       - description: Number of virtual CPUs
         in: query
-        name: VCpu
+        name: vCpu
         type: string
       - description: Amount of memory. Don't need to pass unit like 'gb'
         in: query
-        name: Memory
+        name: memory
         type: string
       - description: Amount of storage
         in: query
-        name: Storage
+        name: storage
         type: string
       - description: Operating system type
         in: query
-        name: OsType
+        name: osType
         type: string
       produces:
       - application/json
@@ -1176,5 +1385,5 @@ paths:
             $ref: '#/definitions/app.AntResponse-string'
       summary: Get Price Information
       tags:
-      - '[Pricing Management]'
+      - '[Price Management]'
 swagger: "2.0"

@@ -3,21 +3,21 @@ package app
 import "github.com/cloud-barista/cm-ant/internal/core/common/constant"
 
 type GetPriceInfoReq struct {
-	ProviderName   string `json:"providerName" validate:"required"`
-	ConnectionName string `json:"connectionName" validate:"required"`
-	RegionName     string `json:"regionName" validate:"required"`
-	InstanceType   string `json:"instanceType" validate:"required"`
+	ProviderName   string `query:"providerName" validate:"required"`
+	ConnectionName string `query:"connectionName" validate:"required"`
+	RegionName     string `query:"regionName" validate:"required"`
+	InstanceType   string `query:"instanceType" validate:"required"`
 
-	ZoneName string `json:"zoneName,omitempty"`
-	VCpu     string `json:"vCpu,omitempty"`
-	Memory   string `json:"memory,omitempty"`
-	Storage  string `json:"storage,omitempty"`
-	OsType   string `json:"osType,omitempty"`
+	ZoneName string `query:"zoneName,omitempty"`
+	VCpu     string `query:"vCpu,omitempty"`
+	Memory   string `query:"memory,omitempty"`
+	Storage  string `query:"storage,omitempty"`
+	OsType   string `query:"osType,omitempty"`
 }
 
 type UpdateCostInfoReq struct {
 	MigrationId       string               `json:"migrationId"`
-	ConnectionName    string               `json:"connectionName"`
+	ConnectionName    string               `json:"connectionName" validate:"required"`
 	CostResources     []CostResourceReq    `json:"costResources" validate:"required"`
 	AwsAdditionalInfo AwsAdditionalInfoReq `json:"awsAdditionalInfo"`
 }
