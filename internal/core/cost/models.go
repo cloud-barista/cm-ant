@@ -1,6 +1,8 @@
 package cost
 
 import (
+	"time"
+
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"gorm.io/gorm"
 )
@@ -28,4 +30,28 @@ type PriceInfo struct {
 	OriginalCurrency       string
 	CalculatedMonthlyPrice string
 	PriceDescription       string
+}
+
+type CostInfos []CostInfo
+
+type CostInfo struct {
+	gorm.Model
+	MigrationId         string `gorm:"index"`
+	Provider            string `gorm:"index"`
+	ConnectionName      string
+	ResourceType        constant.ResourceType `gorm:"index"`
+	Category            string                `gorm:"index"`
+	Cost                float64
+	Unit                string
+	ActualResourceId    string `gorm:"index"`
+	FormattedResourceId string
+	Granularity         string    `gorm:"index"`
+	StartDate           time.Time `gorm:"index"`
+	EndDate             time.Time `gorm:"index"`
+}
+
+type CostUpdateRestrict struct {
+	gorm.Model
+	StandardDate time.Time
+	UpdateCount  int64
 }

@@ -66,13 +66,13 @@ func InitConfig() error {
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		utils.LogErrorf("[ERROR] Fatal error while reading config file: %v", err)
+		utils.LogErrorf("Fatal error while reading config file: %v", err)
 		return fmt.Errorf("fatal error while read config file: %w", err)
 	}
 
 	err = viper.Unmarshal(&cfg)
 	if err != nil {
-		utils.LogErrorf("[ERROR] Fatal error while unmarshaling config: %v", err)
+		utils.LogErrorf("Fatal error while unmarshaling config: %v", err)
 		return fmt.Errorf("fatal error while unmarshal from config to ant config: %w", err)
 	}
 

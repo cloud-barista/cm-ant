@@ -63,3 +63,68 @@ type MemoryUnit string
 const (
 	GIB MemoryUnit = "GiB"
 )
+
+type ResourceType string
+
+const (
+	VM       ResourceType = "VM"
+	VNet     ResourceType = "VNet"
+	DataDisk ResourceType = "DataDisk"
+	Etc      ResourceType = "Etc"
+
+	// NLB           ResourceType = "NLB"
+	// Namespace     ResourceType = "Namespace"
+	// VMImage       ResourceType = "VMImage"
+	// SecurityGroup ResourceType = "SecurityGroup"
+	// KeyPair       ResourceType = "KeyPair"
+	// Database      ResourceType = "Database"
+	// Application   ResourceType = "Application"
+	// WebServe      ResourceType = "Web Serve"
+)
+
+type AwsService string
+
+const (
+	// arn:aws:ec2:<regionId>:<ownerId>:network-interface/eni-xxxxxx, arn:aws:ec2:<regionId>:<ownerId>:elastic-ip/eipalloc-xxxxx
+	AwsVpc          AwsService = "Amazon Virtual Private Cloud"
+	AwsEC2          AwsService = "Amazon Elastic Compute Cloud - Compute" // i-xxxxx
+	AwsEC2Other     AwsService = "EC2 - Other"                            // i-xxxxxx, vol-xxxxxx
+	AwsCostExplorer AwsService = "AWS Cost Explorer"                      // NoResourceId
+	AwsTax          AwsService = "Tax"                                    // NoResourceId
+
+	// AwsGlue            AwsService = "AWS Glue"
+	// AwsKMS             AwsService = "AWS Key Management Service"
+	// AwsLambda          AwsService = "AWS Lambda"
+	// AwsMigrationHub    AwsService = "AWS Migration Hub Refactor Spaces"
+	// AwsSecretManager   AwsService = "AWS Secrets Manager"
+	// AwsStepFunction    AwsService = "AWS Step Functions"
+	// AwsSystemManager   AwsService = "AWS Systems Manager"
+	// AwsApiGateway      AwsService = "Amazon API Gateway"
+	// AwsECR             AwsService = "Amazon EC2 Container Registry (ECR)"
+	// AwsEKS             AwsService = "Amazon Elastic Container Service for Kubernetes"
+	// AwsELB             AwsService = "Amazon Elastic Load Balancing"
+	// AwsLightsail       AwsService = "Amazon Lightsail"
+	// AwsLocationService AwsService = "Amazon Location Service"
+	// AwsRegistrar       AwsService = "Amazon Registrar"
+	// AwsRDS             AwsService = "Amazon Relational Database Service"
+	// AwsRoute53         AwsService = "Amazon Route 53"
+	// AwsSNS             AwsService = "Amazon Simple Notification Service"
+	// AwsSQS             AwsService = "Amazon Simple Queue Service"
+	// AwsS3              AwsService = "Amazon Simple Storage Service"
+	// AwsCloudWatch      AwsService = "AmazonCloudWatch"
+)
+
+type CostAggregationType string
+
+const (
+	Daily   CostAggregationType = "daily"
+	Weekly  CostAggregationType = "weekly"
+	Monthly CostAggregationType = "monthly"
+)
+
+type OrderType string
+
+const (
+	Asc  OrderType = "asc"
+	Desc OrderType = "desc"
+)

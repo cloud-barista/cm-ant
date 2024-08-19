@@ -16,6 +16,162 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/cost/info": {
+            "get": {
+                "description": "Retrieve cost information for specified parameters within a defined date range. The date range must be within a 6-month period. Optionally, you can specify cost aggregation type and date order for the results.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Cost Management]"
+                ],
+                "summary": "Get Cost Information",
+                "operationId": "GetCostInfo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date for the cost information retrieval in 'YYYY-MM-DD' format",
+                        "name": "startDate",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date for the cost information retrieval in 'YYYY-MM-DD' format",
+                        "name": "endDate",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "List of migration IDs to filter the cost information",
+                        "name": "migrationIds",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "List of cloud providers to filter the cost information",
+                        "name": "provider",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "List of resource types to filter the cost information",
+                        "name": "resourceTypes",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "List of resource IDs to filter the cost information",
+                        "name": "resourceIds",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Type of cost aggregation for the results (e.g., 'daily', 'weekly', 'monthly')",
+                        "name": "costAggregationType",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order of dates in the result (e.g., 'asc', 'desc')",
+                        "name": "dateOrder",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order of resource types in the result (e.g., 'asc', 'desc')",
+                        "name": "resourceTypeOrder",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved cost information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-array_cost_GetCostInfoResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve cost information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Update cost information for specified resources, including details such as migration ID, cost resources, and additional AWS info if applicable. The request body must include a valid migration ID and a list of cost resources. If AWS-specific details are provided, ensure all required fields are populated.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Cost Management]"
+                ],
+                "summary": "Update Cost Information",
+                "operationId": "UpdateCostInfo",
+                "parameters": [
+                    {
+                        "description": "Request body containing cost update information",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.UpdateCostInfoReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated cost information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-cost_UpdateCostInfoResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update cost information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/load/generators": {
             "get": {
                 "description": "Retrieve a list of all installed load generators with pagination support.",
@@ -741,7 +897,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Pricing Management]"
+                    "[Price Management]"
                 ],
                 "summary": "Get Price Information",
                 "operationId": "GetPriceInfo",
@@ -749,59 +905,59 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "Name of the region",
-                        "name": "RegionName",
+                        "name": "regionName",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "Name of the connection",
-                        "name": "ConnectionName",
+                        "name": "connectionName",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "Name of the cloud provider",
-                        "name": "ProviderName",
+                        "name": "providerName",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "Type of the instance",
-                        "name": "InstanceType",
+                        "name": "instanceType",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "Name of the zone",
-                        "name": "ZoneName",
+                        "name": "zoneName",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "description": "Number of virtual CPUs",
-                        "name": "VCpu",
+                        "name": "vCpu",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "description": "Amount of memory. Don't need to pass unit like 'gb'",
-                        "name": "Memory",
+                        "name": "memory",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "description": "Amount of storage",
-                        "name": "Storage",
+                        "name": "storage",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "description": "Operating system type",
-                        "name": "OsType",
+                        "name": "osType",
                         "in": "query"
                     }
                 ],
@@ -829,6 +985,26 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "app.AntResponse-array_cost_GetCostInfoResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cost.GetCostInfoResult"
+                    }
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
         "app.AntResponse-array_load_LoadTestStatistics": {
             "type": "object",
             "properties": {
@@ -900,6 +1076,23 @@ const docTemplate = `{
                 },
                 "result": {
                     "$ref": "#/definitions/cost.AllPriceInfoResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-cost_UpdateCostInfoResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/cost.UpdateCostInfoResult"
                 },
                 "successMessage": {
                     "type": "string"
@@ -1076,6 +1269,34 @@ const docTemplate = `{
                 }
             }
         },
+        "app.AwsAdditionalInfoReq": {
+            "type": "object",
+            "properties": {
+                "ownerId": {
+                    "type": "string"
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "app.CostResourceReq": {
+            "type": "object",
+            "properties": {
+                "resourceIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "resourceType": {
+                    "$ref": "#/definitions/constant.ResourceType"
+                }
+            }
+        },
         "app.InstallLoadGeneratorReq": {
             "type": "object",
             "properties": {
@@ -1179,6 +1400,30 @@ const docTemplate = `{
                 }
             }
         },
+        "app.UpdateCostInfoReq": {
+            "type": "object",
+            "required": [
+                "connectionName",
+                "costResources"
+            ],
+            "properties": {
+                "awsAdditionalInfo": {
+                    "$ref": "#/definitions/app.AwsAdditionalInfoReq"
+                },
+                "connectionName": {
+                    "type": "string"
+                },
+                "costResources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.CostResourceReq"
+                    }
+                },
+                "migrationId": {
+                    "type": "string"
+                }
+            }
+        },
         "constant.ExecutionStatus": {
             "type": "string",
             "enum": [
@@ -1250,6 +1495,21 @@ const docTemplate = `{
                 "PerYear"
             ]
         },
+        "constant.ResourceType": {
+            "type": "string",
+            "enum": [
+                "VM",
+                "VNet",
+                "DataDisk",
+                "Etc"
+            ],
+            "x-enum-varnames": [
+                "VM",
+                "VNet",
+                "DataDisk",
+                "Etc"
+            ]
+        },
         "cost.AllPriceInfoResult": {
             "type": "object",
             "properties": {
@@ -1264,6 +1524,32 @@ const docTemplate = `{
                 },
                 "resultCount": {
                     "type": "integer"
+                }
+            }
+        },
+        "cost.GetCostInfoResult": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "resourceId": {
+                    "type": "string"
+                },
+                "resourceType": {
+                    "type": "string"
+                },
+                "totalCost": {
+                    "type": "number"
+                },
+                "unit": {
+                    "type": "string"
                 }
             }
         },
@@ -1323,6 +1609,20 @@ const docTemplate = `{
                 },
                 "zoneName": {
                     "type": "string"
+                }
+            }
+        },
+        "cost.UpdateCostInfoResult": {
+            "type": "object",
+            "properties": {
+                "fetchedDataCount": {
+                    "type": "integer"
+                },
+                "insertedDataCount": {
+                    "type": "integer"
+                },
+                "updatedDataCount": {
+                    "type": "integer"
                 }
             }
         },
@@ -1779,7 +2079,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "0.1",
+	Version:          "0.2.2",
 	Host:             "",
 	BasePath:         "/ant",
 	Schemes:          []string{},

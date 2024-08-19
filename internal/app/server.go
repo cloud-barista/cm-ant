@@ -89,7 +89,9 @@ func initializeRepositories(conn *gorm.DB) *antRepositories {
 // initializeServices initializes the services with the given repositories and various client.
 func initializeServices(repos *antRepositories, tbClient *tumblebug.TumblebugClient, sClient *spider.SpiderClient) *antServices {
 	loadServ := load.NewLoadService(repos.loadRepo, tbClient)
-	costServ := cost.NewCostService(repos.costRepo, sClient)
+
+	cc := cost.NewAwsCostExplorerSpiderCostCollector(sClient)
+	costServ := cost.NewCostService(repos.costRepo, sClient, cc)
 
 	return &antServices{
 		loadService: loadServ,

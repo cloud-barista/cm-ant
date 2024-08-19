@@ -53,3 +53,10 @@ func ReplaceAtIndex(from string, newValue string, delim string, index int) (stri
 	parts[index] = newValue
 	return strings.Join(parts, delim), nil
 }
+
+func NilSafeStr(o *string) string {
+	if o == nil {
+		return ""
+	}
+	return *o
+}
