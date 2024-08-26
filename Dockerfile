@@ -1,5 +1,5 @@
 # Stage 1: Build the Ant app
-FROM golang:1.21.6-alpine AS builder
+FROM golang:1.23.0-bookworm AS builder
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
