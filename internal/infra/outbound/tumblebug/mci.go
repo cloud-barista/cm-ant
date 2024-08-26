@@ -10,57 +10,34 @@ import (
 	"github.com/cloud-barista/cm-ant/internal/utils"
 )
 
-func (t *TumblebugClient) GetMcisIdsWithContext(ctx context.Context, nsId, mcisId string) ([]string, error) {
-	var res struct {
-		Output []string `json:"output"`
-	}
+func (t *TumblebugClient) GetMciWithContext(ctx context.Context, nsId, mciId string) (MciRes, error) {
+	var mciObject MciRes
 
-	url := t.withUrl(fmt.Sprintf("/ns/%s/mcis/%s?option=id", nsId, mcisId))
+	url := t.withUrl(fmt.Sprintf("/ns/%s/mci/%s", nsId, mciId))
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
-		utils.LogError("error sending get mcis id request:", err)
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-
-	err = json.Unmarshal(resBytes, &res)
-
-	if err != nil {
-		utils.LogError("error unmarshaling response body:", err)
-		return nil, fmt.Errorf("failed to unmarshal response body: %w", err)
-	}
-
-	return res.Output, nil
-}
-
-func (t *TumblebugClient) GetMcisWithContext(ctx context.Context, nsId, mcisId string) (McisRes, error) {
-	var mcisObject McisRes
-
-	url := t.withUrl(fmt.Sprintf("/ns/%s/mcis/%s", nsId, mcisId))
-	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
-
-	if err != nil {
-		utils.LogError("error sending get mcis request:", err)
+		utils.LogError("error sending get mci request:", err)
 
 		if errors.Is(err, ErrInternalServerError) {
-			return mcisObject, ErrNotFound
+			return mciObject, ErrNotFound
 		}
-		return mcisObject, fmt.Errorf("failed to send request: %w", err)
+		return mciObject, fmt.Errorf("failed to send request: %w", err)
 	}
 
-	err = json.Unmarshal(resBytes, &mcisObject)
+	err = json.Unmarshal(resBytes, &mciObject)
 
 	if err != nil {
 		utils.LogError("error unmarshaling response body:", err)
-		return mcisObject, fmt.Errorf("failed to unmarshal response body: %w", err)
+		return mciObject, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
 
-	return mcisObject, nil
+	return mciObject, nil
 }
 
-func (t *TumblebugClient) CommandToMcisWithContext(ctx context.Context, nsId, mcisId string, body SendCommandReq) (string, error) {
+func (t *TumblebugClient) CommandToMciWithContext(ctx context.Context, nsId, mciId string, body SendCommandReq) (string, error) {
 
-	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/mcis/%s", nsId, mcisId))
+	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/mci/%s", nsId, mciId))
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
@@ -71,7 +48,7 @@ func (t *TumblebugClient) CommandToMcisWithContext(ctx context.Context, nsId, mc
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
 
 	if err != nil {
-		utils.LogError("error sending command to mcis request:", err)
+		utils.LogError("error sending command to mci request:", err)
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
 
@@ -80,9 +57,9 @@ func (t *TumblebugClient) CommandToMcisWithContext(ctx context.Context, nsId, mc
 	return ret, nil
 }
 
-func (t *TumblebugClient) CommandToVmWithContext(ctx context.Context, nsId, mcisId, vmId string, body SendCommandReq) (string, error) {
+func (t *TumblebugClient) CommandToVmWithContext(ctx context.Context, nsId, mciId, vmId string, body SendCommandReq) (string, error) {
 
-	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/mcis/%s?vmId=%s", nsId, mcisId, vmId))
+	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/mci/%s?vmId=%s", nsId, mciId, vmId))
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
@@ -109,7 +86,7 @@ func (t *TumblebugClient) GetNsWithContext(ctx context.Context, nsId string) (Ge
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
-		utils.LogError("error sending get mcis request:", err)
+		utils.LogError("error sending get mci request:", err)
 		return nsRes, fmt.Errorf("failed to send request: %w", err)
 	}
 
@@ -125,7 +102,7 @@ func (t *TumblebugClient) GetNsWithContext(ctx context.Context, nsId string) (Ge
 
 func (t *TumblebugClient) GetRecommendVmWithContext(ctx context.Context, body RecommendVmReq) (RecommendVmResList, error) {
 	var res RecommendVmResList
-	url := t.withUrl("/mcisRecommendVm")
+	url := t.withUrl("/mciRecommendVm")
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
@@ -169,9 +146,9 @@ func (t *TumblebugClient) CreateNsWithContext(ctx context.Context, body CreateNs
 	return nil
 }
 
-func (t *TumblebugClient) DynamicVmWithContext(ctx context.Context, nsId, mcisId string, body DynamicVmReq) (McisRes, error) {
-	var res McisRes
-	url := t.withUrl(fmt.Sprintf("/ns/%s/mcis/%s/vmDynamic", nsId, mcisId))
+func (t *TumblebugClient) DynamicVmWithContext(ctx context.Context, nsId, mciId string, body DynamicVmReq) (MciRes, error) {
+	var res MciRes
+	url := t.withUrl(fmt.Sprintf("/ns/%s/mci/%s/vmDynamic", nsId, mciId))
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
@@ -196,9 +173,9 @@ func (t *TumblebugClient) DynamicVmWithContext(ctx context.Context, nsId, mcisId
 	return res, nil
 }
 
-func (t *TumblebugClient) DynamicMcisWithContext(ctx context.Context, nsId string, body DynamicMcisReq) (McisRes, error) {
-	var res McisRes
-	url := t.withUrl(fmt.Sprintf("/ns/%s/mcisDynamic", nsId))
+func (t *TumblebugClient) DynamicMciWithContext(ctx context.Context, nsId string, body DynamicMciReq) (MciRes, error) {
+	var res MciRes
+	url := t.withUrl(fmt.Sprintf("/ns/%s/mciDynamic", nsId))
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
@@ -209,7 +186,7 @@ func (t *TumblebugClient) DynamicMcisWithContext(ctx context.Context, nsId strin
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
 
 	if err != nil {
-		utils.LogError("error sending dynamic mcis request:", err)
+		utils.LogError("error sending dynamic mci request:", err)
 		return res, fmt.Errorf("failed to send request: %w", err)
 	}
 
@@ -225,8 +202,8 @@ func (t *TumblebugClient) DynamicMcisWithContext(ctx context.Context, nsId strin
 
 // ControlLifecycleWithContext call tumblebug's control lifecycle api with specific action.
 // action should be on of terminate | suspend | resume | reboot | refine | continue | withdraw
-func (t *TumblebugClient) ControlLifecycleWithContext(ctx context.Context, nsId, mcisId, action string) error {
-	url := t.withUrl(fmt.Sprintf("/ns/%s/control/mcis/%s?action=%s", nsId, mcisId, action))
+func (t *TumblebugClient) ControlLifecycleWithContext(ctx context.Context, nsId, mciId, action string) error {
+	url := t.withUrl(fmt.Sprintf("/ns/%s/control/mci/%s?action=%s", nsId, mciId, action))
 
 	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
@@ -238,16 +215,16 @@ func (t *TumblebugClient) ControlLifecycleWithContext(ctx context.Context, nsId,
 	return nil
 }
 
-// DeleteAllMcisWithContext call tumblebug's api which delete all mcis in ns.
-// This should call after all the vm's in mcis is the status of terminate or suspend.
-// If you want to change mcis's vm lifecycle use ControlLifecycleWithContext.
-func (t *TumblebugClient) DeleteAllMcisWithContext(ctx context.Context, nsId string) error {
-	url := t.withUrl(fmt.Sprintf("/ns/%s/mcis", nsId))
+// DeleteAllMciWithContext call tumblebug's api which delete all mci in ns.
+// This should call after all the vm's in mci is the status of terminate or suspend.
+// If you want to change mci's vm lifecycle use ControlLifecycleWithContext.
+func (t *TumblebugClient) DeleteAllMciWithContext(ctx context.Context, nsId string) error {
+	url := t.withUrl(fmt.Sprintf("/ns/%s/mci", nsId))
 
 	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodDelete, url, nil)
 
 	if err != nil {
-		utils.LogError("error sending delete all mcis request:", err)
+		utils.LogError("error sending delete all mci request:", err)
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 
@@ -255,14 +232,14 @@ func (t *TumblebugClient) DeleteAllMcisWithContext(ctx context.Context, nsId str
 }
 
 // DeleteAllResourcesWithContext call tumblebug's api which delete all default resources in ns.
-// This should call after DeleteAllMcisWithContext executed.
+// This should call after DeleteAllMciWithContext executed.
 func (t *TumblebugClient) DeleteAllResourcesWithContext(ctx context.Context, nsId string) error {
 	url := t.withUrl(fmt.Sprintf("/ns/%s/defaultResources", nsId))
 
 	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodDelete, url, nil)
 
 	if err != nil {
-		utils.LogError("error sending delete all mcis request:", err)
+		utils.LogError("error sending delete all mci request:", err)
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 

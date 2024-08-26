@@ -38,8 +38,8 @@ func (r *LoadRepository) InsertMonitoringAgentInfoTx(ctx context.Context, param 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		return d.
 			Where(
-				"ns_id = ? AND mcis_id = ? AND vm_id = ? AND username = ? AND agent_type = ?",
-				param.NsId, param.McisId, param.VmId, param.Username, param.AgentType,
+				"ns_id = ? AND mci_id = ? AND vm_id = ? AND username = ? AND agent_type = ?",
+				param.NsId, param.MciId, param.VmId, param.Username, param.AgentType,
 			).
 			FirstOrCreate(
 				param,
@@ -85,8 +85,8 @@ func (r *LoadRepository) GetPagingMonitoringAgentInfosTx(ctx context.Context, pa
 			q = q.Where("ns_id = ?", param.NsId)
 		}
 
-		if param.McisId != "" {
-			q = q.Where("mcis_id = ?", param.McisId)
+		if param.MciId != "" {
+			q = q.Where("mci_id = ?", param.MciId)
 		}
 
 		if param.VmId != "" {
@@ -120,8 +120,8 @@ func (r *LoadRepository) GetAllMonitoringAgentInfosTx(ctx context.Context, param
 			q = q.Where("ns_id = ?", param.NsId)
 		}
 
-		if param.McisId != "" {
-			q = q.Where("mcis_id = ?", param.McisId)
+		if param.MciId != "" {
+			q = q.Where("mci_id = ?", param.MciId)
 		}
 
 		if param.VmIds != nil && len(param.VmIds) > 0 {

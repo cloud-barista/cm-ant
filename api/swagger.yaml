@@ -211,7 +211,7 @@ definitions:
     type: object
   app.MonitoringAgentInstallationReq:
     properties:
-      mcisId:
+      mciId:
         type: string
       nsId:
         type: string
@@ -673,7 +673,7 @@ definitions:
         type: string
       id:
         type: integer
-      mcisId:
+      mciId:
         type: string
       nsId:
         type: string
@@ -946,7 +946,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Install a monitoring agent on specific MCIS.
+      description: Install a monitoring agent on specific mci.
       operationId: InstallMonitoringAgent
       parameters:
       - description: Monitoring Agent Installation Request
@@ -984,9 +984,9 @@ paths:
         in: query
         name: nsId
         type: string
-      - description: MCIS ID
+      - description: MCI ID
         in: query
-        name: mcisId
+        name: mciId
         type: string
       - description: VM ID
         in: query
@@ -1023,7 +1023,7 @@ paths:
       consumes:
       - application/json
       description: Uninstall monitoring agents from specified VMs or all VMs in an
-        MCIS.
+        mci.
       operationId: UninstallMonitoringAgent
       parameters:
       - description: Monitoring Agent Uninstallation Request

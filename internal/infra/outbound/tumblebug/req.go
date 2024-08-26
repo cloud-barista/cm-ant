@@ -10,7 +10,7 @@ type CreateNamespaceReq struct {
 	Name        string `json:"name"`
 }
 
-type McisDynamicReq struct {
+type MciDynamicReq struct {
 	Description     string              `json:"description"`
 	InstallMonAgent string              `json:"installMonAgent"`
 	Label           string              `json:"label"`
@@ -70,7 +70,7 @@ type SpecReq struct {
 	Description    string `json:"description"`
 }
 
-type McisReq struct {
+type MciReq struct {
 	Name            string  `json:"name"`
 	Description     string  `json:"description"`
 	InstallMonAgent string  `json:"installMonAgent"`
@@ -141,7 +141,7 @@ type DynamicVmReq struct {
 	VMUserPassword string `json:"vmUserPassword"`
 }
 
-type DynamicMcisReq struct {
+type DynamicMciReq struct {
 	Description     string         `json:"description"`
 	InstallMonAgent string         `json:"installMonAgent"`
 	Label           string         `json:"label"`

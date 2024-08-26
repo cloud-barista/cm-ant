@@ -37,16 +37,16 @@ func NewLoadService(loadRepo *LoadRepository, client *tumblebug.TumblebugClient)
 
 // MonitoringAgentInstallationParams represents parameters for installing a monitoring agent.
 type MonitoringAgentInstallationParams struct {
-	NsId   string   `json:"nsId"`
-	McisId string   `json:"mcisId"`
-	VmIds  []string `json:"vmIds,omitempty"`
+	NsId  string   `json:"nsId"`
+	MciId string   `json:"mciId"`
+	VmIds []string `json:"vmIds,omitempty"`
 }
 
 // MonitoringAgentInstallationResult represents the result of a monitoring agent installation.
 type MonitoringAgentInstallationResult struct {
 	ID        uint      `json:"id,omitempty"`
 	NsId      string    `json:"nsId,omitempty"`
-	McisId    string    `json:"mcisId,omitempty"`
+	MciId     string    `json:"mciId,omitempty"`
 	VmId      string    `json:"vmId,omitempty"`
 	VmCount   int       `json:"vmCount,omitempty"`
 	Status    string    `json:"status,omitempty"`
@@ -56,7 +56,7 @@ type MonitoringAgentInstallationResult struct {
 	UpdatedAt time.Time `json:"updatedAt,omitempty"`
 }
 
-// InstallMonitoringAgent installs a monitoring agent on specified VMs or all VM on Mcis.
+// InstallMonitoringAgent installs a monitoring agent on specified VMs or all VM on mci.
 func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationParams) ([]MonitoringAgentInstallationResult, error) {
 	utils.LogInfo("Starting installation of monitoring agent...")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -72,16 +72,16 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 	}
 	username := "cb-user"
 
-	utils.LogInfof("Fetching Mcis object for NS: %s, MCIS: %s", param.NsId, param.McisId)
-	mcis, err := l.tumblebugClient.GetMcisWithContext(ctx, param.NsId, param.McisId)
+	utils.LogInfof("Fetching mci object for NS: %s, msi id: %s", param.NsId, param.MciId)
+	mci, err := l.tumblebugClient.GetMciWithContext(ctx, param.NsId, param.MciId)
 	if err != nil {
-		utils.LogErrorf("Failed to fetch MCIS : %v", err)
+		utils.LogErrorf("Failed to fetch mci : %v", err)
 		return res, err
 	}
 
-	if len(mcis.VMs) == 0 {
-		utils.LogErrorf("No VMs found on mcis. Provision VM first.")
-		return res, errors.New("there is no vm on mcis. provision vm first")
+	if len(mci.VMs) == 0 {
+		utils.LogErrorf("No VMs found on mci. Provision VM first.")
+		return res, errors.New("there is no vm on mci. provision vm first")
 	}
 
 	var mapSet map[string]struct{}
@@ -91,7 +91,7 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 
 	var errorCollection []error
 
-	for _, vm := range mcis.VMs {
+	for _, vm := range mci.VMs {
 		if mapSet != nil && !utils.Contains(mapSet, vm.ID) {
 			continue
 		}
@@ -102,9 +102,9 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 			Status:    "installing",
 			AgentType: "perfmon",
 			NsId:      param.NsId,
-			McisId:    param.McisId,
+			MciId:     param.MciId,
 			VmId:      vm.ID,
-			VmCount:   len(mcis.VMs),
+			VmCount:   len(mci.VMs),
 		}
 		utils.LogInfof("Inserting monitoring agent installation info into database vm id : %s", vm.ID)
 		err = l.loadRepo.InsertMonitoringAgentInfoTx(ctx, &m)
@@ -119,8 +119,8 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 			UserName: username,
 		}
 
-		utils.LogInfof("Sending install command to MCIS. NS: %s, MCIS: %s, VMID: %s", param.NsId, param.McisId, vm.ID)
-		_, err = l.tumblebugClient.CommandToVmWithContext(ctx, param.NsId, param.McisId, vm.ID, commandReq)
+		utils.LogInfof("Sending install command to mci. NS: %s, mci: %s, VMID: %s", param.NsId, param.MciId, vm.ID)
+		_, err = l.tumblebugClient.CommandToVmWithContext(ctx, param.NsId, param.MciId, vm.ID, commandReq)
 
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
@@ -140,7 +140,7 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 		r := MonitoringAgentInstallationResult{
 			ID:        m.ID,
 			NsId:      m.NsId,
-			McisId:    m.McisId,
+			MciId:     m.MciId,
 			VmId:      m.VmId,
 			VmCount:   m.VmCount,
 			Status:    m.Status,
@@ -153,7 +153,7 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 		res = append(res, r)
 		utils.LogInfof(
 			"Complete installing monitoring agent on mics: %s, vm: %s",
-			m.McisId,
+			m.MciId,
 			m.VmId,
 		)
 
@@ -168,11 +168,11 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 }
 
 type GetAllMonitoringAgentInfosParam struct {
-	Page   int    `json:"page"`
-	Size   int    `json:"size"`
-	NsId   string `json:"nsId,omitempty"`
-	McisId string `json:"mcisId,omitempty"`
-	VmId   string `json:"vmId,omitempty"`
+	Page  int    `json:"page"`
+	Size  int    `json:"size"`
+	NsId  string `json:"nsId,omitempty"`
+	MciId string `json:"mciId,omitempty"`
+	VmId  string `json:"vmId,omitempty"`
 }
 
 type GetAllMonitoringAgentInfoResult struct {
@@ -200,7 +200,7 @@ func (l *LoadService) GetAllMonitoringAgentInfos(param GetAllMonitoringAgentInfo
 		var r MonitoringAgentInstallationResult
 		r.ID = monitoringAgentInfo.ID
 		r.NsId = monitoringAgentInfo.NsId
-		r.McisId = monitoringAgentInfo.McisId
+		r.MciId = monitoringAgentInfo.MciId
 		r.VmId = monitoringAgentInfo.VmId
 		r.VmCount = monitoringAgentInfo.VmCount
 		r.Status = monitoringAgentInfo.Status
@@ -217,7 +217,7 @@ func (l *LoadService) GetAllMonitoringAgentInfos(param GetAllMonitoringAgentInfo
 	return res, nil
 }
 
-// UninstallMonitoringAgent uninstalls a monitoring agent on specified VMs or all VM on Mcis.
+// UninstallMonitoringAgent uninstalls a monitoring agent on specified VMs or all VM on Mci.
 // It takes MonitoringAgentInstallationParams as input and returns the number of affected results and any encountered error.
 func (l *LoadService) UninstallMonitoringAgent(param MonitoringAgentInstallationParams) (int64, error) {
 
@@ -253,22 +253,22 @@ func (l *LoadService) UninstallMonitoringAgent(param MonitoringAgentInstallation
 			UserName: username,
 		}
 
-		_, err = l.tumblebugClient.CommandToVmWithContext(ctx, monitoringAgentInfo.NsId, monitoringAgentInfo.McisId, monitoringAgentInfo.VmId, commandReq)
+		_, err = l.tumblebugClient.CommandToVmWithContext(ctx, monitoringAgentInfo.NsId, monitoringAgentInfo.MciId, monitoringAgentInfo.VmId, commandReq)
 		if err != nil {
 			errorCollection = append(errorCollection, err)
-			utils.LogErrorf("Failed to uninstall monitoring agent on Mcis: %s, VM: %s - Error: %v", monitoringAgentInfo.McisId, monitoringAgentInfo.VmId, err)
+			utils.LogErrorf("Failed to uninstall monitoring agent on mci: %s, VM: %s - Error: %v", monitoringAgentInfo.MciId, monitoringAgentInfo.VmId, err)
 			continue
 		}
 
 		err = l.loadRepo.DeleteAgentInstallInfoStatusTx(ctx, &monitoringAgentInfo)
 
 		if err != nil {
-			utils.LogErrorf("Failed to delete agent installation status for Mcis: %s, VM: %s - Error: %v", monitoringAgentInfo.McisId, monitoringAgentInfo.VmId, err)
+			utils.LogErrorf("Failed to delete agent installation status for mci: %s, VM: %s - Error: %v", monitoringAgentInfo.MciId, monitoringAgentInfo.VmId, err)
 			errorCollection = append(errorCollection, err)
 			continue
 		}
 
-		utils.LogInfof("Successfully uninstalled monitoring agent on Mcis: %s, VM: %s", monitoringAgentInfo.McisId, monitoringAgentInfo.VmId)
+		utils.LogInfof("Successfully uninstalled monitoring agent on mci: %s, VM: %s", monitoringAgentInfo.MciId, monitoringAgentInfo.VmId)
 
 		time.Sleep(time.Second)
 	}
@@ -324,10 +324,10 @@ type LoadGeneratorInstallInfoResult struct {
 
 const (
 	antNsId            = "ant-default-ns"
-	antMcisDescription = "Default MCIS for Cloud Migration Verification"
+	antMciDescription  = "Default MCI for Cloud Migration Verification"
 	antInstallMonAgent = "no"
-	antMcisLabel       = "DynamicMcis,AntDefault"
-	antMcisId          = "ant-default-mcis"
+	antMciLabel        = "DynamicMci,AntDefault"
+	antMciId           = "ant-default-mci"
 
 	antVmDescription  = "Default VM for Cloud Migration Verification"
 	antVmLabel        = "DynamicVm,AntDefault"
@@ -408,36 +408,36 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 			return result, err
 		}
 
-		// get the ant default mcis
-		antMcis, err := l.getAndDefaultMcis(ctx, antVmCommonSpec, antVmCommonImage, antVmConnectionName)
+		// get the ant default mci
+		antMci, err := l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, antVmConnectionName)
 		if err != nil {
-			utils.LogError("Error getting or creating default MCIS:", err)
+			utils.LogError("Error getting or creating default mci:", err)
 			return result, err
 		}
 
-		// if server is not running state, try to resume and get mcis information
+		// if server is not running state, try to resume and get mci information
 		retryCount := config.AppConfig.Load.Retry
-		for retryCount > 0 && antMcis.StatusCount.CountRunning < 1 {
-			utils.LogInfof("Attempting to resume MCIS, retry count: %d", retryCount)
+		for retryCount > 0 && antMci.StatusCount.CountRunning < 1 {
+			utils.LogInfof("Attempting to resume MCI, retry count: %d", retryCount)
 
-			err = l.tumblebugClient.ControlLifecycleWithContext(ctx, antNsId, antMcis.ID, "resume")
+			err = l.tumblebugClient.ControlLifecycleWithContext(ctx, antNsId, antMci.ID, "resume")
 			if err != nil {
-				utils.LogError("Error resuming MCIS:", err)
+				utils.LogError("Error resuming MCI:", err)
 				return result, err
 			}
 			time.Sleep(defaultDelay)
-			antMcis, err = l.getAndDefaultMcis(ctx, antVmCommonSpec, antVmCommonImage, antVmConnectionName)
+			antMci, err = l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, antVmConnectionName)
 			if err != nil {
-				utils.LogError("Error getting MCIS after resume attempt:", err)
+				utils.LogError("Error getting MCI after resume attempt:", err)
 				return result, err
 			}
 
 			retryCount = retryCount - 1
 		}
 
-		if antMcis.StatusCount.CountRunning < 1 {
-			utils.LogError("No running VM on ant default MCIS")
-			return result, errors.New("there is no running vm on ant default mcis")
+		if antMci.StatusCount.CountRunning < 1 {
+			utils.LogError("No running VM on ant default MCI")
+			return result, errors.New("there is no running vm on ant default mci")
 		}
 
 		addAuthorizedKeyCommand, err := getAddAuthorizedKeyCommand()
@@ -456,17 +456,17 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 			Command: []string{installationCommand, addAuthorizedKeyCommand},
 		}
 
-		_, err = l.tumblebugClient.CommandToMcisWithContext(ctx, antNsId, antMcis.ID, commandReq)
+		_, err = l.tumblebugClient.CommandToMciWithContext(ctx, antNsId, antMci.ID, commandReq)
 		if err != nil {
-			utils.LogError("Error sending command to MCIS:", err)
+			utils.LogError("Error sending command to MCI:", err)
 			return result, err
 		}
 
-		utils.LogInfo("Commands sent to MCIS successfully")
+		utils.LogInfo("Commands sent to MCI successfully")
 
 		loadGeneratorServers := make([]LoadGeneratorServer, 0)
 
-		for i, vm := range antMcis.VMs {
+		for i, vm := range antMci.VMs {
 			loadGeneratorServer := LoadGeneratorServer{
 				Csp:             vm.ConnectionConfig.ProviderName,
 				Region:          vm.Region.Region,
@@ -486,7 +486,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 				Label:           vm.Label,
 				IsCluster:       false,
 				IsMaster:        i == 0,
-				ClusterSize:     uint64(len(antMcis.VMs)),
+				ClusterSize:     uint64(len(antMci.VMs)),
 			}
 
 			loadGeneratorServers = append(loadGeneratorServers, loadGeneratorServer)
@@ -597,18 +597,18 @@ func validateKeyPair() (string, string, error) {
 	return pubKeyPath, privKeyPath, nil
 }
 
-// getAndDefaultMcis retrieves or creates the default MCIS.
-func (l *LoadService) getAndDefaultMcis(ctx context.Context, antVmCommonSpec, antVmCommonImage, antVmConnectionName string) (tumblebug.McisRes, error) {
-	var antMcis tumblebug.McisRes
+// getAndDefaultMci retrieves or creates the default MCI.
+func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, antVmCommonImage, antVmConnectionName string) (tumblebug.MciRes, error) {
+	var antMci tumblebug.MciRes
 	var err error
-	antMcis, err = l.tumblebugClient.GetMcisWithContext(ctx, antNsId, antMcisId)
+	antMci, err = l.tumblebugClient.GetMciWithContext(ctx, antNsId, antMciId)
 	if err != nil {
 		if errors.Is(err, tumblebug.ErrNotFound) {
-			dynamicMcisArg := tumblebug.DynamicMcisReq{
-				Description:     antMcisDescription,
+			dynamicMciArg := tumblebug.DynamicMciReq{
+				Description:     antMciDescription,
 				InstallMonAgent: antInstallMonAgent,
-				Label:           antMcisLabel,
-				Name:            antMcisId,
+				Label:           antMciLabel,
+				Name:            antMciId,
 				SystemLabel:     "",
 				VM: []tumblebug.DynamicVmReq{
 					{
@@ -625,15 +625,15 @@ func (l *LoadService) getAndDefaultMcis(ctx context.Context, antVmCommonSpec, an
 					},
 				},
 			}
-			antMcis, err = l.tumblebugClient.DynamicMcisWithContext(ctx, antNsId, dynamicMcisArg)
+			antMci, err = l.tumblebugClient.DynamicMciWithContext(ctx, antNsId, dynamicMciArg)
 			time.Sleep(defaultDelay)
 			if err != nil {
-				return antMcis, err
+				return antMci, err
 			}
 		} else {
-			return antMcis, err
+			return antMci, err
 		}
-	} else if antMcis.VMs != nil && len(antMcis.VMs) == 0 {
+	} else if antMci.VMs != nil && len(antMci.VMs) == 0 {
 
 		dynamicVmArg := tumblebug.DynamicVmReq{
 			CommonImage:    antVmCommonImage,
@@ -648,13 +648,13 @@ func (l *LoadService) getAndDefaultMcis(ctx context.Context, antVmCommonSpec, an
 			VMUserPassword: antVmUserPassword,
 		}
 
-		antMcis, err = l.tumblebugClient.DynamicVmWithContext(ctx, antNsId, antMcisId, dynamicVmArg)
+		antMci, err = l.tumblebugClient.DynamicVmWithContext(ctx, antNsId, antMciId, dynamicVmArg)
 		time.Sleep(defaultDelay)
 		if err != nil {
-			return antMcis, err
+			return antMci, err
 		}
 	}
-	return antMcis, nil
+	return antMci, nil
 }
 
 // getRecommendVm retrieves recommendVm to specify the location of provisioning.
@@ -791,17 +791,17 @@ func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) 
 			Command: []string{uninstallCommand},
 		}
 
-		_, err = l.tumblebugClient.CommandToMcisWithContext(ctx, antNsId, antMcisId, commandReq)
+		_, err = l.tumblebugClient.CommandToMciWithContext(ctx, antNsId, antMciId, commandReq)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				utils.LogError("VM is not in running state. Cannot connect to the VMs.")
 				return errors.New("vm is not running state. cannot connect to the vms")
 			}
-			utils.LogError("Error sending uninstall command to MCIS:", err)
+			utils.LogError("Error sending uninstall command to MCI:", err)
 			return err
 		}
 
-		// err = l.tumblebugClient.ControlLifecycleWithContext(ctx, antNsId, antMcisId, "suspend")
+		// err = l.tumblebugClient.ControlLifecycleWithContext(ctx, antNsId, antMciId, "suspend")
 		// if err != nil {
 		// 	return err
 		// }
@@ -1259,7 +1259,7 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 		}
 
 		compileDuration = utils.DurationString(start)
-		_, err = l.tumblebugClient.CommandToMcisWithContext(context.Background(), antNsId, antMcisId, commandReq)
+		_, err = l.tumblebugClient.CommandToMciWithContext(context.Background(), antNsId, antMciId, commandReq)
 		if err != nil {
 			return compileDuration, executionDuration, err
 		}
@@ -1270,7 +1270,7 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 			Command: []string{jmeterTestCommand},
 		}
 
-		stdout, err := l.tumblebugClient.CommandToMcisWithContext(context.Background(), antNsId, antMcisId, commandReq)
+		stdout, err := l.tumblebugClient.CommandToMciWithContext(context.Background(), antNsId, antMciId, commandReq)
 		if err != nil {
 			return compileDuration, executionDuration, err
 		}
@@ -1641,7 +1641,7 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 		commandReq := tumblebug.SendCommandReq{
 			Command: []string{killCmd},
 		}
-		_, err := l.tumblebugClient.CommandToMcisWithContext(ctx, antNsId, antMcisId, commandReq)
+		_, err := l.tumblebugClient.CommandToMciWithContext(ctx, antNsId, antMciId, commandReq)
 
 		if err != nil {
 			return err

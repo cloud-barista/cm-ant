@@ -498,7 +498,7 @@ func (s *AntServer) getLoadTestExecutionState(c echo.Context) error {
 // installMonitoringAgent handler function that handles a monitoring request request to collect metric.
 // @Id				InstallMonitoringAgent
 // @Summary Install Metrics Monitoring Agent
-// @Description Install a monitoring agent on specific MCIS.
+// @Description Install a monitoring agent on specific mci.
 // @Tags [Monitoring Agent Management]
 // @Accept json
 // @Produce json
@@ -515,9 +515,9 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 	}
 
 	arg := load.MonitoringAgentInstallationParams{
-		NsId:   req.NsId,
-		McisId: req.McisId,
-		VmIds:  req.VmIds,
+		NsId:  req.NsId,
+		MciId: req.MciId,
+		VmIds: req.VmIds,
 	}
 
 	result, err := s.services.loadService.InstallMonitoringAgent(arg)
@@ -541,7 +541,7 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 // @Accept json
 // @Produce json
 // @Param nsId query string false "Namespace ID" default:""
-// @Param mcisId query string false "MCIS ID" default:""
+// @Param mciId query string false "MCI ID" default:""
 // @Param vmId query string false "VM ID" default:""
 // @Param size query integer false "Number of results per page" default:"10"
 // @Param page query integer false "Page number for pagination" default:"1"
@@ -562,11 +562,11 @@ func (s *AntServer) getAllMonitoringAgentInfos(c echo.Context) error {
 	}
 
 	arg := load.GetAllMonitoringAgentInfosParam{
-		Page:   req.Page,
-		Size:   req.Size,
-		NsId:   req.NsId,
-		McisId: req.McisId,
-		VmId:   req.VmId,
+		Page:  req.Page,
+		Size:  req.Size,
+		NsId:  req.NsId,
+		MciId: req.MciId,
+		VmId:  req.VmId,
 	}
 
 	result, err := s.services.loadService.GetAllMonitoringAgentInfos(arg)
@@ -581,7 +581,7 @@ func (s *AntServer) getAllMonitoringAgentInfos(c echo.Context) error {
 // uninstallMonitoringAgent handler function that initiates the uninstallation of monitoring agents.
 // @Id             UninstallMonitoringAgent
 // @Summary        Uninstall Monitoring Agents
-// @Description    Uninstall monitoring agents from specified VMs or all VMs in an MCIS.
+// @Description    Uninstall monitoring agents from specified VMs or all VMs in an mci.
 // @Tags           [Monitoring Agent Management]
 // @Accept         json
 // @Produce        json
@@ -598,9 +598,9 @@ func (s *AntServer) uninstallMonitoringAgent(c echo.Context) error {
 	}
 
 	arg := load.MonitoringAgentInstallationParams{
-		NsId:   req.NsId,
-		McisId: req.McisId,
-		VmIds:  req.VmIds,
+		NsId:  req.NsId,
+		MciId: req.MciId,
+		VmIds: req.VmIds,
 	}
 
 	affectedResults, err := s.services.loadService.UninstallMonitoringAgent(arg)
