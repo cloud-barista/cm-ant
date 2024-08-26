@@ -320,7 +320,7 @@ const docTemplate = `{
         },
         "/api/v1/load/monitoring/agent/install": {
             "post": {
-                "description": "Install a monitoring agent on specific MCIS.",
+                "description": "Install a monitoring agent on specific mci.",
                 "consumes": [
                     "application/json"
                 ],
@@ -388,8 +388,8 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "MCIS ID",
-                        "name": "mcisId",
+                        "description": "MCI ID",
+                        "name": "mciId",
                         "in": "query"
                     },
                     {
@@ -435,7 +435,7 @@ const docTemplate = `{
         },
         "/api/v1/load/monitoring/agents/uninstall": {
             "post": {
-                "description": "Uninstall monitoring agents from specified VMs or all VMs in an MCIS.",
+                "description": "Uninstall monitoring agents from specified VMs or all VMs in an mci.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1311,7 +1311,7 @@ const docTemplate = `{
         "app.MonitoringAgentInstallationReq": {
             "type": "object",
             "properties": {
-                "mcisId": {
+                "mciId": {
                     "type": "string"
                 },
                 "nsId": {
@@ -1998,7 +1998,7 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
-                "mcisId": {
+                "mciId": {
                     "type": "string"
                 },
                 "nsId": {
