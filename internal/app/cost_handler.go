@@ -12,46 +12,36 @@ import (
 
 // @Id GetPriceInfo
 // @Summary Get Price Information
-// @Description Retrieve pricing information for cloud resources based on specified parameters.
+// @Description Retrieve pricing information for cloud resources based on specified parameters. If saved data is more than 7 days, fetch new data and insert new price data even if same price as before.
 // @Tags [Price Management]
 // @Accept json
 // @Produce json
-// @Param regionName query string true "Name of the region"
-// @Param connectionName query string true "Name of the connection"
-// @Param providerName query string true "Name of the cloud provider"
-// @Param instanceType query string true "Type of the instance"
-// @Param zoneName query string false "Name of the zone"
-// @Param vCpu query string false "Number of virtual CPUs"
-// @Param memory query string false "Amount of memory. Don't need to pass unit like 'gb'"
-// @Param storage query string false "Amount of storage"
-// @Param osType query string false "Operating system type"
+// @Param body body app.GetPriceInfoReq true "Request body containing get price information"
 // @Success 200 {object} app.AntResponse[cost.AllPriceInfoResult] "Successfully retrieved pricing information"
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
 // @Failure 500 {object} app.AntResponse[string] "Failed to retrieve pricing information"
-// @Router /api/v1/price/info [get]
-func (server *AntServer) getPriceInfo(c echo.Context) error {
+// @Router /api/v1/price/info [post]
+func (server *AntServer) getPriceInfos(c echo.Context) error {
 	var req GetPriceInfoReq
 	if err := c.Bind(&req); err != nil {
 		return errorResponseJson(http.StatusBadRequest, err.Error())
 	}
 
 	if strings.TrimSpace(req.RegionName) == "" ||
-		strings.TrimSpace(req.ConnectionName) == "" ||
 		strings.TrimSpace(req.ProviderName) == "" ||
 		strings.TrimSpace(req.InstanceType) == "" {
 		return errorResponseJson(http.StatusBadRequest, "Region Name, Connection Name, Provider Name, Instance type must be set")
 	}
 
 	arg := cost.GetPriceInfoParam{
-		ProviderName:   strings.TrimSpace(req.ProviderName),
-		ConnectionName: strings.TrimSpace(req.ConnectionName),
-		RegionName:     strings.TrimSpace(req.RegionName),
-		InstanceType:   strings.TrimSpace(req.InstanceType),
-		ZoneName:       strings.TrimSpace(req.ZoneName),
-		VCpu:           strings.TrimSpace(req.VCpu),
-		Memory:         strings.TrimSpace(req.Memory),
-		Storage:        strings.TrimSpace(req.Storage),
-		OsType:         strings.TrimSpace(req.OsType),
+		ProviderName: strings.TrimSpace(req.ProviderName),
+		RegionName:   strings.TrimSpace(req.RegionName),
+		InstanceType: strings.TrimSpace(req.InstanceType),
+		ZoneName:     strings.TrimSpace(req.ZoneName),
+		VCpu:         strings.TrimSpace(req.VCpu),
+		Memory:       strings.TrimSpace(req.Memory),
+		Storage:      strings.TrimSpace(req.Storage),
+		OsType:       strings.TrimSpace(req.OsType),
 	}
 
 	r, err := server.services.costService.GetPriceInfo(arg)
@@ -105,12 +95,11 @@ func (server *AntServer) updateCostInfo(c echo.Context) error {
 	endDate := time.Now().Truncate(24*time.Hour).AddDate(0, 0, 1)
 	startDate := endDate.AddDate(0, 0, -14)
 	param := cost.UpdateCostInfoParam{
-		MigrationId:    req.MigrationId,
-		Provider:       "aws",
-		ConnectionName: req.ConnectionName,
-		StartDate:      startDate,
-		EndDate:        endDate,
-		CostResources:  costResources,
+		MigrationId:   req.MigrationId,
+		Provider:      "aws",
+		StartDate:     startDate,
+		EndDate:       endDate,
+		CostResources: costResources,
 		AwsAdditionalInfo: cost.AwsAdditionalInfoParam{
 			OwnerId: req.AwsAdditionalInfo.OwnerId,
 			Regions: req.AwsAdditionalInfo.Regions,

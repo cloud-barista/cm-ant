@@ -888,8 +888,8 @@ const docTemplate = `{
             }
         },
         "/api/v1/price/info": {
-            "get": {
-                "description": "Retrieve pricing information for cloud resources based on specified parameters.",
+            "post": {
+                "description": "Retrieve pricing information for cloud resources based on specified parameters. If saved data is more than 7 days, fetch new data and insert new price data even if same price as before.",
                 "consumes": [
                     "application/json"
                 ],
@@ -903,62 +903,13 @@ const docTemplate = `{
                 "operationId": "GetPriceInfo",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Name of the region",
-                        "name": "regionName",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Name of the connection",
-                        "name": "connectionName",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Name of the cloud provider",
-                        "name": "providerName",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Type of the instance",
-                        "name": "instanceType",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Name of the zone",
-                        "name": "zoneName",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Number of virtual CPUs",
-                        "name": "vCpu",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Amount of memory. Don't need to pass unit like 'gb'",
-                        "name": "memory",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Amount of storage",
-                        "name": "storage",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Operating system type",
-                        "name": "osType",
-                        "in": "query"
+                        "description": "Request body containing get price information",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.GetPriceInfoReq"
+                        }
                     }
                 ],
                 "responses": {
@@ -1297,6 +1248,40 @@ const docTemplate = `{
                 }
             }
         },
+        "app.GetPriceInfoReq": {
+            "type": "object",
+            "required": [
+                "instanceType",
+                "providerName",
+                "regionName"
+            ],
+            "properties": {
+                "instanceType": {
+                    "type": "string"
+                },
+                "memory": {
+                    "type": "string"
+                },
+                "osType": {
+                    "type": "string"
+                },
+                "providerName": {
+                    "type": "string"
+                },
+                "regionName": {
+                    "type": "string"
+                },
+                "storage": {
+                    "type": "string"
+                },
+                "vCpu": {
+                    "type": "string"
+                },
+                "zoneName": {
+                    "type": "string"
+                }
+            }
+        },
         "app.InstallLoadGeneratorReq": {
             "type": "object",
             "properties": {
@@ -1559,9 +1544,6 @@ const docTemplate = `{
                 "calculatedMonthlyPrice": {
                     "type": "string"
                 },
-                "connectionName": {
-                    "type": "string"
-                },
                 "currency": {
                     "$ref": "#/definitions/constant.PriceCurrency"
                 },
@@ -1575,6 +1557,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "memory": {
+                    "type": "string"
+                },
+                "originalPricePolicy": {
                     "type": "string"
                 },
                 "osType": {

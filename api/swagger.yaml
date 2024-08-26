@@ -202,6 +202,29 @@ definitions:
       resourceType:
         $ref: '#/definitions/constant.ResourceType'
     type: object
+  app.GetPriceInfoReq:
+    properties:
+      instanceType:
+        type: string
+      memory:
+        type: string
+      osType:
+        type: string
+      providerName:
+        type: string
+      regionName:
+        type: string
+      storage:
+        type: string
+      vCpu:
+        type: string
+      zoneName:
+        type: string
+    required:
+    - instanceType
+    - providerName
+    - regionName
+    type: object
   app.InstallLoadGeneratorReq:
     properties:
       installLocation:
@@ -385,8 +408,6 @@ definitions:
     properties:
       calculatedMonthlyPrice:
         type: string
-      connectionName:
-        type: string
       currency:
         $ref: '#/definitions/constant.PriceCurrency'
       id:
@@ -396,6 +417,8 @@ definitions:
       lastUpdatedAt:
         type: string
       memory:
+        type: string
+      originalPricePolicy:
         type: string
       osType:
         type: string
@@ -1321,53 +1344,20 @@ paths:
       tags:
       - '[Load Test Execution Management]'
   /api/v1/price/info:
-    get:
+    post:
       consumes:
       - application/json
       description: Retrieve pricing information for cloud resources based on specified
-        parameters.
+        parameters. If saved data is more than 7 days, fetch new data and insert new
+        price data even if same price as before.
       operationId: GetPriceInfo
       parameters:
-      - description: Name of the region
-        in: query
-        name: regionName
+      - description: Request body containing get price information
+        in: body
+        name: body
         required: true
-        type: string
-      - description: Name of the connection
-        in: query
-        name: connectionName
-        required: true
-        type: string
-      - description: Name of the cloud provider
-        in: query
-        name: providerName
-        required: true
-        type: string
-      - description: Type of the instance
-        in: query
-        name: instanceType
-        required: true
-        type: string
-      - description: Name of the zone
-        in: query
-        name: zoneName
-        type: string
-      - description: Number of virtual CPUs
-        in: query
-        name: vCpu
-        type: string
-      - description: Amount of memory. Don't need to pass unit like 'gb'
-        in: query
-        name: memory
-        type: string
-      - description: Amount of storage
-        in: query
-        name: storage
-        type: string
-      - description: Operating system type
-        in: query
-        name: osType
-        type: string
+        schema:
+          $ref: '#/definitions/app.GetPriceInfoReq'
       produces:
       - application/json
       responses:

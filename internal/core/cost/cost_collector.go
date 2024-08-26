@@ -15,7 +15,7 @@ import (
 )
 
 type CostCollector interface {
-	GetCostInfo(context.Context, UpdateCostInfoParam) (CostInfos, error)
+	GetCostInfos(context.Context, UpdateCostInfoParam) (CostInfos, error)
 }
 
 type AwsCostExplorerSpiderCostCollector struct {
@@ -114,7 +114,7 @@ func (a *AwsCostExplorerSpiderCostCollector) generateFilterValue(
 	return serviceValue, resourceIdValues, nil
 }
 
-func (a *AwsCostExplorerSpiderCostCollector) GetCostInfo(ctx context.Context, param UpdateCostInfoParam) (CostInfos, error) {
+func (a *AwsCostExplorerSpiderCostCollector) GetCostInfos(ctx context.Context, param UpdateCostInfoParam) (CostInfos, error) {
 	serviceFilterValue, resourceIdFilterValue, err := a.generateFilterValue(param.CostResources, param.AwsAdditionalInfo)
 	if err != nil {
 		utils.LogError("parsing service and resource id for filtering cost explorer value")
