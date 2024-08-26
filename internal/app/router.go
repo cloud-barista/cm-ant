@@ -3,7 +3,6 @@ package app
 import (
 	"time"
 
-	"github.com/cloud-barista/cm-ant/internal/render"
 	"github.com/cloud-barista/cm-ant/internal/utils"
 
 	_ "github.com/cloud-barista/cm-ant/api"
@@ -16,11 +15,7 @@ import (
 )
 
 func (server *AntServer) InitRouter() error {
-	setStatic(server.e)
 	setMiddleware(server.e)
-
-	tmpl := render.NewTemplate()
-	server.e.Renderer = tmpl
 
 	antRouter := server.e.Group("/ant")
 
@@ -86,11 +81,11 @@ func (server *AntServer) InitRouter() error {
 }
 
 // setStatic sets up static file serving for CSS, JS, and templates.
-func setStatic(e *echo.Echo) {
-	e.Static("/web/templates", utils.RootPath()+"/web/templates")
-	e.Static("/css", utils.RootPath()+"/web/css")
-	e.Static("/js", utils.RootPath()+"/web/js")
-}
+// func setStatic(e *echo.Echo) {
+// 	e.Static("/web/templates", utils.RootPath()+"/web/templates")
+// 	e.Static("/css", utils.RootPath()+"/web/css")
+// 	e.Static("/js", utils.RootPath()+"/web/js")
+// }
 
 // setMiddleware configures middleware for the Echo server.
 func setMiddleware(e *echo.Echo) {

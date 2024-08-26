@@ -36,7 +36,6 @@ COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/config.yaml /app/con
 COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/test_plan /app/test_plan
 COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/script /app/script
 COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/meta /app/meta
-COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/web /app/web
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s \
    CMD curl -f "http://cm-ant:8880/ant/api/v1/readyz" || exit 1   
