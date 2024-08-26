@@ -4,7 +4,10 @@ FROM golang:1.23.0-bookworm AS builder
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 
-RUN apk add --no-cache make 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends make && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /go/src/github.com/cloud-barista/cm-ant
 
