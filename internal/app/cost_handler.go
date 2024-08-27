@@ -135,11 +135,12 @@ func (server *AntServer) updateCostInfos(c echo.Context) error {
 	endDate := time.Now().Truncate(24*time.Hour).AddDate(0, 0, 1)
 	startDate := endDate.AddDate(0, 0, -14)
 	param := cost.UpdateCostInfoParam{
-		MigrationId:   req.MigrationId,
-		Provider:      "aws",
-		StartDate:     startDate,
-		EndDate:       endDate,
-		CostResources: costResources,
+		MigrationId:    req.MigrationId,
+		Provider:       "aws",
+		StartDate:      startDate,
+		EndDate:        endDate,
+		CostResources:  costResources,
+		ConnectionName: "aws-us-east-1",
 		AwsAdditionalInfo: cost.AwsAdditionalInfoParam{
 			OwnerId: req.AwsAdditionalInfo.OwnerId,
 			Regions: req.AwsAdditionalInfo.Regions,
