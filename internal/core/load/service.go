@@ -35,27 +35,6 @@ func NewLoadService(loadRepo *LoadRepository, client *tumblebug.TumblebugClient)
 	}
 }
 
-// MonitoringAgentInstallationParams represents parameters for installing a monitoring agent.
-type MonitoringAgentInstallationParams struct {
-	NsId  string   `json:"nsId"`
-	MciId string   `json:"mciId"`
-	VmIds []string `json:"vmIds,omitempty"`
-}
-
-// MonitoringAgentInstallationResult represents the result of a monitoring agent installation.
-type MonitoringAgentInstallationResult struct {
-	ID        uint      `json:"id,omitempty"`
-	NsId      string    `json:"nsId,omitempty"`
-	MciId     string    `json:"mciId,omitempty"`
-	VmId      string    `json:"vmId,omitempty"`
-	VmCount   int       `json:"vmCount,omitempty"`
-	Status    string    `json:"status,omitempty"`
-	Username  string    `json:"username,omitempty"`
-	AgentType string    `json:"agentType,omitempty"`
-	CreatedAt time.Time `json:"createdAt,omitempty"`
-	UpdatedAt time.Time `json:"updatedAt,omitempty"`
-}
-
 // InstallMonitoringAgent installs a monitoring agent on specified VMs or all VM on mci.
 func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationParams) ([]MonitoringAgentInstallationResult, error) {
 	utils.LogInfo("Starting installation of monitoring agent...")
@@ -85,7 +64,7 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 	}
 
 	var mapSet map[string]struct{}
-	if param.VmIds != nil && len(param.VmIds) > 0 {
+	if len(param.VmIds) > 0 {
 		mapSet = utils.SliceToMap(param.VmIds)
 	}
 
@@ -165,19 +144,6 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 	}
 
 	return res, nil
-}
-
-type GetAllMonitoringAgentInfosParam struct {
-	Page  int    `json:"page"`
-	Size  int    `json:"size"`
-	NsId  string `json:"nsId,omitempty"`
-	MciId string `json:"mciId,omitempty"`
-	VmId  string `json:"vmId,omitempty"`
-}
-
-type GetAllMonitoringAgentInfoResult struct {
-	MonitoringAgentInfos []MonitoringAgentInstallationResult `json:"monitoringAgentInfos,omitempty"`
-	TotalRow             int64                               `json:"totalRow,omitempty"`
 }
 
 func (l *LoadService) GetAllMonitoringAgentInfos(param GetAllMonitoringAgentInfosParam) (GetAllMonitoringAgentInfoResult, error) {
@@ -278,48 +244,6 @@ func (l *LoadService) UninstallMonitoringAgent(param MonitoringAgentInstallation
 	}
 
 	return effectedResults, nil
-}
-
-type InstallLoadGeneratorParam struct {
-	InstallLocation constant.InstallLocation `json:"installLocation,omitempty"`
-	Coordinates     []string                 `json:"coordinate"`
-}
-
-type LoadGeneratorServerResult struct {
-	ID              uint      `json:"id,omitempty"`
-	Csp             string    `json:"csp,omitempty"`
-	Region          string    `json:"region,omitempty"`
-	Zone            string    `json:"zone,omitempty"`
-	PublicIp        string    `json:"publicIp,omitempty"`
-	PrivateIp       string    `json:"privateIp,omitempty"`
-	PublicDns       string    `json:"publicDns,omitempty"`
-	MachineType     string    `json:"machineType,omitempty"`
-	Status          string    `json:"status,omitempty"`
-	SshPort         string    `json:"sshPort,omitempty"`
-	Lat             string    `json:"lat,omitempty"`
-	Lon             string    `json:"lon,omitempty"`
-	Username        string    `json:"username,omitempty"`
-	VmId            string    `json:"vmId,omitempty"`
-	StartTime       time.Time `json:"startTime,omitempty"`
-	AdditionalVmKey string    `json:"additionalVmKey,omitempty"`
-	Label           string    `json:"label,omitempty"`
-	CreatedAt       time.Time `json:"createdAt,omitempty"`
-	UpdatedAt       time.Time `json:"updatedAt,omitempty"`
-}
-
-type LoadGeneratorInstallInfoResult struct {
-	ID              uint                     `json:"id,omitempty"`
-	InstallLocation constant.InstallLocation `json:"installLocation,omitempty"`
-	InstallType     string                   `json:"installType,omitempty"`
-	InstallPath     string                   `json:"installPath,omitempty"`
-	InstallVersion  string                   `json:"installVersion,omitempty"`
-	Status          string                   `json:"status,omitempty"`
-	CreatedAt       time.Time                `json:"createdAt,omitempty"`
-	UpdatedAt       time.Time                `json:"updatedAt,omitempty"`
-
-	PublicKeyName        string                      `json:"publicKeyName,omitempty"`
-	PrivateKeyName       string                      `json:"privateKeyName,omitempty"`
-	LoadGeneratorServers []LoadGeneratorServerResult `json:"loadGeneratorServers,omitempty"`
 }
 
 const (
@@ -748,10 +672,6 @@ func (l *LoadService) validDefaultNs(ctx context.Context, antNsId string) error 
 	return nil
 }
 
-type UninstallLoadGeneratorParam struct {
-	LoadGeneratorInstallInfoId uint
-}
-
 func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -822,17 +742,6 @@ func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) 
 	return nil
 }
 
-type GetAllLoadGeneratorInstallInfoParam struct {
-	Page   int    `json:"page"`
-	Size   int    `json:"size"`
-	Status string `json:"Status"`
-}
-
-type GetAllLoadGeneratorInstallInfoResult struct {
-	LoadGeneratorInstallInfoResults []LoadGeneratorInstallInfoResult `json:"loadGeneratorInstallInfoResults,omitempty"`
-	TotalRows                       int64                            `json:"totalRows,omitempty"`
-}
-
 func (l *LoadService) GetAllLoadGeneratorInstallInfo(param GetAllLoadGeneratorInstallInfoParam) (GetAllLoadGeneratorInstallInfoResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -894,32 +803,6 @@ func (l *LoadService) GetAllLoadGeneratorInstallInfo(param GetAllLoadGeneratorIn
 	utils.LogInfof("Fetched %d load generator install info results.", len(infos))
 
 	return result, nil
-}
-
-type RunLoadTestParam struct {
-	LoadTestKey                string                    `json:"loadTestKey"`
-	InstallLoadGenerator       InstallLoadGeneratorParam `json:"installLoadGenerator"`
-	LoadGeneratorInstallInfoId uint                      `json:"loadGeneratorInstallInfoId"`
-	TestName                   string                    `json:"testName"`
-	VirtualUsers               string                    `json:"virtualUsers"`
-	Duration                   string                    `json:"duration"`
-	RampUpTime                 string                    `json:"rampUpTime"`
-	RampUpSteps                string                    `json:"rampUpSteps"`
-	Hostname                   string                    `json:"hostname"`
-	Port                       string                    `json:"port"`
-	AgentInstalled             bool                      `json:"agentInstalled"`
-	AgentHostname              string                    `json:"agentHostname"`
-
-	HttpReqs []RunLoadTestHttpParam `json:"httpReqs,omitempty"`
-}
-
-type RunLoadTestHttpParam struct {
-	Method   string `json:"method"`
-	Protocol string `json:"protocol"`
-	Hostname string `json:"hostname"`
-	Port     string `json:"port"`
-	Path     string `json:"path,omitempty"`
-	BodyData string `json:"bodyData,omitempty"`
 }
 
 // RunLoadTest initiates the load test and performs necessary initializations.
@@ -1348,34 +1231,6 @@ func generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVe
 	return builder.String()
 }
 
-type GetAllLoadTestExecutionStateParam struct {
-	Page            int                      `json:"page"`
-	Size            int                      `json:"size"`
-	LoadTestKey     string                   `json:"loadTestKey"`
-	ExecutionStatus constant.ExecutionStatus `json:"executionStatus"`
-}
-
-type GetAllLoadTestExecutionStateResult struct {
-	LoadTestExecutionStates []LoadTestExecutionStateResult `json:"loadTestExecutionStates,omitempty"`
-	TotalRow                int64                          `json:"totalRow,omitempty"`
-}
-
-type LoadTestExecutionStateResult struct {
-	ID                          uint                           `json:"id"`
-	LoadGeneratorInstallInfoId  uint                           `json:"loadGeneratorInstallInfoId,omitempty"`
-	LoadGeneratorInstallInfo    LoadGeneratorInstallInfoResult `json:"loadGeneratorInstallInfo,omitempty"`
-	LoadTestKey                 string                         `json:"loadTestKey,omitempty"`
-	ExecutionStatus             constant.ExecutionStatus       `json:"executionStatus,omitempty"`
-	StartAt                     time.Time                      `json:"startAt,omitempty"`
-	FinishAt                    *time.Time                     `json:"finishAt,omitempty"`
-	TotalExpectedExcutionSecond uint64                         `json:"totalExpectedExecutionSecond,omitempty"`
-	FailureMessage              string                         `json:"failureMessage,omitempty"`
-	CompileDuration             string                         `json:"compileDuration,omitempty"`
-	ExecutionDuration           string                         `json:"executionDuration,omitempty"`
-	CreatedAt                   time.Time                      `json:"createdAt,omitempty"`
-	UpdatedAt                   time.Time                      `json:"updatedAt,omitempty"`
-}
-
 func (l *LoadService) GetAllLoadTestExecutionState(param GetAllLoadTestExecutionStateParam) (GetAllLoadTestExecutionStateResult, error) {
 	var res GetAllLoadTestExecutionStateResult
 	var states []LoadTestExecutionStateResult
@@ -1404,10 +1259,6 @@ func (l *LoadService) GetAllLoadTestExecutionState(param GetAllLoadTestExecution
 	return res, nil
 }
 
-type GetLoadTestExecutionStateParam struct {
-	LoadTestKey string `json:"loadTestKey"`
-}
-
 func (l *LoadService) GetLoadTestExecutionState(param GetLoadTestExecutionStateParam) (LoadTestExecutionStateResult, error) {
 	var res LoadTestExecutionStateResult
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -1424,45 +1275,6 @@ func (l *LoadService) GetLoadTestExecutionState(param GetLoadTestExecutionStateP
 	res = mapLoadTestExecutionStateResult(state)
 	res.LoadGeneratorInstallInfo = mapLoadGeneratorInstallInfoResult(state.LoadGeneratorInstallInfo)
 	return res, nil
-}
-
-type GetAllLoadTestExecutionInfosParam struct {
-	Page int `json:"page"`
-	Size int `json:"size"`
-}
-
-type GetAllLoadTestExecutionInfosResult struct {
-	TotalRow               int64                         `json:"totalRow,omitempty"`
-	LoadTestExecutionInfos []LoadTestExecutionInfoResult `json:"loadTestExecutionInfos,omitempty"`
-}
-
-type LoadTestExecutionInfoResult struct {
-	ID                         uint                              `json:"id"`
-	LoadTestKey                string                            `json:"loadTestKey,omitempty"`
-	TestName                   string                            `json:"testName,omitempty"`
-	VirtualUsers               string                            `json:"virtualUsers,omitempty"`
-	Duration                   string                            `json:"duration,omitempty"`
-	RampUpTime                 string                            `json:"rampUpTime,omitempty"`
-	RampUpSteps                string                            `json:"rampUpSteps,omitempty"`
-	Hostname                   string                            `json:"hostname,omitempty"`
-	Port                       string                            `json:"port,omitempty"`
-	AgentHostname              string                            `json:"agentHostname,omitempty"`
-	AgentInstalled             bool                              `json:"agentInstalled,omitempty"`
-	CompileDuration            string                            `json:"compileDuration,omitempty"`
-	ExecutionDuration          string                            `json:"executionDuration,omitempty"`
-	LoadTestExecutionHttpInfos []LoadTestExecutionHttpInfoResult `json:"loadTestExecutionHttpInfos,omitempty"`
-	LoadTestExecutionState     LoadTestExecutionStateResult      `json:"loadTestExecutionState,omitempty"`
-	LoadGeneratorInstallInfo   LoadGeneratorInstallInfoResult    `json:"loadGeneratorInstallInfo,omitempty"`
-}
-
-type LoadTestExecutionHttpInfoResult struct {
-	ID       uint   `json:"id"`
-	Method   string `json:"method,omitempty"`
-	Protocol string `json:"protocol,omitempty"`
-	Hostname string `json:"hostname,omitempty"`
-	Port     string `json:"port,omitempty"`
-	Path     string `json:"path,omitempty"`
-	BodyData string `json:"bodyData,omitempty"`
 }
 
 func (l *LoadService) GetAllLoadTestExecutionInfos(param GetAllLoadTestExecutionInfosParam) (GetAllLoadTestExecutionInfosResult, error) {
@@ -1489,10 +1301,6 @@ func (l *LoadService) GetAllLoadTestExecutionInfos(param GetAllLoadTestExecution
 	res.LoadTestExecutionInfos = rs
 
 	return res, nil
-}
-
-type GetLoadTestExecutionInfoParam struct {
-	LoadTestKey string `json:"loadTestKey"`
 }
 
 func (l *LoadService) GetLoadTestExecutionInfo(param GetLoadTestExecutionInfoParam) (LoadTestExecutionInfoResult, error) {
@@ -1612,10 +1420,6 @@ func mapLoadTestExecutionInfoResult(executionInfo LoadTestExecutionInfo) LoadTes
 	}
 }
 
-type StopLoadTestParam struct {
-	LoadTestKey string `json:"loadTestKey"`
-}
-
 func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -1666,53 +1470,9 @@ func killCmdGen(loadTestKey string) string {
 	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
 }
 
-type ResultSummary struct {
-	Label   string
-	Results []*ResultRawData
-}
-
-type MetricsSummary struct {
-	Label   string
-	Metrics []*MetricsRawData
-}
-
-type ResultRawData struct {
-	No         int
-	Elapsed    int // time to last byte
-	Bytes      int
-	SentBytes  int
-	URL        string
-	Latency    int // time to first byte
-	IdleTime   int // time not spent sampling in jmeter (milliseconds) (generally 0)
-	Connection int // time to establish connection
-	IsError    bool
-	Timestamp  time.Time
-}
-
-type MetricsRawData struct {
-	Value     string
-	Unit      string
-	IsError   bool
-	Timestamp time.Time
-}
 type metricsUnits struct {
 	Multiple float64
 	Unit     string
-}
-type LoadTestStatistics struct {
-	Label         string  `json:"label"`
-	RequestCount  int     `json:"requestCount"`
-	Average       float64 `json:"average"`
-	Median        float64 `json:"median"`
-	NinetyPercent float64 `json:"ninetyPercent"`
-	NinetyFive    float64 `json:"ninetyFive"`
-	NinetyNine    float64 `json:"ninetyNine"`
-	MinTime       float64 `json:"minTime"`
-	MaxTime       float64 `json:"maxTime"`
-	ErrorPercent  float64 `json:"errorPercent"`
-	Throughput    float64 `json:"throughput"`
-	ReceivedKB    float64 `json:"receivedKB"`
-	SentKB        float64 `json:"sentKB"`
 }
 
 var tags = map[string]metricsUnits{
@@ -1764,11 +1524,6 @@ var tags = map[string]metricsUnits{
 		Multiple: 0.001,
 		Unit:     "kb",
 	},
-}
-
-type GetLoadTestResultParam struct {
-	LoadTestKey string
-	Format      constant.ResultFormat
 }
 
 func (l *LoadService) GetLoadTestResult(param GetLoadTestResultParam) (interface{}, error) {
