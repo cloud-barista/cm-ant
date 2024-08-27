@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -10,41 +11,80 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// @Id GetPriceInfo
-// @Summary Get Price Information
+// @Id UpdatePriceInfos
+// @Summar Update Price Information
 // @Description Retrieve pricing information for cloud resources based on specified parameters. If saved data is more than 7 days, fetch new data and insert new price data even if same price as before.
 // @Tags [Price Management]
 // @Accept json
 // @Produce json
-// @Param body body app.GetPriceInfoReq true "Request body containing get price information"
-// @Success 200 {object} app.AntResponse[cost.AllPriceInfoResult] "Successfully retrieved pricing information"
+// @Param body body app.UpdatePriceInfosReq true "Request body containing get price information"
+// @Success 200 {object} app.AntResponse[string] "Successfully retrieved pricing information"
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
 // @Failure 500 {object} app.AntResponse[string] "Failed to retrieve pricing information"
 // @Router /api/v1/price/info [post]
-func (server *AntServer) getPriceInfos(c echo.Context) error {
-	var req GetPriceInfoReq
+func (server *AntServer) updatePriceInfos(c echo.Context) error {
+	var req UpdatePriceInfosReq
 	if err := c.Bind(&req); err != nil {
 		return errorResponseJson(http.StatusBadRequest, err.Error())
 	}
 
 	if strings.TrimSpace(req.RegionName) == "" ||
-		strings.TrimSpace(req.ProviderName) == "" ||
-		strings.TrimSpace(req.InstanceType) == "" {
-		return errorResponseJson(http.StatusBadRequest, "Region Name, Connection Name, Provider Name, Instance type must be set")
+		// strings.TrimSpace(req.InstanceType) == "" ||
+		strings.TrimSpace(req.ProviderName) == "" {
+		return errorResponseJson(http.StatusBadRequest, "provier name, region name, instance type must be set")
 	}
 
-	arg := cost.GetPriceInfoParam{
+	arg := cost.UpdatePriceInfosParam{
 		ProviderName: strings.TrimSpace(req.ProviderName),
 		RegionName:   strings.TrimSpace(req.RegionName),
 		InstanceType: strings.TrimSpace(req.InstanceType),
-		ZoneName:     strings.TrimSpace(req.ZoneName),
+	}
+
+	err := server.services.costService.UpdatePriceInfos(arg)
+
+	if err != nil {
+		return errorResponseJson(http.StatusInternalServerError, err.Error())
+	}
+
+	return successResponseJson(
+		c,
+		"retrieved pricing information",
+		fmt.Sprintf("%s csp price information updated. region: %s, instance type: %s", arg.ProviderName, arg.RegionName, arg.InstanceType),
+	)
+}
+
+// @Id GetPriceInfos
+// @Summary Get Price Information
+// @Description Retrieve pricing information for cloud resources based on specified query parameters. Returns price data based on provider, region, instance type, vCPU, memory, and OS type. It offer instances with the lowest monthly prices what in the database.
+// @Tags Price Management
+// @Accept json
+// @Produce json
+// @Param providerName query string true "Cloud provider name - aws|alibaba|tencent|gcp|azure|ibm"
+// @Param regionName query string true "Region name"
+// @Param instanceType query string false "Instance type"
+// @Param vCpu query string false "Number of vCPUs"
+// @Param memory query string false "Amount of memory"
+// @Param osType query string false "Operating system type"
+// @Success 200 {object} AntResponse[string] "Successfully retrieved pricing information"
+// @Failure 400 {object} AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} AntResponse[string] "Failed to retrieve pricing information"
+// @Router /api/v1/price/info [get]
+func (server *AntServer) getPriceInfos(c echo.Context) error {
+	var req GetPriceInfosReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponseJson(http.StatusBadRequest, err.Error())
+	}
+
+	arg := cost.GetPriceInfosParam{
+		ProviderName: strings.TrimSpace(req.ProviderName),
+		RegionName:   strings.TrimSpace(req.RegionName),
+		InstanceType: strings.TrimSpace(req.InstanceType),
 		VCpu:         strings.TrimSpace(req.VCpu),
 		Memory:       strings.TrimSpace(req.Memory),
-		Storage:      strings.TrimSpace(req.Storage),
 		OsType:       strings.TrimSpace(req.OsType),
 	}
 
-	r, err := server.services.costService.GetPriceInfo(arg)
+	r, err := server.services.costService.GetPriceInfos(arg)
 
 	if err != nil {
 		return errorResponseJson(http.StatusInternalServerError, err.Error())
@@ -68,7 +108,7 @@ func (server *AntServer) getPriceInfos(c echo.Context) error {
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
 // @Failure 500 {object} app.AntResponse[string] "Failed to update cost information"
 // @Router /api/v1/cost/info [post]
-func (server *AntServer) updateCostInfo(c echo.Context) error {
+func (server *AntServer) updateCostInfos(c echo.Context) error {
 	var req UpdateCostInfoReq
 
 	if err := c.Bind(&req); err != nil {
@@ -138,7 +178,7 @@ func (server *AntServer) updateCostInfo(c echo.Context) error {
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
 // @Failure 500 {object} app.AntResponse[string] "Failed to retrieve cost information"
 // @Router /api/v1/cost/info [get]
-func (s *AntServer) getCostInfo(c echo.Context) error {
+func (s *AntServer) getCostInfos(c echo.Context) error {
 	var req GetCostInfoReq
 	if err := c.Bind(&req); err != nil {
 		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")

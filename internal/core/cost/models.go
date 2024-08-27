@@ -11,16 +11,16 @@ type PriceInfos []*PriceInfo
 
 type PriceInfo struct {
 	gorm.Model
-	ProviderName           string
-	RegionName             string
-	InstanceType           string
+	ProviderName           string `gorm:"index"`
+	RegionName             string `gorm:"index"`
+	InstanceType           string `gorm:"index"`
 	ZoneName               string
-	VCpu                   string
-	Memory                 string
+	VCpu                   string `gorm:"index"`
+	Memory                 string `gorm:"index"`
 	MemoryUnit             constant.MemoryUnit
 	OriginalMemory         string
 	Storage                string
-	OsType                 string
+	OsType                 string `gorm:"index"`
 	ProductDescription     string
 	OriginalPricePolicy    string
 	PricePolicy            constant.PricePolicy
@@ -29,7 +29,7 @@ type PriceInfo struct {
 	Unit                   constant.PriceUnit
 	OriginalUnit           string
 	OriginalCurrency       string
-	CalculatedMonthlyPrice string
+	CalculatedMonthlyPrice float64 `gorm:"index"`
 	PriceDescription       string
 }
 

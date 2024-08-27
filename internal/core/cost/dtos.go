@@ -6,18 +6,24 @@ import (
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 )
 
-type GetPriceInfoParam struct {
+type UpdatePriceInfosParam struct {
 	MigrationId  string
 	ProviderName string
 	RegionName   string
 	InstanceType string
-	ZoneName     string
-	VCpu         string
-	Memory       string
-	Storage      string
-	OsType       string
-	Unit         constant.PriceUnit
-	Currency     constant.PriceCurrency
+
+	TimeStandard time.Time
+	PricePolicy  constant.PricePolicy
+}
+
+type GetPriceInfosParam struct {
+	ProviderName string
+	RegionName   string
+	InstanceType string
+
+	VCpu   string
+	Memory string
+	OsType string
 
 	TimeStandard time.Time
 	PricePolicy  constant.PricePolicy
@@ -25,7 +31,6 @@ type GetPriceInfoParam struct {
 
 type AllPriceInfoResult struct {
 	PriceInfoList []PriceInfoResult `json:"priceInfoList,omitempty"`
-	InfoSource    string            `json:"infoSource,omitempty"`
 	ResultCount   int64             `json:"resultCount"`
 }
 
@@ -35,7 +40,6 @@ type PriceInfoResult struct {
 	RegionName   string `json:"regionName"`
 	InstanceType string `json:"instanceType"`
 
-	ZoneName               string                 `json:"zoneName,omitempty"`
 	VCpu                   string                 `json:"vCpu,omitempty"`
 	Memory                 string                 `json:"memory,omitempty"`
 	Storage                string                 `json:"storage,omitempty"`
@@ -46,7 +50,7 @@ type PriceInfoResult struct {
 	Unit                   constant.PriceUnit     `json:"unit,omitempty"`
 	Currency               constant.PriceCurrency `json:"currency,omitempty"`
 	Price                  string                 `json:"price,omitempty"`
-	CalculatedMonthlyPrice string                 `json:"calculatedMonthlyPrice,omitempty"`
+	CalculatedMonthlyPrice float64                `json:"calculatedMonthlyPrice,omitempty"`
 	PriceDescription       string                 `json:"priceDescription,omitempty"`
 	LastUpdatedAt          time.Time              `json:"lastUpdatedAt,omitempty"`
 }

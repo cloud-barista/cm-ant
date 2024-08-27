@@ -3,6 +3,7 @@ package cost
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,7 +15,7 @@ import (
 )
 
 type PriceCollector interface {
-	GetPriceInfos(context.Context, GetPriceInfoParam) (PriceInfos, error)
+	GetPriceInfos(context.Context, UpdatePriceInfosParam) (PriceInfos, error)
 }
 
 var (
@@ -66,7 +67,7 @@ func NewSpiderPriceCollector(sc *spider.SpiderClient) PriceCollector {
 	}
 }
 
-func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param GetPriceInfoParam) (PriceInfos, error) {
+func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param UpdatePriceInfosParam) (PriceInfos, error) {
 	connectionName := fmt.Sprintf("%s-%s", strings.ToLower(param.ProviderName), strings.ToLower(param.RegionName))
 
 	req := spider.PriceInfoReq{
@@ -139,8 +140,8 @@ func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param GetPrice
 
 							pi := PriceInfo{
 								ProviderName:           param.ProviderName,
-								RegionName:             param.RegionName,
-								InstanceType:           param.InstanceType,
+								RegionName:             productInfo.RegionName,
+								InstanceType:           productInfo.InstanceType,
 								ZoneName:               zoneName,
 								VCpu:                   vCpu,
 								OriginalMemory:         originalMemory,
@@ -180,16 +181,12 @@ func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param GetPrice
 	return createdPriceInfo, nil
 }
 
-func (s *SpiderPriceCollector) generateFilterList(param GetPriceInfoParam) []spider.FilterReq {
+func (s *SpiderPriceCollector) generateFilterList(param UpdatePriceInfosParam) []spider.FilterReq {
 
 	providerName := strings.ToLower(param.ProviderName)
 	param.ProviderName = providerName
 
 	ret := []spider.FilterReq{
-		{
-			Key:   "instanceType",
-			Value: param.InstanceType,
-		},
 		{
 			Key:   "pricingPolicy",
 			Value: onDemandPricingPolicyMap[providerName],
@@ -198,6 +195,13 @@ func (s *SpiderPriceCollector) generateFilterList(param GetPriceInfoParam) []spi
 			Key:   "regionName",
 			Value: param.RegionName,
 		},
+	}
+
+	if param.InstanceType != "" {
+		ret = append(ret, spider.FilterReq{
+			Key:   "instanceType",
+			Value: param.InstanceType,
+		})
 	}
 
 	return ret
@@ -268,27 +272,26 @@ func (s *SpiderPriceCollector) parseCurrency(p string) constant.PriceCurrency {
 	return constant.USD
 }
 
-func (s *SpiderPriceCollector) calculatePrice(p string, unit constant.PriceUnit) string {
+func (s *SpiderPriceCollector) calculatePrice(p string, unit constant.PriceUnit) float64 {
 	if p == "" {
-		return "0.000000"
+		return 0.000000
 	}
 
 	value, err := strconv.ParseFloat(strings.TrimSpace(p), 64)
 	if err != nil {
-		return "0.000000"
+		return 0.000000
 	}
 
-	var monthlyCostStr string
+	var monthlyCost float64
 	if unit == constant.PerHour {
-
-		monthlyCost := value * 30 * 24
-		monthlyCostStr = fmt.Sprintf("%.6f", monthlyCost)
+		monthlyCost = value * 30 * 24
 	} else if unit == constant.PerYear {
-		monthlyCost := value
-		monthlyCostStr = fmt.Sprintf("%.6f", monthlyCost)
+		monthlyCost = value
 	}
 
-	return monthlyCostStr
+	roundedCost := math.Round(monthlyCost*1e6) / 1e6
+
+	return roundedCost
 }
 
 func (s *SpiderPriceCollector) naChecker(originalValue string) string {
