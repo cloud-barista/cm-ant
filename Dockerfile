@@ -24,7 +24,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH make build
 FROM ubuntu:22.04 as prod
 
 RUN apt update && \
-    apt install -y sudo curl
+    apt install -y sudo curl rsync
 
 # ANT ROOT PATH
 ENV ANT_ROOT_PATH=/app
