@@ -24,7 +24,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH make build
 FROM ubuntu:22.04 as prod
 
 RUN apt update && \
-    apt install -y sudo curl
+    apt install -y sudo curl rsync
 
 # ANT ROOT PATH
 ENV ANT_ROOT_PATH=/app
@@ -38,7 +38,7 @@ COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/script /app/script
 COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/meta /app/meta
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s \
-   CMD curl -f "http://cm-ant:8880/ant/api/v1/readyz" || exit 1   
+   CMD curl -f "http://localhost:8880/ant/api/v1/readyz" || exit 1   
 
 
 EXPOSE 8880
