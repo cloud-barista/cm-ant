@@ -3,6 +3,7 @@ package cost
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"gorm.io/gorm"
@@ -35,43 +36,40 @@ func (r *CostRepository) execInTransaction(ctx context.Context, fn func(*gorm.DB
 	return tx.Commit().Error
 }
 
-func (r *CostRepository) GetAllMatchingPriceInfoList(ctx context.Context, param GetPriceInfoParam) ([]PriceInfo, error) {
-	var priceInfoList []PriceInfo
+func (r *CostRepository) GetAllMatchingPriceInfoList(ctx context.Context, param GetPriceInfosParam) (PriceInfos, error) {
+	var priceInfoList []*PriceInfo
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		q := d.Model(&PriceInfo{}).
 			Where(
-				"provider_name = ? AND connection_name = ? AND region_name = ? AND instance_type = ? AND price_policy = ? AND updated_at >= ?",
-				param.ProviderName, param.ConnectionName, param.RegionName, param.InstanceType, param.PricePolicy, param.TimeStandard,
+				"price_policy = ? AND updated_at >= ?",
+				param.PricePolicy, param.TimeStandard,
 			).
-			Order("price asc")
+			Order("calculated_monthly_price asc").
+			Limit(8)
 
-		if param.ZoneName != "" {
-			q = q.Where("zone_name = ?", param.ZoneName)
+		if param.ProviderName != "" {
+			q = q.Where("LOWER(provider_name) = ?", strings.ToLower(param.ProviderName))
+		}
+
+		if param.RegionName != "" {
+			q = q.Where("LOWER(region_name) = ?", strings.ToLower(param.RegionName))
+		}
+
+		if param.InstanceType != "" {
+			q = q.Where("LOWER(instance_type) = ?", strings.ToLower(param.InstanceType))
 		}
 
 		if param.VCpu != "" {
-			q = q.Where("v_cpu = ?", param.VCpu)
+			q = q.Where("LOWER(v_cpu) = ?", strings.ToLower(param.VCpu))
 		}
 
 		if param.Memory != "" {
-			q = q.Where("memory = ?", param.Memory)
-		}
-
-		if param.Storage != "" {
-			q = q.Where("storage = ?", param.Storage)
+			q = q.Where("LOWER(memory) = ?", strings.ToLower(param.Memory))
 		}
 
 		if param.OsType != "" {
-			q = q.Where("os_type = ?", param.OsType)
-		}
-
-		if param.Unit != "" {
-			q = q.Where("unit = ?", param.Unit)
-		}
-
-		if param.Currency != "" {
-			q = q.Where("currency = ?", param.Currency)
+			q = q.Where("LOWER(os_type) = ?", strings.ToLower(param.OsType))
 		}
 
 		if err := q.Find(&priceInfoList).Error; err != nil {
@@ -82,58 +80,44 @@ func (r *CostRepository) GetAllMatchingPriceInfoList(ctx context.Context, param 
 	})
 
 	return priceInfoList, err
-
 }
 
-func (r *CostRepository) InsertAllResult(ctx context.Context, param GetPriceInfoParam, created []*PriceInfo) error {
+func (r *CostRepository) CountMatchingPriceInfoList(ctx context.Context, param UpdatePriceInfosParam) (int64, error) {
+	var totalCount int64
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		q := d.Model(&PriceInfo{}).
 			Where(
-				"provider_name = ? AND connection_name = ? AND region_name = ? AND instance_type = ? AND price_policy = ? AND updated_at < ?",
-				param.ProviderName, param.ConnectionName, param.RegionName, param.InstanceType, param.PricePolicy, param.TimeStandard,
+				"LOWER(provider_name) = ? AND LOWER(region_name) = ? AND price_policy = ? AND updated_at >= ?",
+				strings.ToLower(param.ProviderName), strings.ToLower(param.RegionName), param.PricePolicy, param.TimeStandard,
 			)
 
-		if param.ZoneName != "" {
-			q = q.Where("zone_name = ?", param.ZoneName)
+		if param.InstanceType != "" {
+			q = q.Where("LOWER(instance_type) = ?", strings.ToLower(param.InstanceType))
 		}
 
-		if param.VCpu != "" {
-			q = q.Where("v_cpu = ?", param.VCpu)
+		return q.Count(&totalCount).Error
+	})
+
+	return totalCount, err
+
+}
+
+func (r *CostRepository) BatchInsertAllResult(ctx context.Context, param UpdatePriceInfosParam, created PriceInfos) error {
+
+	batchSize := 100
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		for i := 0; i < len(created); i += batchSize {
+			end := i + batchSize
+			if end > len(created) {
+				end = len(created) // 데이터의 끝을 넘어가지 않도록 조정
+			}
+
+			batch := created[i:end]
+			if err := d.Create(&batch).Error; err != nil {
+				return err
+			}
 		}
-
-		if param.Memory != "" {
-			q = q.Where("memory = ?", param.Memory)
-		}
-
-		if param.Storage != "" {
-			q = q.Where("storage = ?", param.Storage)
-		}
-
-		if param.OsType != "" {
-			q = q.Where("os_type = ?", param.OsType)
-		}
-
-		if param.Unit != "" {
-			q = q.Where("unit = ?", param.Unit)
-		}
-
-		if param.Currency != "" {
-			q = q.Where("currency = ?", param.Currency)
-		}
-
-		err := q.Delete(&PriceInfo{}).Error
-
-		if err != nil {
-			return err
-		}
-
-		err = d.Create(created).Error
-
-		if err != nil {
-			return err
-		}
-
 		return nil
 	})
 

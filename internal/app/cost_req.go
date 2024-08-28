@@ -2,17 +2,19 @@ package app
 
 import "github.com/cloud-barista/cm-ant/internal/core/common/constant"
 
-type GetPriceInfoReq struct {
-	ProviderName   string `query:"providerName" validate:"required"`
-	ConnectionName string `query:"connectionName" validate:"required"`
-	RegionName     string `query:"regionName" validate:"required"`
-	InstanceType   string `query:"instanceType" validate:"required"`
+type UpdatePriceInfosReq struct {
+	ProviderName string `json:"providerName" validate:"required"`
+	RegionName   string `json:"regionName" validate:"required"`
+	InstanceType string `json:"instanceType" validate:"required"`
+}
 
-	ZoneName string `query:"zoneName,omitempty"`
-	VCpu     string `query:"vCpu,omitempty"`
-	Memory   string `query:"memory,omitempty"`
-	Storage  string `query:"storage,omitempty"`
-	OsType   string `query:"osType,omitempty"`
+type GetPriceInfosReq struct {
+	ProviderName string `query:"providerName" validate:"required"`
+	RegionName   string `query:"regionName" validate:"required"`
+	InstanceType string `query:"instanceType"`
+	VCpu         string `query:"vCpu"`
+	Memory       string `query:"memory"`
+	OsType       string `query:"osType"`
 }
 
 type UpdateCostInfoReq struct {

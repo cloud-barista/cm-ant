@@ -52,17 +52,6 @@ definitions:
       successMessage:
         type: string
     type: object
-  app.AntResponse-cost_AllPriceInfoResult:
-    properties:
-      code:
-        type: integer
-      errorMessage:
-        type: string
-      result:
-        $ref: '#/definitions/cost.AllPriceInfoResult'
-      successMessage:
-        type: string
-    type: object
   app.AntResponse-cost_UpdateCostInfoResult:
     properties:
       code:
@@ -285,6 +274,19 @@ definitions:
     - connectionName
     - costResources
     type: object
+  app.UpdatePriceInfosReq:
+    properties:
+      instanceType:
+        type: string
+      providerName:
+        type: string
+      regionName:
+        type: string
+    required:
+    - instanceType
+    - providerName
+    - regionName
+    type: object
   constant.ExecutionStatus:
     enum:
     - on_preparing
@@ -319,28 +321,6 @@ definitions:
     x-enum-varnames:
     - Local
     - Remote
-  constant.PriceCurrency:
-    enum:
-    - USD
-    - KRW
-    type: string
-    x-enum-varnames:
-    - USD
-    - KRW
-  constant.PricePolicy:
-    enum:
-    - OnDemand
-    type: string
-    x-enum-varnames:
-    - OnDemand
-  constant.PriceUnit:
-    enum:
-    - PerHour
-    - PerYear
-    type: string
-    x-enum-varnames:
-    - PerHour
-    - PerYear
   constant.ResourceType:
     enum:
     - VM
@@ -353,17 +333,6 @@ definitions:
     - VNet
     - DataDisk
     - Etc
-  cost.AllPriceInfoResult:
-    properties:
-      infoSource:
-        type: string
-      priceInfoList:
-        items:
-          $ref: '#/definitions/cost.PriceInfoResult'
-        type: array
-      resultCount:
-        type: integer
-    type: object
   cost.GetCostInfoResult:
     properties:
       category:
@@ -379,45 +348,6 @@ definitions:
       totalCost:
         type: number
       unit:
-        type: string
-    type: object
-  cost.PriceInfoResult:
-    properties:
-      calculatedMonthlyPrice:
-        type: string
-      connectionName:
-        type: string
-      currency:
-        $ref: '#/definitions/constant.PriceCurrency'
-      id:
-        type: integer
-      instanceType:
-        type: string
-      lastUpdatedAt:
-        type: string
-      memory:
-        type: string
-      osType:
-        type: string
-      price:
-        type: string
-      priceDescription:
-        type: string
-      pricePolicy:
-        $ref: '#/definitions/constant.PricePolicy'
-      productDescription:
-        type: string
-      providerName:
-        type: string
-      regionName:
-        type: string
-      storage:
-        type: string
-      unit:
-        $ref: '#/definitions/constant.PriceUnit'
-      vCpu:
-        type: string
-      zoneName:
         type: string
     type: object
   cost.UpdateCostInfoResult:
@@ -1325,44 +1255,32 @@ paths:
       consumes:
       - application/json
       description: Retrieve pricing information for cloud resources based on specified
-        parameters.
-      operationId: GetPriceInfo
+        query parameters. Returns price data based on provider, region, instance type,
+        vCPU, memory, and OS type. It offer instances with the lowest monthly prices
+        what in the database.
+      operationId: GetPriceInfos
       parameters:
-      - description: Name of the region
-        in: query
-        name: regionName
-        required: true
-        type: string
-      - description: Name of the connection
-        in: query
-        name: connectionName
-        required: true
-        type: string
-      - description: Name of the cloud provider
+      - description: Cloud provider name - aws|alibaba|tencent|gcp|azure|ibm
         in: query
         name: providerName
         required: true
         type: string
-      - description: Type of the instance
+      - description: Region name
         in: query
-        name: instanceType
+        name: regionName
         required: true
         type: string
-      - description: Name of the zone
+      - description: Instance type
         in: query
-        name: zoneName
+        name: instanceType
         type: string
-      - description: Number of virtual CPUs
+      - description: Number of vCPUs
         in: query
         name: vCpu
         type: string
-      - description: Amount of memory. Don't need to pass unit like 'gb'
+      - description: Amount of memory
         in: query
         name: memory
-        type: string
-      - description: Amount of storage
-        in: query
-        name: storage
         type: string
       - description: Operating system type
         in: query
@@ -1374,7 +1292,7 @@ paths:
         "200":
           description: Successfully retrieved pricing information
           schema:
-            $ref: '#/definitions/app.AntResponse-cost_AllPriceInfoResult'
+            $ref: '#/definitions/app.AntResponse-string'
         "400":
           description: Invalid request parameters
           schema:
@@ -1384,6 +1302,37 @@ paths:
           schema:
             $ref: '#/definitions/app.AntResponse-string'
       summary: Get Price Information
+      tags:
+      - Price Management
+    post:
+      consumes:
+      - application/json
+      description: Retrieve pricing information for cloud resources based on specified
+        parameters. If saved data is more than 7 days, fetch new data and insert new
+        price data even if same price as before.
+      operationId: UpdatePriceInfos
+      parameters:
+      - description: Request body containing get price information
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.UpdatePriceInfosReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved pricing information
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve pricing information
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
       tags:
       - '[Price Management]'
 swagger: "2.0"

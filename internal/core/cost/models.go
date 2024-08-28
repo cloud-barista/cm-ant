@@ -7,28 +7,29 @@ import (
 	"gorm.io/gorm"
 )
 
+type PriceInfos []*PriceInfo
+
 type PriceInfo struct {
 	gorm.Model
-	ProviderName       string
-	ConnectionName     string
-	RegionName         string
-	InstanceType       string
-	ZoneName           string
-	VCpu               string
-	Memory             string
-	MemoryUnit         constant.MemoryUnit
-	OriginalMemory     string
-	Storage            string
-	OsType             string
-	ProductDescription string
-
+	ProviderName           string `gorm:"index"`
+	RegionName             string `gorm:"index"`
+	InstanceType           string `gorm:"index"`
+	ZoneName               string
+	VCpu                   string `gorm:"index"`
+	Memory                 string `gorm:"index"`
+	MemoryUnit             constant.MemoryUnit
+	OriginalMemory         string
+	Storage                string
+	OsType                 string `gorm:"index"`
+	ProductDescription     string
+	OriginalPricePolicy    string
 	PricePolicy            constant.PricePolicy
 	Price                  string
 	Currency               constant.PriceCurrency
 	Unit                   constant.PriceUnit
 	OriginalUnit           string
 	OriginalCurrency       string
-	CalculatedMonthlyPrice string
+	CalculatedMonthlyPrice float64 `gorm:"index"`
 	PriceDescription       string
 }
 
