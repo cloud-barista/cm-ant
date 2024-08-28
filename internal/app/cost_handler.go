@@ -140,7 +140,7 @@ func (server *AntServer) updateCostInfos(c echo.Context) error {
 		StartDate:      startDate,
 		EndDate:        endDate,
 		CostResources:  costResources,
-		ConnectionName: "aws-us-east-1",
+		ConnectionName: req.ConnectionName,
 		AwsAdditionalInfo: cost.AwsAdditionalInfoParam{
 			OwnerId: req.AwsAdditionalInfo.OwnerId,
 			Regions: req.AwsAdditionalInfo.Regions,

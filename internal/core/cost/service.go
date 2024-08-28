@@ -137,6 +137,7 @@ func (c *CostService) UpdateCostInfo(param UpdateCostInfoParam) (UpdateCostInfoR
 		updatedCount += u
 		insertedCount += i
 	}
+	utils.LogInfof("updated count: %d; inserted count : %d", updatedCount, insertedCount)
 
 	updateCostInfoResult.UpdatedDataCount = updatedCount
 	updateCostInfoResult.InsertedDataCount = insertedCount
