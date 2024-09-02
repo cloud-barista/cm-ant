@@ -91,7 +91,8 @@ func initializeServices(repos *antRepositories, tbClient *tumblebug.TumblebugCli
 	loadServ := load.NewLoadService(repos.loadRepo, tbClient)
 
 	cc := cost.NewAwsCostExplorerSpiderCostCollector(sClient)
-	costServ := cost.NewCostService(repos.costRepo, sClient, cc)
+	pc := cost.NewSpiderPriceCollector(sClient)
+	costServ := cost.NewCostService(repos.costRepo, pc, cc)
 
 	return &antServices{
 		loadService: loadServ,

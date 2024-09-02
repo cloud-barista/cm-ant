@@ -889,7 +889,7 @@ const docTemplate = `{
         },
         "/api/v1/price/info": {
             "get": {
-                "description": "Retrieve pricing information for cloud resources based on specified parameters.",
+                "description": "Retrieve pricing information for cloud resources based on specified query parameters. Returns price data based on provider, region, instance type, vCPU, memory, and OS type. It offer instances with the lowest monthly prices what in the database.",
                 "consumes": [
                     "application/json"
                 ],
@@ -897,61 +897,41 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Price Management]"
+                    "Price Management"
                 ],
                 "summary": "Get Price Information",
-                "operationId": "GetPriceInfo",
+                "operationId": "GetPriceInfos",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Name of the region",
-                        "name": "regionName",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Name of the connection",
-                        "name": "connectionName",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Name of the cloud provider",
+                        "description": "Cloud provider name - aws|alibaba|tencent|gcp|azure|ibm",
                         "name": "providerName",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Type of the instance",
-                        "name": "instanceType",
+                        "description": "Region name",
+                        "name": "regionName",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Name of the zone",
-                        "name": "zoneName",
+                        "description": "Instance type",
+                        "name": "instanceType",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Number of virtual CPUs",
+                        "description": "Number of vCPUs",
                         "name": "vCpu",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Amount of memory. Don't need to pass unit like 'gb'",
+                        "description": "Amount of memory",
                         "name": "memory",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Amount of storage",
-                        "name": "storage",
                         "in": "query"
                     },
                     {
@@ -965,7 +945,51 @@ const docTemplate = `{
                     "200": {
                         "description": "Successfully retrieved pricing information",
                         "schema": {
-                            "$ref": "#/definitions/app.AntResponse-cost_AllPriceInfoResult"
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve pricing information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Retrieve pricing information for cloud resources based on specified parameters. If saved data is more than 7 days, fetch new data and insert new price data even if same price as before.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Price Management]"
+                ],
+                "operationId": "UpdatePriceInfos",
+                "parameters": [
+                    {
+                        "description": "Request body containing get price information",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.UpdatePriceInfosReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved pricing information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
                         }
                     },
                     "400": {
@@ -1059,23 +1083,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/load.ResultSummary"
                     }
-                },
-                "successMessage": {
-                    "type": "string"
-                }
-            }
-        },
-        "app.AntResponse-cost_AllPriceInfoResult": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "integer"
-                },
-                "errorMessage": {
-                    "type": "string"
-                },
-                "result": {
-                    "$ref": "#/definitions/cost.AllPriceInfoResult"
                 },
                 "successMessage": {
                     "type": "string"
@@ -1424,6 +1431,25 @@ const docTemplate = `{
                 }
             }
         },
+        "app.UpdatePriceInfosReq": {
+            "type": "object",
+            "required": [
+                "instanceType",
+                "providerName",
+                "regionName"
+            ],
+            "properties": {
+                "instanceType": {
+                    "type": "string"
+                },
+                "providerName": {
+                    "type": "string"
+                },
+                "regionName": {
+                    "type": "string"
+                }
+            }
+        },
         "constant.ExecutionStatus": {
             "type": "string",
             "enum": [
@@ -1464,37 +1490,6 @@ const docTemplate = `{
                 "Remote"
             ]
         },
-        "constant.PriceCurrency": {
-            "type": "string",
-            "enum": [
-                "USD",
-                "KRW"
-            ],
-            "x-enum-varnames": [
-                "USD",
-                "KRW"
-            ]
-        },
-        "constant.PricePolicy": {
-            "type": "string",
-            "enum": [
-                "OnDemand"
-            ],
-            "x-enum-varnames": [
-                "OnDemand"
-            ]
-        },
-        "constant.PriceUnit": {
-            "type": "string",
-            "enum": [
-                "PerHour",
-                "PerYear"
-            ],
-            "x-enum-varnames": [
-                "PerHour",
-                "PerYear"
-            ]
-        },
         "constant.ResourceType": {
             "type": "string",
             "enum": [
@@ -1509,23 +1504,6 @@ const docTemplate = `{
                 "DataDisk",
                 "Etc"
             ]
-        },
-        "cost.AllPriceInfoResult": {
-            "type": "object",
-            "properties": {
-                "infoSource": {
-                    "type": "string"
-                },
-                "priceInfoList": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/cost.PriceInfoResult"
-                    }
-                },
-                "resultCount": {
-                    "type": "integer"
-                }
-            }
         },
         "cost.GetCostInfoResult": {
             "type": "object",
@@ -1549,65 +1527,6 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "unit": {
-                    "type": "string"
-                }
-            }
-        },
-        "cost.PriceInfoResult": {
-            "type": "object",
-            "properties": {
-                "calculatedMonthlyPrice": {
-                    "type": "string"
-                },
-                "connectionName": {
-                    "type": "string"
-                },
-                "currency": {
-                    "$ref": "#/definitions/constant.PriceCurrency"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "instanceType": {
-                    "type": "string"
-                },
-                "lastUpdatedAt": {
-                    "type": "string"
-                },
-                "memory": {
-                    "type": "string"
-                },
-                "osType": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "string"
-                },
-                "priceDescription": {
-                    "type": "string"
-                },
-                "pricePolicy": {
-                    "$ref": "#/definitions/constant.PricePolicy"
-                },
-                "productDescription": {
-                    "type": "string"
-                },
-                "providerName": {
-                    "type": "string"
-                },
-                "regionName": {
-                    "type": "string"
-                },
-                "storage": {
-                    "type": "string"
-                },
-                "unit": {
-                    "$ref": "#/definitions/constant.PriceUnit"
-                },
-                "vCpu": {
-                    "type": "string"
-                },
-                "zoneName": {
                     "type": "string"
                 }
             }
