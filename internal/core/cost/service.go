@@ -25,6 +25,33 @@ func NewCostService(costRepo *CostRepository, priceCollector PriceCollector, cos
 	}
 }
 
+func (c *CostService) Readyz() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	sqlDB, err := c.costRepo.db.DB()
+	if err != nil {
+		return err
+	}
+
+	err = sqlDB.Ping()
+	if err != nil {
+		return err
+	}
+
+	err = c.costCollector.Readyz(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = c.priceCollector.Readyz(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *CostService) UpdatePriceInfos(param UpdatePriceInfosParam) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()

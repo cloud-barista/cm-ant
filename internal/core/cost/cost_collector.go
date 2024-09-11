@@ -15,6 +15,7 @@ import (
 )
 
 type CostCollector interface {
+	Readyz(context.Context) error
 	GetCostInfos(context.Context, UpdateCostInfoParam) (CostInfos, error)
 }
 
@@ -26,6 +27,15 @@ func NewAwsCostExplorerSpiderCostCollector(sc *spider.SpiderClient) CostCollecto
 	return &AwsCostExplorerSpiderCostCollector{
 		sc: sc,
 	}
+}
+
+func (a *AwsCostExplorerSpiderCostCollector) Readyz(ctx context.Context) error {
+	err := a.sc.ReadyzWithContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 var (

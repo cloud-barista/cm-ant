@@ -75,7 +75,7 @@ func (t *TumblebugClient) requestWithContext(ctx context.Context, method, url st
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		rb, _ := io.ReadAll(resp.Body)
 		log.Printf("[ERROR] Unexpected status code: %d, response: %s", resp.StatusCode, string(rb))
 
@@ -102,4 +102,17 @@ func (t *TumblebugClient) requestWithContext(ctx context.Context, method, url st
 
 func (t *TumblebugClient) requestWithBaseAuthWithContext(ctx context.Context, method, url string, body []byte) ([]byte, error) {
 	return t.requestWithContext(ctx, method, url, body, map[string]string{"Authorization": t.authHeader})
+}
+
+func (t *TumblebugClient) ReadyzWithContext(ctx context.Context) error {
+
+	url := t.withUrl("/readyz")
+	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
+
+	if err != nil {
+		utils.LogError("error sending tumblebug readyz request:", err)
+		return err
+	}
+
+	return nil
 }

@@ -7,3 +7,4 @@ ant
 data
 conf
 container-volume
+./bin/**

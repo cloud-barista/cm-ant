@@ -35,6 +35,28 @@ func NewLoadService(loadRepo *LoadRepository, client *tumblebug.TumblebugClient)
 	}
 }
 
+func (l *LoadService) Readyz() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	sqlDB, err := l.loadRepo.db.DB()
+	if err != nil {
+		return err
+	}
+
+	err = sqlDB.Ping()
+	if err != nil {
+		return err
+	}
+
+	err = l.tumblebugClient.ReadyzWithContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // InstallMonitoringAgent installs a monitoring agent on specified VMs or all VM on mci.
 func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationParams) ([]MonitoringAgentInstallationResult, error) {
 	utils.LogInfo("Starting installation of monitoring agent...")
