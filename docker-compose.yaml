@@ -24,9 +24,9 @@ services:
       - ANT_TUMBLEBUG_PORT=1323
       - ANT_DATABASE_HOST=ant-postgres
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8880/ant/api/v1/readyz" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8880/ant/readyz" ]
       interval: 1m
-      timeout: 5s
+      timeout: 7s
       retries: 5
       start_period: 10s
     restart: unless-stopped
@@ -50,7 +50,7 @@ services:
     restart: unless-stopped
 
   cb-tumblebug:
-    image: cloudbaristaorg/cb-tumblebug:0.9.7
+    image: cloudbaristaorg/cb-tumblebug:0.9.11
     container_name: cb-tumblebug
     platform: linux/amd64
     ports:
@@ -100,8 +100,6 @@ services:
       retries: 3
       start_period: 10s
     restart: unless-stopped
-
-
   cb-tumblebug-etcd:
     image: gcr.io/etcd-development/etcd:v3.5.14
     container_name: cb-tumblebug-etcd
@@ -140,8 +138,8 @@ services:
       - stderr
       - --auth-token
       - simple
-    healthcheck: # for etcd
-      test: [ "CMD", "/usr/local/bin/etcd", "--version"]
+    healthcheck:
+      test: [  "CMD", "/usr/local/bin/etcd", "--version"]
       interval: 1m
       timeout: 5s
       retries: 3
@@ -149,7 +147,7 @@ services:
     restart: unless-stopped
 
   cb-spider:
-    image: cloudbaristaorg/cb-spider:0.9.0
+    image: cloudbaristaorg/cb-spider:0.9.4
     container_name: cb-spider 
     platform: linux/amd64
     networks:

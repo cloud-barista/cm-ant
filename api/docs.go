@@ -1006,6 +1006,42 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/readyz": {
+            "get": {
+                "description": "This endpoint checks if the CB-Ant API server is ready by verifying the status of both the load service and the cost service. If either service is unavailable, it returns a 503 status indicating the server is not ready.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Server Health]"
+                ],
+                "summary": "Check CB-Ant API server readiness",
+                "operationId": "AntServerReadiness",
+                "responses": {
+                    "200": {
+                        "description": "CM-Ant API server is ready",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "CB-Ant API server is not ready",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {

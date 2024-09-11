@@ -54,12 +54,12 @@ func NewSpiderClient(client *http.Client) *SpiderClient {
 	}
 }
 
-func (t *SpiderClient) withUrl(endpoint string) string {
+func (s *SpiderClient) withUrl(endpoint string) string {
 	trimmedEndpoint := strings.TrimPrefix(endpoint, "/")
-	return fmt.Sprintf("%s/spider/%s", t.domain, trimmedEndpoint)
+	return fmt.Sprintf("%s/spider/%s", s.domain, trimmedEndpoint)
 }
 
-func (t *SpiderClient) requestWithContext(ctx context.Context, method, url string, body []byte, header map[string]string) ([]byte, error) {
+func (s *SpiderClient) requestWithContext(ctx context.Context, method, url string, body []byte, header map[string]string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
 	if err != nil {
 		utils.LogErrorf("Failed to create request with context: %v", err)
@@ -72,14 +72,14 @@ func (t *SpiderClient) requestWithContext(ctx context.Context, method, url strin
 	}
 
 	utils.LogInfof("Sending request to client with endpoint [%s - %s]\n", method, url)
-	resp, err := t.client.Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		utils.LogErrorf("Failed to send request: %v", err)
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		rb, _ := io.ReadAll(resp.Body)
 		utils.LogErrorf("Unexpected status code: %d, response: %s", resp.StatusCode, string(rb))
 
@@ -104,6 +104,19 @@ func (t *SpiderClient) requestWithContext(ctx context.Context, method, url strin
 	return rb, nil
 }
 
-func (t *SpiderClient) requestWithBaseAuthWithContext(ctx context.Context, method, url string, body []byte) ([]byte, error) {
-	return t.requestWithContext(ctx, method, url, body, map[string]string{"Authorization": t.authHeader})
+func (s *SpiderClient) requestWithBaseAuthWithContext(ctx context.Context, method, url string, body []byte) ([]byte, error) {
+	return s.requestWithContext(ctx, method, url, body, map[string]string{"Authorization": s.authHeader})
+}
+
+func (s *SpiderClient) ReadyzWithContext(ctx context.Context) error {
+
+	url := s.withUrl("/readyz")
+	_, err := s.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
+
+	if err != nil {
+		utils.LogError("error sending tumblebug readyz request:", err)
+		return err
+	}
+
+	return nil
 }

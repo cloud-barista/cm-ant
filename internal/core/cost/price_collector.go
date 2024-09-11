@@ -15,6 +15,7 @@ import (
 )
 
 type PriceCollector interface {
+	Readyz(context.Context) error
 	GetPriceInfos(context.Context, UpdatePriceInfosParam) (PriceInfos, error)
 }
 
@@ -65,6 +66,15 @@ func NewSpiderPriceCollector(sc *spider.SpiderClient) PriceCollector {
 	return &SpiderPriceCollector{
 		sc: sc,
 	}
+}
+
+func (s *SpiderPriceCollector) Readyz(ctx context.Context) error {
+	err := s.sc.ReadyzWithContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param UpdatePriceInfosParam) (PriceInfos, error) {
