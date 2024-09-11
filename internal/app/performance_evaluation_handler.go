@@ -16,11 +16,6 @@ const (
 	seoul = "37.53/127.02"
 )
 
-func (s *AntServer) readyz(c echo.Context) error {
-	return c.JSON(http.StatusOK, map[string]string{
-		"message": "CM-Ant API server is running",
-	})
-}
 
 // getAllLoadGeneratorInstallInfo handler function that retrieves all load generator installation information.
 // @Id GetAllLoadGeneratorInstallInfo

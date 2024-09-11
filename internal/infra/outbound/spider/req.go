@@ -11,7 +11,7 @@ type FilterReq struct {
 }
 
 type AnycallReq struct {
-	ConnectionName string `json:"ConnectionName"`
+	ConnectionName string  `json:"ConnectionName"`
 	ReqInfo        ReqInfo `json:"ReqInfo"`
 }
 type ReqInfo struct {

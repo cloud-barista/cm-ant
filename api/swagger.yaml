@@ -1335,4 +1335,30 @@ paths:
             $ref: '#/definitions/app.AntResponse-string'
       tags:
       - '[Price Management]'
+  /readyz:
+    get:
+      consumes:
+      - application/json
+      description: This endpoint checks if the CB-Ant API server is ready by verifying
+        the status of both the load service and the cost service. If either service
+        is unavailable, it returns a 503 status indicating the server is not ready.
+      operationId: AntServerReadiness
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: CM-Ant API server is ready
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: CB-Ant API server is not ready
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Check CB-Ant API server readiness
+      tags:
+      - '[Server Health]'
 swagger: "2.0"
