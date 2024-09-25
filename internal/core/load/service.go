@@ -272,6 +272,7 @@ const (
 	antNsId            = "ant-default-ns"
 	antMciDescription  = "Default MCI for Cloud Migration Verification"
 	antInstallMonAgent = "no"
+	antLabelKey        = "ant-default-label"
 	antMciLabel        = "DynamicMci,AntDefault"
 	antMciId           = "ant-default-mci"
 
@@ -429,7 +430,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 				VmId:            vm.CspViewVMDetail.IID.SystemID,
 				StartTime:       vm.CspViewVMDetail.StartTime,
 				AdditionalVmKey: vm.ID,
-				Label:           vm.Label,
+				Label:           vm.Label[""],
 				IsCluster:       false,
 				IsMaster:        i == 0,
 				ClusterSize:     uint64(len(antMci.VMs)),
@@ -553,7 +554,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 			dynamicMciArg := tumblebug.DynamicMciReq{
 				Description:     antMciDescription,
 				InstallMonAgent: antInstallMonAgent,
-				Label:           map[string]string{"label": "DynamicMci,AntDefault"},
+				Label:           map[string]string{antLabelKey: antMciLabel},
 				Name:            antMciId,
 				SystemLabel:     "",
 				VM: []tumblebug.DynamicVmReq{
@@ -562,7 +563,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 						CommonSpec:     antVmCommonSpec,
 						ConnectionName: antVmConnectionName,
 						Description:    antVmDescription,
-						Label:          antVmLabel,
+						Label:          map[string]string{antLabelKey: antVmLabel},
 						Name:           antVmName,
 						RootDiskSize:   antVmRootDiskSize,
 						RootDiskType:   antVmRootDiskType,
@@ -586,7 +587,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 			CommonSpec:     antVmCommonSpec,
 			ConnectionName: antVmConnectionName,
 			Description:    antVmDescription,
-			Label:          antVmLabel,
+			Label:          map[string]string{antLabelKey: antVmLabel},
 			Name:           antVmName,
 			RootDiskSize:   antVmRootDiskSize,
 			RootDiskType:   antVmRootDiskType,
