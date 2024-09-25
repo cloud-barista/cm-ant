@@ -430,7 +430,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 				VmId:            vm.CspViewVMDetail.IID.SystemID,
 				StartTime:       vm.CspViewVMDetail.StartTime,
 				AdditionalVmKey: vm.ID,
-				Label:           vm.Label[""],
+				Label:           "temp-label",
 				IsCluster:       false,
 				IsMaster:        i == 0,
 				ClusterSize:     uint64(len(antMci.VMs)),
