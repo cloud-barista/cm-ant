@@ -5,21 +5,21 @@ import (
 )
 
 type MciRes struct {
-	ID                            string         `json:"id,omitempty"`
-	Name                          string         `json:"name,omitempty"`
-	Status                        string         `json:"status,omitempty"`
-	StatusCount                   StatusCountRes `json:"statusCount,omitempty"`
-	TargetStatus                  string         `json:"targetStatus,omitempty"`
-	TargetAction                  string         `json:"targetAction,omitempty"`
-	InstallMonAgent               string         `json:"installMonAgent,omitempty"`
-	ConfigureCloudAdaptiveNetwork string         `json:"configureCloudAdaptiveNetwork,omitempty"`
-	Label                         string         `json:"label,omitempty"`
-	SystemLabel                   string         `json:"systemLabel,omitempty"`
-	SystemMessage                 string         `json:"systemMessage,omitempty"`
-	Description                   string         `json:"description,omitempty"`
-	VMs                           []VmRes        `json:"vm,omitempty"`
-	NewVMList                     []string       `json:"newVmList,omitempty"`
-	PlacementAlgo                 string         `json:"placementAlgo"`
+	ID                            string            `json:"id,omitempty"`
+	Name                          string            `json:"name,omitempty"`
+	Status                        string            `json:"status,omitempty"`
+	StatusCount                   StatusCountRes    `json:"statusCount,omitempty"`
+	TargetStatus                  string            `json:"targetStatus,omitempty"`
+	TargetAction                  string            `json:"targetAction,omitempty"`
+	InstallMonAgent               string            `json:"installMonAgent,omitempty"`
+	ConfigureCloudAdaptiveNetwork string            `json:"configureCloudAdaptiveNetwork,omitempty"`
+	Label                         map[string]string `json:"label,omitempty"`
+	SystemLabel                   string            `json:"systemLabel,omitempty"`
+	SystemMessage                 string            `json:"systemMessage,omitempty"`
+	Description                   string            `json:"description,omitempty"`
+	VMs                           []VmRes           `json:"vm,omitempty"`
+	NewVMList                     []string          `json:"newVmList,omitempty"`
+	PlacementAlgo                 string            `json:"placementAlgo"`
 }
 
 type StatusCountRes struct {
@@ -106,7 +106,7 @@ type VmRes struct {
 	NetworkAgentStatus string              `json:"networkAgentStatus,omitempty"`
 	SystemMessage      string              `json:"systemMessage,omitempty"`
 	CreatedTime        string              `json:"createdTime,omitempty"`
-	Label              string              `json:"label,omitempty"`
+	Label              map[string]string   `json:"label,omitempty"`
 	Description        string              `json:"description,omitempty"`
 	Region             RegionRes           `json:"region,omitempty"`
 	PublicIP           string              `json:"publicIP,omitempty"`
