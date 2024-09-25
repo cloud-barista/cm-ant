@@ -142,10 +142,10 @@ type DynamicVmReq struct {
 }
 
 type DynamicMciReq struct {
-	Description     string         `json:"description"`
-	InstallMonAgent string         `json:"installMonAgent"`
-	Label           string         `json:"label"`
-	Name            string         `json:"name"`
-	SystemLabel     string         `json:"systemLabel"`
-	VM              []DynamicVmReq `json:"vm"`
+	Description     string            `json:"description"`
+	InstallMonAgent string            `json:"installMonAgent"`
+	Label           map[string]string `json:"label"`
+	Name            string            `json:"name"`
+	SystemLabel     string            `json:"systemLabel"`
+	VM              []DynamicVmReq    `json:"vm"`
 }

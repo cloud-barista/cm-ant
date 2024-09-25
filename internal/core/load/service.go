@@ -553,7 +553,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 			dynamicMciArg := tumblebug.DynamicMciReq{
 				Description:     antMciDescription,
 				InstallMonAgent: antInstallMonAgent,
-				Label:           antMciLabel,
+				Label:           map[string]string{"label": "DynamicMci,AntDefault"},
 				Name:            antMciId,
 				SystemLabel:     "",
 				VM: []tumblebug.DynamicVmReq{
