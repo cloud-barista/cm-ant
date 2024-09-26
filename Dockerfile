@@ -4,7 +4,7 @@ FROM golang:1.23.0-bookworm AS builder
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 
-RUN apt-get update && \
+RUN apt-get update -y && \
     apt-get install -y --no-install-recommends make rsync && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -35,7 +35,6 @@ COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/ant /app/ant
 COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/config.yaml /app/config.yaml
 COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/test_plan /app/test_plan
 COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/script /app/script
-COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/meta /app/meta
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s \
    CMD curl -f "http://localhost:8880/ant/api/v1/readyz" || exit 1   
