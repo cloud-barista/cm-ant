@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # Check if rsync is already installed
 if command -v rsync &>/dev/null; then
     echo "rsync is already installed."

@@ -35,16 +35,20 @@ fi
 
 
 echo "[CM-ANT] [Step 1/6] Installing default required tools..."
-sudo apt-get update -y | sudo apt-get install -y wget openjdk-17-jre
+
+sudo add-apt-repository universe multiverse -y
+sudo apt-get update -y
+sudo apt-get install -y wget openjdk-17-jre
+
+sleep 1s
+
+echo
+echo
 
 unzip_jmeter() {
   sudo tar -xf "${JMETER_FULL_PATH}.tgz" -C "${JMETER_WORK_DIR}" && sudo rm "${JMETER_FULL_PATH}.tgz"
   sudo rm -rf "${JMETER_FULL_PATH}/docs" "${JMETER_FULL_PATH}/printable_docs"
 }
-
-echo
-echo
-
 
 echo "[CM-ANT] [Step 2/6] Downloading and Extracting Apache JMeter..."
 if [ -d "${JMETER_FULL_PATH}" ]; then
