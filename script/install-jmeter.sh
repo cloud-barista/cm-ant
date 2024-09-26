@@ -36,7 +36,7 @@ fi
 
 echo "[CM-ANT] [Step 1/6] Installing default required tools..."
 
-sudo add-apt-repository universe multiverse -y
+sudo add-apt-repository universe -y
 sudo apt-get update -y
 sudo apt-get install -y wget openjdk-17-jre
 
