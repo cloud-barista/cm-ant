@@ -129,23 +129,23 @@ type CreateNsReq struct {
 }
 
 type DynamicVmReq struct {
-	CommonImage    string `json:"commonImage"`
-	CommonSpec     string `json:"commonSpec"`
-	ConnectionName string `json:"connectionName"`
-	Description    string `json:"description"`
-	Label          string `json:"label"`
-	Name           string `json:"name"`
-	RootDiskSize   string `json:"rootDiskSize"`
-	RootDiskType   string `json:"rootDiskType"`
-	SubGroupSize   string `json:"subGroupSize"`
-	VMUserPassword string `json:"vmUserPassword"`
+	CommonImage    string            `json:"commonImage"`
+	CommonSpec     string            `json:"commonSpec"`
+	ConnectionName string            `json:"connectionName"`
+	Description    string            `json:"description"`
+	Label          map[string]string `json:"label"`
+	Name           string            `json:"name"`
+	RootDiskSize   string            `json:"rootDiskSize"`
+	RootDiskType   string            `json:"rootDiskType"`
+	SubGroupSize   string            `json:"subGroupSize"`
+	VMUserPassword string            `json:"vmUserPassword"`
 }
 
 type DynamicMciReq struct {
-	Description     string         `json:"description"`
-	InstallMonAgent string         `json:"installMonAgent"`
-	Label           string         `json:"label"`
-	Name            string         `json:"name"`
-	SystemLabel     string         `json:"systemLabel"`
-	VM              []DynamicVmReq `json:"vm"`
+	Description     string            `json:"description"`
+	InstallMonAgent string            `json:"installMonAgent"`
+	Label           map[string]string `json:"label"`
+	Name            string            `json:"name"`
+	SystemLabel     string            `json:"systemLabel"`
+	VM              []DynamicVmReq    `json:"vm"`
 }

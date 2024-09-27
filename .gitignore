@@ -8,3 +8,5 @@ data
 conf
 container-volume
 ./bin/**
+
+config.yaml
