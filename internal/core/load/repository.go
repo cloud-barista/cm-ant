@@ -138,25 +138,35 @@ func (r *LoadRepository) GetAllMonitoringAgentInfosTx(ctx context.Context, param
 	return monitoringAgentInfos, err
 }
 
-func (r *LoadRepository) InsertLoadGeneratorInstallInfoTx(ctx context.Context, param *LoadGeneratorInstallInfo) error {
+func (r *LoadRepository) GetOrInsertLoadGeneratorInstallInfoTx(ctx context.Context, param *LoadGeneratorInstallInfo) error {
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
-		err := d.
-			Where(
-				"install_location = ? AND install_type = ? AND install_path = ? AND install_version = ? AND status = ?",
-				param.InstallLocation, param.InstallType, param.InstallPath, param.InstallVersion, "installed",
-			).
-			// Omit("LoadGeneratorServers").
-			FirstOrCreate(param).Error
+		var existing LoadGeneratorInstallInfo
 
-		if err != nil {
+		err := d.
+			Preload("LoadGeneratorServers").
+			Where("install_location = ? AND status = ?", param.InstallLocation, "installed").
+			First(&existing).
+			Error
+
+		if err == gorm.ErrRecordNotFound {
+			err = d.Create(param).Error
+			if err != nil {
+				return err
+			}
+		} else if err != nil {
 			return err
+		} else {
+			*param = existing
 		}
 
 		return nil
 	})
 
-	return err
+	if err != nil {
+		return err
+	}
 
+	return nil
 }
 
 func (r *LoadRepository) UpdateLoadGeneratorInstallInfoTx(ctx context.Context, param *LoadGeneratorInstallInfo) error {
