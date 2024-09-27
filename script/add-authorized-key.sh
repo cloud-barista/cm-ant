@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 PUBLIC_KEY=""
 AUTHORIZED_KEYS_FILE="$HOME/.ssh/authorized_keys"
 SSH_DIR="$HOME/.ssh"

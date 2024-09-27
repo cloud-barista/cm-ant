@@ -19,7 +19,7 @@ import (
 // @basePath /ant
 func main() {
 
-	err := utils.Script(utils.JoinRootPathWith("/script/install_rsync.sh"), []string{})
+	err := utils.Script(utils.JoinRootPathWith("/script/install_required_utils.sh"), []string{})
 	if err != nil {
 		log.Fatal("required tool can not install")
 	}
