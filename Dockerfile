@@ -5,7 +5,7 @@ ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends make rsync && \
+    apt-get install -y --no-install-recommends make rsync openssh-server ssh && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
