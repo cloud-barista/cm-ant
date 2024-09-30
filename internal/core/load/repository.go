@@ -223,6 +223,8 @@ func (r *LoadRepository) GetPagingLoadGeneratorInstallInfosTx(ctx context.Contex
 
 		if param.Status != "" {
 			q = q.Where("status = ?", param.Status)
+		} else {
+			q = q.Where("status = ?", "installed")
 		}
 
 		if err := q.Count(&totalRows).Error; err != nil {
