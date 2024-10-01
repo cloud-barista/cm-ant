@@ -71,7 +71,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		}
 	}()
 
-	log.Println("install info : ", loadGeneratorInstallInfo)
+	log.Printf("install info : %+v\n", loadGeneratorInstallInfo)
 
 	// remote && server len == 0
 	// local && loadGeneratorInstallInfo.status != "installed"
@@ -82,14 +82,23 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 	switch installLocation {
 	case constant.Local:
 		utils.LogInfo("Starting local installation of JMeter")
-		err := utils.Script(installScriptPath, []string{
-			fmt.Sprintf("JMETER_WORK_DIR=%s", config.AppConfig.Load.JMeter.Dir),
-			fmt.Sprintf("JMETER_VERSION=%s", config.AppConfig.Load.JMeter.Version),
-		})
-		if err != nil {
-			utils.LogError("Error while installing JMeter locally:", err)
-			return result, fmt.Errorf("error while installing jmeter; %s", err)
+
+		jmeterPath := config.AppConfig.Load.JMeter.Dir
+		jmeterVersion := config.AppConfig.Load.JMeter.Version
+
+		exist := utils.ExistCheck(jmeterPath) && utils.ExistCheck(jmeterPath+"/apache-jmeter-"+jmeterVersion)
+		if !exist {
+			err := utils.Script(installScriptPath, []string{
+				fmt.Sprintf("JMETER_WORK_DIR=%s", jmeterPath),
+				fmt.Sprintf("JMETER_VERSION=%s", jmeterVersion),
+			})
+
+			if err != nil {
+				utils.LogError("Error while installing JMeter locally:", err)
+				return result, fmt.Errorf("error while installing jmeter; %s", err)
+			}
 		}
+
 		utils.LogInfo("Local installation of JMeter completed successfully")
 	case constant.Remote:
 		utils.LogInfo("Starting remote installation of JMeter")
@@ -171,35 +180,89 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 
 		utils.LogInfo("Commands sent to MCI successfully")
 
+		marking := make(map[string]LoadGeneratorServer)
+		deleteChecker := make(map[uint]bool)
+		deleteList := make([]uint, 0)
+
+		for _, v := range loadGeneratorInstallInfo.LoadGeneratorServers {
+			marking[v.VmUid] = v
+			deleteChecker[v.ID] = false
+		}
+
 		loadGeneratorServers := make([]LoadGeneratorServer, 0)
 
 		for i, vm := range antMci.Vm {
-			loadGeneratorServer := LoadGeneratorServer{
-				VmUid:           vm.Uid,
-				VmName:          vm.Name,
-				ImageName:       vm.CspImageName,
-				Csp:             vm.ConnectionConfig.ProviderName,
-				Region:          vm.Region.Region,
-				Zone:            vm.Region.Zone,
-				PublicIp:        vm.PublicIP,
-				PrivateIp:       vm.PrivateIP,
-				PublicDns:       vm.PublicDNS,
-				MachineType:     vm.CspSpecName,
-				Status:          vm.Status,
-				SshPort:         vm.SSHPort,
-				Lat:             fmt.Sprintf("%f", vm.Location.Latitude),
-				Lon:             fmt.Sprintf("%f", vm.Location.Longitude),
-				Username:        vm.VMUserName,
-				VmId:            vm.Id,
-				StartTime:       vm.CreatedTime,
-				AdditionalVmKey: vm.CspResourceId,
-				Label:           "temp-label",
-				IsCluster:       false,
-				IsMaster:        i == 0,
-				ClusterSize:     uint64(len(antMci.Vm)),
+			var loadGeneratorServer LoadGeneratorServer
+
+			l, ok := marking[vm.Uid]
+
+			if ok {
+				deleteChecker[l.ID] = true
+				loadGeneratorServer = l
+				loadGeneratorServer.VmUid = vm.Uid
+				loadGeneratorServer.VmName = vm.Name
+				loadGeneratorServer.ImageName = vm.CspImageName
+				loadGeneratorServer.Csp = vm.ConnectionConfig.ProviderName
+				loadGeneratorServer.Region = vm.Region.Region
+				loadGeneratorServer.Zone = vm.Region.Zone
+				loadGeneratorServer.PublicIp = vm.PublicIP
+				loadGeneratorServer.PrivateIp = vm.PrivateIP
+				loadGeneratorServer.PublicDns = vm.PublicDNS
+				loadGeneratorServer.MachineType = vm.CspSpecName
+				loadGeneratorServer.Status = vm.Status
+				loadGeneratorServer.SshPort = vm.SSHPort
+				loadGeneratorServer.Lat = fmt.Sprintf("%f", vm.Location.Latitude)
+				loadGeneratorServer.Lon = fmt.Sprintf("%f", vm.Location.Longitude)
+				loadGeneratorServer.Username = vm.VMUserName
+				loadGeneratorServer.VmId = vm.Id
+				loadGeneratorServer.StartTime = vm.CreatedTime
+				loadGeneratorServer.AdditionalVmKey = vm.CspResourceId
+				loadGeneratorServer.Label = "temp-label"
+				loadGeneratorServer.IsCluster = false
+				loadGeneratorServer.IsMaster = i == 0
+				loadGeneratorServer.ClusterSize = uint64(len(antMci.Vm))
+			} else {
+				loadGeneratorServer = LoadGeneratorServer{
+					VmUid:           vm.Uid,
+					VmName:          vm.Name,
+					ImageName:       vm.CspImageName,
+					Csp:             vm.ConnectionConfig.ProviderName,
+					Region:          vm.Region.Region,
+					Zone:            vm.Region.Zone,
+					PublicIp:        vm.PublicIP,
+					PrivateIp:       vm.PrivateIP,
+					PublicDns:       vm.PublicDNS,
+					MachineType:     vm.CspSpecName,
+					Status:          vm.Status,
+					SshPort:         vm.SSHPort,
+					Lat:             fmt.Sprintf("%f", vm.Location.Latitude),
+					Lon:             fmt.Sprintf("%f", vm.Location.Longitude),
+					Username:        vm.VMUserName,
+					VmId:            vm.Id,
+					StartTime:       vm.CreatedTime,
+					AdditionalVmKey: vm.CspResourceId,
+					Label:           "temp-label",
+					IsCluster:       false,
+					IsMaster:        i == 0,
+					ClusterSize:     uint64(len(antMci.Vm)),
+				}
 			}
 
 			loadGeneratorServers = append(loadGeneratorServers, loadGeneratorServer)
+		}
+
+		for id, ok := range deleteChecker {
+			if !ok {
+				deleteList = append(deleteList, id)
+			}
+		}
+
+		if len(deleteList) > 0 {
+			err = l.loadRepo.DeleteLoadGeneratorServerTx(ctx, deleteList)
+			if err != nil {
+				utils.LogError("Error delete load generator list:", err)
+				return result, err
+			}
 		}
 
 		loadGeneratorInstallInfo.LoadGeneratorServers = loadGeneratorServers

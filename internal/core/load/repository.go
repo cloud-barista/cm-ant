@@ -169,6 +169,17 @@ func (r *LoadRepository) GetOrInsertLoadGeneratorInstallInfoTx(ctx context.Conte
 	return nil
 }
 
+func (r *LoadRepository) DeleteLoadGeneratorServerTx(ctx context.Context, deleteIds []uint) error {
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		return d.
+			Delete(&LoadGeneratorServer{}, deleteIds).
+			Error
+	})
+
+	return err
+
+}
+
 func (r *LoadRepository) UpdateLoadGeneratorInstallInfoTx(ctx context.Context, param *LoadGeneratorInstallInfo) error {
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		// Update() 와 동일한 방식으로 작동
@@ -189,9 +200,8 @@ func (r *LoadRepository) UpdateLoadGeneratorInstallInfoTx(ctx context.Context, p
 		// Association().Replace() 는 update 시 id 충돌의 경우 foreign key 를 null 로 업데이트
 		return d.Model(param).
 			Session(&gorm.Session{FullSaveAssociations: true}).
-			Association("LoadGeneratorServers").
-			Replace(param.LoadGeneratorServers)
-
+			Updates(param).
+			Error
 	})
 
 	return err

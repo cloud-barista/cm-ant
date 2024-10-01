@@ -64,7 +64,7 @@ type LoadGeneratorInstallInfo struct {
 
 	PublicKeyName        string
 	PrivateKeyName       string
-	LoadGeneratorServers []LoadGeneratorServer
+	LoadGeneratorServers []LoadGeneratorServer `gorm:"foreignKey:LoadGeneratorInstallInfoId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type LoadTestExecutionState struct {
