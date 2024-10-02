@@ -60,7 +60,7 @@ type LoadGeneratorServerResult struct {
 	Lon             string    `json:"lon,omitempty"`
 	Username        string    `json:"username,omitempty"`
 	VmId            string    `json:"vmId,omitempty"`
-	StartTime       time.Time `json:"startTime,omitempty"`
+	StartTime       string    `json:"startTime,omitempty"`
 	AdditionalVmKey string    `json:"additionalVmKey,omitempty"`
 	Label           string    `json:"label,omitempty"`
 	CreatedAt       time.Time `json:"createdAt,omitempty"`

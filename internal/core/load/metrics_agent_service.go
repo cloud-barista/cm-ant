@@ -34,7 +34,7 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 		return res, err
 	}
 
-	if len(mci.VMs) == 0 {
+	if len(mci.Vm) == 0 {
 		utils.LogErrorf("No VMs found on mci. Provision VM first.")
 		return res, errors.New("there is no vm on mci. provision vm first")
 	}
@@ -46,8 +46,8 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 
 	var errorCollection []error
 
-	for _, vm := range mci.VMs {
-		if mapSet != nil && !utils.Contains(mapSet, vm.ID) {
+	for _, vm := range mci.Vm {
+		if mapSet != nil && !utils.Contains(mapSet, vm.Id) {
 			continue
 		}
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -58,13 +58,13 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 			AgentType: "perfmon",
 			NsId:      param.NsId,
 			MciId:     param.MciId,
-			VmId:      vm.ID,
-			VmCount:   len(mci.VMs),
+			VmId:      vm.Id,
+			VmCount:   len(mci.Vm),
 		}
-		utils.LogInfof("Inserting monitoring agent installation info into database vm id : %s", vm.ID)
+		utils.LogInfof("Inserting monitoring agent installation info into database vm id : %s", vm.Id)
 		err = l.loadRepo.InsertMonitoringAgentInfoTx(ctx, &m)
 		if err != nil {
-			utils.LogErrorf("Failed to insert monitoring agent info for vm id %s : %v", vm.ID, err)
+			utils.LogErrorf("Failed to insert monitoring agent info for vm id %s : %v", vm.Id, err)
 			errorCollection = append(errorCollection, err)
 			continue
 		}
@@ -74,13 +74,13 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 			UserName: username,
 		}
 
-		utils.LogInfof("Sending install command to mci. NS: %s, mci: %s, VMID: %s", param.NsId, param.MciId, vm.ID)
-		_, err = l.tumblebugClient.CommandToVmWithContext(ctx, param.NsId, param.MciId, vm.ID, commandReq)
+		utils.LogInfof("Sending install command to mci. NS: %s, mci: %s, VMID: %s", param.NsId, param.MciId, vm.Id)
+		_, err = l.tumblebugClient.CommandToVmWithContext(ctx, param.NsId, param.MciId, vm.Id, commandReq)
 
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				m.Status = "timeout"
-				utils.LogErrorf("Timeout of context. Already 15 seconds has been passed. vm id : %s", vm.ID)
+				utils.LogErrorf("Timeout of context. Already 15 seconds has been passed. vm id : %s", vm.Id)
 			} else {
 				m.Status = "failed"
 				utils.LogErrorf("Error occurred during command execution: %v", err)
