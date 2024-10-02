@@ -111,6 +111,7 @@ func rsyncFiles(f *fetchDataParam) error {
 				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
 
 				cmd := fmt.Sprintf(`rsync -avz %s %s`, fromFilePath, toFilePath)
+				utils.LogInfo("cmd for rsync: ", cmd)
 				err := utils.InlineCmd(cmd)
 				errorChan <- err
 			}(p)
@@ -131,6 +132,7 @@ func rsyncFiles(f *fetchDataParam) error {
 					fromFilePath,
 					toFilePath)
 
+				utils.LogInfo("cmd for rsync: ", cmd)
 				err := utils.InlineCmd(cmd)
 				errorChan <- err
 			}(p)

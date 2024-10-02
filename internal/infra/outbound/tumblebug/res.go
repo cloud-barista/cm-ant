@@ -1,25 +1,22 @@
 package tumblebug
 
-import (
-	"time"
-)
-
 type MciRes struct {
-	ID                            string            `json:"id,omitempty"`
-	Name                          string            `json:"name,omitempty"`
-	Status                        string            `json:"status,omitempty"`
-	StatusCount                   StatusCountRes    `json:"statusCount,omitempty"`
-	TargetStatus                  string            `json:"targetStatus,omitempty"`
-	TargetAction                  string            `json:"targetAction,omitempty"`
-	InstallMonAgent               string            `json:"installMonAgent,omitempty"`
-	ConfigureCloudAdaptiveNetwork string            `json:"configureCloudAdaptiveNetwork,omitempty"`
-	Label                         map[string]string `json:"label,omitempty"`
-	SystemLabel                   string            `json:"systemLabel,omitempty"`
-	SystemMessage                 string            `json:"systemMessage,omitempty"`
-	Description                   string            `json:"description,omitempty"`
-	VMs                           []VmRes           `json:"vm,omitempty"`
-	NewVMList                     []string          `json:"newVmList,omitempty"`
-	PlacementAlgo                 string            `json:"placementAlgo"`
+	ResourceType                  string            `json:"resourceType"`
+	Id                            string            `json:"id"`
+	Uid                           string            `json:"uid"`
+	Name                          string            `json:"name"`
+	Status                        string            `json:"status"`
+	StatusCount                   StatusCountRes    `json:"statusCount"`
+	TargetStatus                  string            `json:"targetStatus"`
+	TargetAction                  string            `json:"targetAction"`
+	InstallMonAgent               string            `json:"installMonAgent"`
+	ConfigureCloudAdaptiveNetwork string            `json:"configureCloudAdaptiveNetwork"`
+	Label                         map[string]string `json:"label"`
+	SystemLabel                   string            `json:"systemLabel"`
+	SystemMessage                 string            `json:"systemMessage"`
+	Description                   string            `json:"description"`
+	Vm                            []VmRes           `json:"vm"`
+	NewVMList                     []string          `json:"newVmList"`
 }
 
 type StatusCountRes struct {
@@ -35,122 +32,85 @@ type StatusCountRes struct {
 	CountTerminating int `json:"countTerminating,omitempty"`
 	CountUndefined   int `json:"countUndefined,omitempty"`
 }
-type LocationRes struct {
-	Latitude     float64 `json:"latitude,omitempty"`
-	Longitude    float64 `json:"longitude,omitempty"`
-	BriefAddr    string  `json:"briefAddr,omitempty"`
-	CloudType    string  `json:"cloudType,omitempty"`
-	NativeRegion string  `json:"nativeRegion,omitempty"`
-}
+
 type RegionRes struct {
 	Region string `json:"Region,omitempty"`
 	Zone   string `json:"Zone,omitempty"`
 }
 type ConnectionConfigRes struct {
-	ConfigName     string      `json:"ConfigName,omitempty"`
-	ProviderName   string      `json:"ProviderName,omitempty"`
-	DriverName     string      `json:"DriverName,omitempty"`
-	CredentialName string      `json:"CredentialName,omitempty"`
-	RegionName     string      `json:"RegionName,omitempty"`
-	Location       LocationRes `json:"Location,omitempty"`
+	ConfigName         string `json:"configName"`
+	ProviderName       string `json:"providerName"`
+	DriverName         string `json:"driverName"`
+	CredentialName     string `json:"credentialName"`
+	CredentialHolder   string `json:"credentialHolder"`
+	RegionZoneInfoName string `json:"regionZoneInfoName"`
+	RegionZoneInfo     struct {
+		AssignedRegion string `json:"assignedRegion"`
+		AssignedZone   string `json:"assignedZone"`
+	} `json:"regionZoneInfo"`
+	RegionDetail struct {
+		RegionID    string `json:"regionId"`
+		RegionName  string `json:"regionName"`
+		Description string `json:"description"`
+		Location    struct {
+			Display   string  `json:"display"`
+			Latitude  float64 `json:"latitude"`
+			Longitude float64 `json:"longitude"`
+		} `json:"location"`
+		Zones []string `json:"zones"`
+	} `json:"regionDetail"`
+	RegionRepresentative bool `json:"regionRepresentative"`
+	Verified             bool `json:"verified"`
 }
 
-type IIDRes struct {
-	NameID   string `json:"NameId,omitempty"`
-	SystemID string `json:"SystemId,omitempty"`
-}
-
-type CspViewDetailRes struct {
-	Name               string        `json:"Name,omitempty"`
-	ImageName          string        `json:"ImageName,omitempty"`
-	VPCName            string        `json:"VPCName,omitempty"`
-	SubnetName         string        `json:"SubnetName,omitempty"`
-	SecurityGroupNames []string      `json:"SecurityGroupNames,omitempty"`
-	KeyPairName        string        `json:"KeyPairName,omitempty"`
-	CSPid              string        `json:"CSPid,omitempty"`
-	DataDiskNames      []string      `json:"DataDiskNames,omitempty"`
-	VMSpecName         string        `json:"VMSpecName,omitempty"`
-	VMUserID           string        `json:"VMUserId,omitempty"`
-	VMUserPasswd       string        `json:"VMUserPasswd,omitempty"`
-	RootDiskType       string        `json:"RootDiskType,omitempty"`
-	RootDiskSize       string        `json:"RootDiskSize,omitempty"`
-	ImageType          string        `json:"ImageType,omitempty"`
-	IID                IIDRes        `json:"IId,omitempty"`
-	ImageIID           IIDRes        `json:"ImageIId,omitempty"`
-	VpcIID             IIDRes        `json:"VpcIID,omitempty"`
-	SubnetIID          IIDRes        `json:"SubnetIID,omitempty"`
-	SecurityGroupIIds  []IIDRes      `json:"SecurityGroupIIds,omitempty"`
-	KeyPairIID         IIDRes        `json:"KeyPairIId,omitempty"`
-	DataDiskIIDs       []IIDRes      `json:"DataDiskIIDs,omitempty"`
-	StartTime          time.Time     `json:"StartTime,omitempty"`
-	Region             RegionRes     `json:"Region,omitempty"`
-	NetworkInterface   string        `json:"NetworkInterface,omitempty"`
-	PublicIP           string        `json:"PublicIP,omitempty"`
-	PublicDNS          string        `json:"PublicDNS,omitempty"`
-	PrivateIP          string        `json:"PrivateIP,omitempty"`
-	PrivateDNS         string        `json:"PrivateDNS,omitempty"`
-	RootDeviceName     string        `json:"RootDeviceName,omitempty"`
-	SSHAccessPoint     string        `json:"SSHAccessPoint,omitempty"`
-	KeyValueList       []KeyValueRes `json:"KeyValueList,omitempty"`
-}
 type VmRes struct {
-	ID                 string              `json:"id,omitempty"`
-	Name               string              `json:"name,omitempty"`
-	IDByCSP            string              `json:"idByCSP,omitempty"`
-	SubGroupID         string              `json:"subGroupId,omitempty"`
-	Location           LocationRes         `json:"location,omitempty"`
-	Status             string              `json:"status,omitempty"`
-	TargetStatus       string              `json:"targetStatus,omitempty"`
-	TargetAction       string              `json:"targetAction,omitempty"`
-	MonAgentStatus     string              `json:"monAgentStatus,omitempty"`
-	NetworkAgentStatus string              `json:"networkAgentStatus,omitempty"`
-	SystemMessage      string              `json:"systemMessage,omitempty"`
-	CreatedTime        string              `json:"createdTime,omitempty"`
-	Label              map[string]string   `json:"label,omitempty"`
-	Description        string              `json:"description,omitempty"`
-	Region             RegionRes           `json:"region,omitempty"`
-	PublicIP           string              `json:"publicIP,omitempty"`
-	SSHPort            string              `json:"sshPort,omitempty"`
-	PublicDNS          string              `json:"publicDNS,omitempty"`
-	PrivateIP          string              `json:"privateIP,omitempty"`
-	PrivateDNS         string              `json:"privateDNS,omitempty"`
-	RootDiskType       string              `json:"rootDiskType,omitempty"`
-	RootDiskSize       string              `json:"rootDiskSize,omitempty"`
-	RootDeviceName     string              `json:"rootDeviceName,omitempty"`
-	ConnectionName     string              `json:"connectionName,omitempty"`
-	ConnectionConfig   ConnectionConfigRes `json:"connectionConfig,omitempty"`
-	SpecID             string              `json:"specId,omitempty"`
-	ImageID            string              `json:"imageId,omitempty"`
-	VNetID             string              `json:"vNetId,omitempty"`
-	SubnetID           string              `json:"subnetId,omitempty"`
-	SecurityGroupIds   []string            `json:"securityGroupIds,omitempty"`
-	DataDiskIds        []string            `json:"dataDiskIds,omitempty"`
-	SSHKeyID           string              `json:"sshKeyId,omitempty"`
-	VMUserAccount      string              `json:"vmUserAccount,omitempty"`
-	CspViewVMDetail    CspViewDetailRes    `json:"cspViewVmDetail,omitempty"`
-}
-
-type SecurityGroupRes struct {
-	AssociatedObjectList []string          `json:"associatedObjectList"`
-	ConnectionName       string            `json:"connectionName"`
-	CspSecurityGroupId   string            `json:"cspSecurityGroupId"`
-	CspSecurityGroupName string            `json:"cspSecurityGroupName"`
-	Description          string            `json:"description"`
-	FirewallRules        []FirewallRuleRes `json:"firewallRules"`
-	Id                   string            `json:"id"`
-	IsAutoGenerated      bool              `json:"isAutoGenerated"`
-	KeyValueList         []KeyValueRes     `json:"keyValueList"`
-	Name                 string            `json:"name"`
-	SystemLabel          string            `json:"systemLabel"`
-	VNetId               string            `json:"vNetId"`
-}
-
-type FirewallRuleRes struct {
-	FromPort   string `json:"FromPort"`
-	ToPort     string `json:"ToPort"`
-	IPProtocol string `json:"IPProtocol"`
-	Direction  string `json:"Direction"`
-	CIDR       string `json:"CIDR"`
+	ResourceType    string `json:"resourceType"`
+	Id              string `json:"id"`
+	Uid             string `json:"uid"`
+	CspResourceName string `json:"cspResourceName"`
+	CspResourceId   string `json:"cspResourceId"`
+	Name            string `json:"name"`
+	SubGroupId      string `json:"subGroupId"`
+	Location        struct {
+		Display   string  `json:"display"`
+		Latitude  float64 `json:"latitude"`
+		Longitude float64 `json:"longitude"`
+	} `json:"location"`
+	Status             string              `json:"status"`
+	TargetStatus       string              `json:"targetStatus"`
+	TargetAction       string              `json:"targetAction"`
+	MonAgentStatus     string              `json:"monAgentStatus"`
+	NetworkAgentStatus string              `json:"networkAgentStatus"`
+	SystemMessage      string              `json:"systemMessage"`
+	CreatedTime        string              `json:"createdTime"`
+	Label              map[string]string   `json:"label"`
+	Description        string              `json:"description"`
+	Region             RegionRes           `json:"region"`
+	PublicIP           string              `json:"publicIP"`
+	SSHPort            string              `json:"sshPort"`
+	PublicDNS          string              `json:"publicDNS"`
+	PrivateIP          string              `json:"privateIP"`
+	PrivateDNS         string              `json:"privateDNS"`
+	RootDiskType       string              `json:"rootDiskType"`
+	RootDiskSize       string              `json:"rootDiskSize"`
+	RootDeviceName     string              `json:"rootDeviceName"`
+	ConnectionName     string              `json:"connectionName"`
+	ConnectionConfig   ConnectionConfigRes `json:"connectionConfig"`
+	SpecId             string              `json:"specId"`
+	CspSpecName        string              `json:"cspSpecName"`
+	ImageId            string              `json:"imageId"`
+	CspImageName       string              `json:"cspImageName"`
+	VNetID             string              `json:"vNetId"`
+	CspVNetId          string              `json:"cspVNetId"`
+	SubnetId           string              `json:"subnetId"`
+	CspSubnetId        string              `json:"cspSubnetId"`
+	NetworkInterface   string              `json:"networkInterface"`
+	SecurityGroupIds   []string            `json:"securityGroupIds"`
+	DataDiskIds        []string            `json:"dataDiskIds"`
+	SSHKeyId           string              `json:"sshKeyId"`
+	CspSSHKeyId        string              `json:"cspSshKeyId"`
+	VMUserName         string              `json:"vmUserName"`
+	AddtionalDetails   []KeyValueRes       `json:"addtionalDetails"`
 }
 
 type KeyValueRes struct {
@@ -158,51 +118,36 @@ type KeyValueRes struct {
 	Value string `json:"value"`
 }
 
-type SecureShellRes struct {
-	AssociatedObjectList []string      `json:"associatedObjectList"`
-	ConnectionName       string        `json:"connectionName"`
-	CspSshKeyId          string        `json:"cspSshKeyId"`
-	CspSshKeyName        string        `json:"cspSshKeyName"`
-	Description          string        `json:"description"`
-	Fingerprint          string        `json:"fingerprint"`
-	Id                   string        `json:"id"`
-	IsAutoGenerated      bool          `json:"isAutoGenerated"`
-	KeyValueList         []KeyValueRes `json:"keyValueList"`
-	Name                 string        `json:"name"`
-	PrivateKey           string        `json:"privateKey"`
-	PublicKey            string        `json:"publicKey"`
-	SystemLabel          string        `json:"systemLabel"`
-	Username             string        `json:"username"`
-	VerifiedUsername     string        `json:"verifiedUsername"`
-}
+type RecommendVmResList []RecommendVmRes
 
-type SecureShellResList []SecureShellRes
-
-type ImageRes struct {
-	AssociatedObjectList []string      `json:"associatedObjectList"`
-	ConnectionName       string        `json:"connectionName"`
-	CreationDate         string        `json:"creationDate"`
-	CspImageId           string        `json:"cspImageId"`
-	CspImageName         string        `json:"cspImageName"`
-	Description          string        `json:"description"`
-	GuestOS              string        `json:"guestOS"`
-	Id                   string        `json:"id"`
-	IsAutoGenerated      bool          `json:"isAutoGenerated"`
-	KeyValueList         []KeyValueRes `json:"keyValueList"`
-	Name                 string        `json:"name"`
-	Namespace            string        `json:"namespace"`
-	Status               string        `json:"status"`
-	SystemLabel          string        `json:"systemLabel"`
-}
-
-type SpecRes struct {
+type RecommendVmRes struct {
+	AcceleratorCount      int      `json:"acceleratorCount"`
+	AcceleratorMemoryGB   int      `json:"acceleratorMemoryGB"`
+	AcceleratorModel      string   `json:"acceleratorModel"`
+	AcceleratorType       string   `json:"acceleratorType"`
 	AssociatedObjectList  []string `json:"associatedObjectList"`
-	ConnectionName        string   `json:"connectionName"`
-	CostPerHour           int      `json:"costPerHour"`
-	CspSpecName           string   `json:"cspSpecName"`
 	Description           string   `json:"description"`
-	EbsBwMbps             int      `json:"ebsBwMbps"`
-	EvaluationScore01     int      `json:"evaluationScore01"`
+	EvaluationStatus      string   `json:"evaluationStatus"`
+	InfraType             string   `json:"infraType"`
+	IsAutoGenerated       bool     `json:"isAutoGenerated"`
+	MaxTotalStorageTiB    int      `json:"maxTotalStorageTiB"`
+	NetBwGbps             int      `json:"netBwGbps"`
+	OsType                string   `json:"osType"`
+	StorageGiB            int      `json:"storageGiB"`
+	SystemLabel           string   `json:"systemLabel"`
+	Uid                   string   `json:"uid"`
+	Namespace             string   `json:"namespace"`
+	Id                    string   `json:"id"`
+	Name                  string   `json:"name"`
+	ConnectionName        string   `json:"connectionName"`
+	ProviderName          string   `json:"providerName"`
+	RegionName            string   `json:"regionName"`
+	CspSpecName           string   `json:"cspSpecName"`
+	VCPU                  int      `json:"vCPU"`
+	MemoryGiB             int      `json:"memoryGiB"`
+	CostPerHour           float64  `json:"costPerHour"`
+	OrderInFilteredResult int      `json:"orderInFilteredResult"`
+	EvaluationScore01     float64  `json:"evaluationScore01"`
 	EvaluationScore02     int      `json:"evaluationScore02"`
 	EvaluationScore03     int      `json:"evaluationScore03"`
 	EvaluationScore04     int      `json:"evaluationScore04"`
@@ -211,63 +156,15 @@ type SpecRes struct {
 	EvaluationScore07     int      `json:"evaluationScore07"`
 	EvaluationScore08     int      `json:"evaluationScore08"`
 	EvaluationScore09     int      `json:"evaluationScore09"`
-	EvaluationScore10     int      `json:"evaluationScore10"`
-	EvaluationStatus      string   `json:"evaluationStatus"`
-	GpuMemGiB             int      `json:"gpuMemGiB"`
-	GpuModel              string   `json:"gpuModel"`
-	GpuP2P                string   `json:"gpuP2p"`
-	Id                    string   `json:"id"`
-	IsAutoGenerated       bool     `json:"isAutoGenerated"`
-	MaxNumStorage         int      `json:"maxNumStorage"`
-	MaxTotalStorageTiB    int      `json:"maxTotalStorageTiB"`
-	MemGiB                int      `json:"memGiB"`
-	Name                  string   `json:"name"`
-	Namespace             string   `json:"namespace"`
-	NetBwGbps             int      `json:"netBwGbps"`
-	NumCore               int      `json:"numCore"`
-	NumGpu                int      `json:"numGpu"`
-	NumStorage            int      `json:"numStorage"`
-	NumvCPU               int      `json:"numvCPU"`
-	OrderInFilteredResult int      `json:"orderInFilteredResult"`
-	OsType                string   `json:"osType"`
-	ProviderName          string   `json:"providerName"`
-	RegionName            string   `json:"regionName"`
-	RootDiskSize          string   `json:"rootDiskSize"`
+	EvaluationScore10     float64  `json:"evaluationScore10"`
 	RootDiskType          string   `json:"rootDiskType"`
-	StorageGiB            int      `json:"storageGiB"`
-	SystemLabel           string   `json:"systemLabel"`
-}
-
-type RecommendVmResList []RecommendVmRes
-
-type RecommendVmRes struct {
-	Namespace             string  `json:"namespace"`
-	ID                    string  `json:"id"`
-	Name                  string  `json:"name"`
-	ConnectionName        string  `json:"connectionName"`
-	ProviderName          string  `json:"providerName"`
-	RegionName            string  `json:"regionName"`
-	CspSpecName           string  `json:"cspSpecName"`
-	VCPU                  int     `json:"vCPU"`
-	MemoryGiB             int     `json:"memoryGiB"`
-	CostPerHour           float64 `json:"costPerHour"`
-	OrderInFilteredResult int     `json:"orderInFilteredResult"`
-	EvaluationScore01     float64 `json:"evaluationScore01"`
-	EvaluationScore02     int     `json:"evaluationScore02"`
-	EvaluationScore03     int     `json:"evaluationScore03"`
-	EvaluationScore04     int     `json:"evaluationScore04"`
-	EvaluationScore05     int     `json:"evaluationScore05"`
-	EvaluationScore06     int     `json:"evaluationScore06"`
-	EvaluationScore07     int     `json:"evaluationScore07"`
-	EvaluationScore08     int     `json:"evaluationScore08"`
-	EvaluationScore09     int     `json:"evaluationScore09"`
-	EvaluationScore10     float64 `json:"evaluationScore10"`
-	RootDiskType          string  `json:"rootDiskType"`
-	RootDiskSize          string  `json:"rootDiskSize"`
+	RootDiskSize          string   `json:"rootDiskSize"`
 }
 
 type GetNsRes struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	ResourceType string `json:"resourceType"`
+	Uid          string `json:"uid"`
+	Id           string `json:"id"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
 }

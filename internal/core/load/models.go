@@ -22,6 +22,9 @@ type MonitoringAgentInfo struct {
 
 type LoadGeneratorServer struct {
 	gorm.Model
+	VmUid           string
+	VmName          string
+	ImageName       string
 	Csp             string
 	Region          string
 	Zone            string
@@ -35,7 +38,7 @@ type LoadGeneratorServer struct {
 	Lon             string
 	Username        string
 	VmId            string
-	StartTime       time.Time
+	StartTime       string
 	AdditionalVmKey string
 	Label           string
 
@@ -61,7 +64,7 @@ type LoadGeneratorInstallInfo struct {
 
 	PublicKeyName        string
 	PrivateKeyName       string
-	LoadGeneratorServers []LoadGeneratorServer
+	LoadGeneratorServers []LoadGeneratorServer `gorm:"foreignKey:LoadGeneratorInstallInfoId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type LoadTestExecutionState struct {

@@ -71,146 +71,213 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		}
 	}()
 
-	log.Println("install info : ", loadGeneratorInstallInfo)
+	log.Printf("install info : %+v\n", loadGeneratorInstallInfo)
 
-	if len(loadGeneratorInstallInfo.LoadGeneratorServers) == 0 {
-		installLocation := param.InstallLocation
-		installScriptPath := utils.JoinRootPathWith("/script/install-jmeter.sh")
+	// remote && server len == 0
+	// local && loadGeneratorInstallInfo.status != "installed"
 
-		switch installLocation {
-		case constant.Local:
-			utils.LogInfo("Starting local installation of JMeter")
+	installLocation := param.InstallLocation
+	installScriptPath := utils.JoinRootPathWith("/script/install-jmeter.sh")
+
+	switch installLocation {
+	case constant.Local:
+		utils.LogInfo("Starting local installation of JMeter")
+
+		jmeterPath := config.AppConfig.Load.JMeter.Dir
+		jmeterVersion := config.AppConfig.Load.JMeter.Version
+
+		exist := utils.ExistCheck(jmeterPath) && utils.ExistCheck(jmeterPath+"/apache-jmeter-"+jmeterVersion)
+		if !exist {
 			err := utils.Script(installScriptPath, []string{
-				fmt.Sprintf("JMETER_WORK_DIR=%s", config.AppConfig.Load.JMeter.Dir),
-				fmt.Sprintf("JMETER_VERSION=%s", config.AppConfig.Load.JMeter.Version),
+				fmt.Sprintf("JMETER_WORK_DIR=%s", jmeterPath),
+				fmt.Sprintf("JMETER_VERSION=%s", jmeterVersion),
 			})
+
 			if err != nil {
 				utils.LogError("Error while installing JMeter locally:", err)
 				return result, fmt.Errorf("error while installing jmeter; %s", err)
 			}
-			utils.LogInfo("Local installation of JMeter completed successfully")
-		case constant.Remote:
-			utils.LogInfo("Starting remote installation of JMeter")
-			// get the spec and image information
-			recommendVm, err := l.getRecommendVm(ctx, param.Coordinates)
+		}
+
+		utils.LogInfo("Local installation of JMeter completed successfully")
+	case constant.Remote:
+		utils.LogInfo("Starting remote installation of JMeter")
+		// get the spec and image information
+		recommendVm, err := l.getRecommendVm(ctx, param.Coordinates)
+		if err != nil {
+			utils.LogError("Failed to get recommended VM:", err)
+			return result, err
+		}
+		antVmCommonSpec := recommendVm[0].Name
+		recommendVmConnName := recommendVm[0].ConnectionName
+		antVmCommonImage, err := utils.ReplaceAtIndex(antVmCommonSpec, imageOs, "+", 2)
+
+		if err != nil {
+			utils.LogError("Error replacing VM spec index:", err)
+			return result, err
+		}
+
+		// check namespace is valid or not
+		err = l.validDefaultNs(ctx, antNsId)
+		if err != nil {
+			utils.LogError("Error validating default namespace:", err)
+			return result, err
+		}
+
+		// get the ant default mci
+		antMci, err := l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, recommendVmConnName)
+		if err != nil {
+			utils.LogError("Error getting or creating default mci:", err)
+			return result, err
+		}
+
+		// if server is not running state, try to resume and get mci information
+		retryCount := config.AppConfig.Load.Retry
+		for retryCount > 0 && antMci.StatusCount.CountRunning < 1 {
+			utils.LogInfof("Attempting to resume MCI, retry count: %d", retryCount)
+
+			err = l.tumblebugClient.ControlLifecycleWithContext(ctx, antNsId, antMci.Id, "resume")
 			if err != nil {
-				utils.LogError("Failed to get recommended VM:", err)
+				utils.LogError("Error resuming MCI:", err)
 				return result, err
 			}
-			antVmCommonSpec := recommendVm[0].Name
-			antVmConnectionName := recommendVm[0].ConnectionName
-			antVmCommonImage, err := utils.ReplaceAtIndex(antVmCommonSpec, imageOs, "+", 2)
-
+			time.Sleep(defaultDelay)
+			antMci, err = l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, recommendVmConnName)
 			if err != nil {
-				utils.LogError("Error replacing VM spec index:", err)
-				return result, err
-			}
-
-			// check namespace is valid or not
-			err = l.validDefaultNs(ctx, antNsId)
-			if err != nil {
-				utils.LogError("Error validating default namespace:", err)
-				return result, err
-			}
-
-			// get the ant default mci
-			antMci, err := l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, antVmConnectionName)
-			if err != nil {
-				utils.LogError("Error getting or creating default mci:", err)
-				return result, err
-			}
-
-			// if server is not running state, try to resume and get mci information
-			retryCount := config.AppConfig.Load.Retry
-			for retryCount > 0 && antMci.StatusCount.CountRunning < 1 {
-				utils.LogInfof("Attempting to resume MCI, retry count: %d", retryCount)
-
-				err = l.tumblebugClient.ControlLifecycleWithContext(ctx, antNsId, antMci.ID, "resume")
-				if err != nil {
-					utils.LogError("Error resuming MCI:", err)
-					return result, err
-				}
-				time.Sleep(defaultDelay)
-				antMci, err = l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, antVmConnectionName)
-				if err != nil {
-					utils.LogError("Error getting MCI after resume attempt:", err)
-					return result, err
-				}
-
-				retryCount = retryCount - 1
-			}
-
-			if antMci.StatusCount.CountRunning < 1 {
-				utils.LogError("No running VM on ant default MCI")
-				return result, errors.New("there is no running vm on ant default mci")
-			}
-
-			addAuthorizedKeyCommand, err := getAddAuthorizedKeyCommand(antPrivKeyName, antPubKeyName)
-			if err != nil {
-				utils.LogError("Error getting add authorized key command:", err)
+				utils.LogError("Error getting MCI after resume attempt:", err)
 				return result, err
 			}
 
-			installationCommand, err := utils.ReadToString(installScriptPath)
-			if err != nil {
-				utils.LogError("Error reading installation script:", err)
-				return result, err
-			}
+			retryCount = retryCount - 1
+		}
 
-			commandReq := tumblebug.SendCommandReq{
-				Command: []string{installationCommand, addAuthorizedKeyCommand},
-			}
+		if antMci.StatusCount.CountRunning < 1 {
+			utils.LogError("No running VM on ant default MCI")
+			return result, errors.New("there is no running vm on ant default mci")
+		}
 
-			_, err = l.tumblebugClient.CommandToMciWithContext(ctx, antNsId, antMci.ID, commandReq)
-			if err != nil {
-				utils.LogError("Error sending command to MCI:", err)
-				return result, err
-			}
+		addAuthorizedKeyCommand, err := getAddAuthorizedKeyCommand(antPrivKeyName, antPubKeyName)
+		if err != nil {
+			utils.LogError("Error getting add authorized key command:", err)
+			return result, err
+		}
 
-			utils.LogInfo("Commands sent to MCI successfully")
+		installationCommand, err := utils.ReadToString(installScriptPath)
+		if err != nil {
+			utils.LogError("Error reading installation script:", err)
+			return result, err
+		}
 
-			loadGeneratorServers := make([]LoadGeneratorServer, 0)
+		commandReq := tumblebug.SendCommandReq{
+			Command: []string{installationCommand, addAuthorizedKeyCommand},
+		}
 
-			for i, vm := range antMci.VMs {
-				loadGeneratorServer := LoadGeneratorServer{
+		_, err = l.tumblebugClient.CommandToMciWithContext(ctx, antNsId, antMci.Id, commandReq)
+		if err != nil {
+			utils.LogError("Error sending command to MCI:", err)
+			return result, err
+		}
+
+		utils.LogInfo("Commands sent to MCI successfully")
+
+		marking := make(map[string]LoadGeneratorServer)
+		deleteChecker := make(map[uint]bool)
+		deleteList := make([]uint, 0)
+
+		for _, v := range loadGeneratorInstallInfo.LoadGeneratorServers {
+			marking[v.VmUid] = v
+			deleteChecker[v.ID] = false
+		}
+
+		loadGeneratorServers := make([]LoadGeneratorServer, 0)
+
+		for i, vm := range antMci.Vm {
+			var loadGeneratorServer LoadGeneratorServer
+
+			l, ok := marking[vm.Uid]
+
+			if ok {
+				deleteChecker[l.ID] = true
+				loadGeneratorServer = l
+				loadGeneratorServer.VmUid = vm.Uid
+				loadGeneratorServer.VmName = vm.Name
+				loadGeneratorServer.ImageName = vm.CspImageName
+				loadGeneratorServer.Csp = vm.ConnectionConfig.ProviderName
+				loadGeneratorServer.Region = vm.Region.Region
+				loadGeneratorServer.Zone = vm.Region.Zone
+				loadGeneratorServer.PublicIp = vm.PublicIP
+				loadGeneratorServer.PrivateIp = vm.PrivateIP
+				loadGeneratorServer.PublicDns = vm.PublicDNS
+				loadGeneratorServer.MachineType = vm.CspSpecName
+				loadGeneratorServer.Status = vm.Status
+				loadGeneratorServer.SshPort = vm.SSHPort
+				loadGeneratorServer.Lat = fmt.Sprintf("%f", vm.Location.Latitude)
+				loadGeneratorServer.Lon = fmt.Sprintf("%f", vm.Location.Longitude)
+				loadGeneratorServer.Username = vm.VMUserName
+				loadGeneratorServer.VmId = vm.Id
+				loadGeneratorServer.StartTime = vm.CreatedTime
+				loadGeneratorServer.AdditionalVmKey = vm.CspResourceId
+				loadGeneratorServer.Label = "temp-label"
+				loadGeneratorServer.IsCluster = false
+				loadGeneratorServer.IsMaster = i == 0
+				loadGeneratorServer.ClusterSize = uint64(len(antMci.Vm))
+			} else {
+				loadGeneratorServer = LoadGeneratorServer{
+					VmUid:           vm.Uid,
+					VmName:          vm.Name,
+					ImageName:       vm.CspImageName,
 					Csp:             vm.ConnectionConfig.ProviderName,
 					Region:          vm.Region.Region,
 					Zone:            vm.Region.Zone,
 					PublicIp:        vm.PublicIP,
 					PrivateIp:       vm.PrivateIP,
 					PublicDns:       vm.PublicDNS,
-					MachineType:     vm.CspViewVMDetail.VMSpecName,
+					MachineType:     vm.CspSpecName,
 					Status:          vm.Status,
 					SshPort:         vm.SSHPort,
 					Lat:             fmt.Sprintf("%f", vm.Location.Latitude),
 					Lon:             fmt.Sprintf("%f", vm.Location.Longitude),
-					Username:        vm.CspViewVMDetail.VMUserID,
-					VmId:            vm.CspViewVMDetail.IID.SystemID,
-					StartTime:       vm.CspViewVMDetail.StartTime,
-					AdditionalVmKey: vm.ID,
+					Username:        vm.VMUserName,
+					VmId:            vm.Id,
+					StartTime:       vm.CreatedTime,
+					AdditionalVmKey: vm.CspResourceId,
 					Label:           "temp-label",
 					IsCluster:       false,
 					IsMaster:        i == 0,
-					ClusterSize:     uint64(len(antMci.VMs)),
+					ClusterSize:     uint64(len(antMci.Vm)),
 				}
-
-				loadGeneratorServers = append(loadGeneratorServers, loadGeneratorServer)
 			}
 
-			loadGeneratorInstallInfo.LoadGeneratorServers = loadGeneratorServers
-			loadGeneratorInstallInfo.PublicKeyName = antPubKeyName
-			loadGeneratorInstallInfo.PrivateKeyName = antPrivKeyName
+			loadGeneratorServers = append(loadGeneratorServers, loadGeneratorServer)
 		}
 
-		loadGeneratorInstallInfo.Status = "installed"
-		err = l.loadRepo.UpdateLoadGeneratorInstallInfoTx(ctx, loadGeneratorInstallInfo)
-		if err != nil {
-			utils.LogError("Error updating LoadGeneratorInstallInfo after installed:", err)
-			return result, err
+		for id, ok := range deleteChecker {
+			if !ok {
+				deleteList = append(deleteList, id)
+			}
 		}
 
-		utils.LogInfo("LoadGeneratorInstallInfo updated successfully")
+		if len(deleteList) > 0 {
+			err = l.loadRepo.DeleteLoadGeneratorServerTx(ctx, deleteList)
+			if err != nil {
+				utils.LogError("Error delete load generator list:", err)
+				return result, err
+			}
+		}
+
+		loadGeneratorInstallInfo.LoadGeneratorServers = loadGeneratorServers
+		loadGeneratorInstallInfo.PublicKeyName = antPubKeyName
+		loadGeneratorInstallInfo.PrivateKeyName = antPrivKeyName
 	}
+
+	loadGeneratorInstallInfo.Status = "installed"
+	err = l.loadRepo.UpdateLoadGeneratorInstallInfoTx(ctx, loadGeneratorInstallInfo)
+	if err != nil {
+		utils.LogError("Error updating LoadGeneratorInstallInfo after installed:", err)
+		return result, err
+	}
+
+	utils.LogInfo("LoadGeneratorInstallInfo updated successfully")
 
 	loadGeneratorServerResults := make([]LoadGeneratorServerResult, 0)
 	for _, l := range loadGeneratorInstallInfo.LoadGeneratorServers {
@@ -291,8 +358,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 		} else {
 			return antMci, err
 		}
-	} else if antMci.VMs != nil && len(antMci.VMs) == 0 {
-
+	} else if antMci.Vm != nil && len(antMci.Vm) == 0 {
 		dynamicVmArg := tumblebug.DynamicVmReq{
 			CommonImage:    antVmCommonImage,
 			CommonSpec:     antVmCommonSpec,
