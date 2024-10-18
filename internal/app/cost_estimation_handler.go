@@ -23,7 +23,7 @@ import (
 // @Success 200 {object} app.AntResponse[cost.EstimateForecastCostResult] "Successfully estimated forecast cost"
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
 // @Failure 500 {object} app.AntResponse[string] "Failed to estimate forecast cost"
-// @Router /api/v1/cost/forecast [post]
+// @Router /api/v1/cost-estimation/forecast [post]
 func (a *AntServer) estimateForecastCost(c echo.Context) error {
 	var req EstimateForecastCostReq
 	if err := c.Bind(&req); err != nil {

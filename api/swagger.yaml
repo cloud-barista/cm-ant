@@ -782,7 +782,7 @@ info:
   title: CM-ANT REST API
   version: 0.2.2
 paths:
-  /api/v1/cost/forecast:
+  /api/v1/cost-estimation/forecast:
     post:
       consumes:
       - application/json

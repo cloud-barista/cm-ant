@@ -16,7 +16,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/cost/forecast": {
+        "/api/v1/cost-estimation/forecast": {
             "post": {
                 "description": "Estimate the forecast cost for cloud resources based on recommended specifications. Requires either RecommendSpecs or RecommendSpecsWithFormat in the request body. Returns an error if the required properties are missing or if the request is invalid.",
                 "consumes": [
