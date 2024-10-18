@@ -2,6 +2,20 @@ package app
 
 import "github.com/cloud-barista/cm-ant/internal/core/common/constant"
 
+type EstimateForecastCostReq struct {
+	RecommendSpecs []struct {
+		ProviderName string `json:"providerName"`
+		RegionName   string `json:"regionName"`
+		InstanceType string `json:"instanceType"`
+		Image        string `json:"image"`
+	} `json:"recommendSpecs" validate:"required"`
+
+	RecommendSpecsWithFormat []struct {
+		CommonImage string `json:"commonImage"`
+		CommonSpec  string `json:"commonSpec"`
+	} `json:"recommendSpecsWithFormat" validate:"required"`
+}
+
 type UpdatePriceInfosReq struct {
 	ProviderName string `json:"providerName" validate:"required"`
 	RegionName   string `json:"regionName" validate:"required"`

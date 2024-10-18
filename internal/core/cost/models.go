@@ -31,6 +31,8 @@ type PriceInfo struct {
 	OriginalCurrency       string
 	CalculatedMonthlyPrice float64 `gorm:"index"`
 	PriceDescription       string
+	LastUpdatedAt          time.Time
+	ImageName              string `gorm:"index"`
 }
 
 type CostInfos []CostInfo

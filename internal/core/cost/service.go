@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
@@ -52,6 +54,143 @@ func (c *CostService) Readyz() error {
 	return nil
 }
 
+var forecastUpdateLockMap sync.Map
+
+func (c *CostService) EstimateForecastCost(param EstimateForecastCostParam) (EstimateForecastCostResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var results []EsimateForecastCostSpecResult
+	var errList []error
+	var esimateForecastCostSpecResult EstimateForecastCostResult
+
+	utils.LogInfof("Fetching price information for spec: %+v", param)
+
+	for _, v := range param.RecommendSpecs {
+		wg.Add(1)
+		go func(p RecommendSpecParam) {
+			defer wg.Done()
+
+			// memory lock
+			rl, _ := forecastUpdateLockMap.LoadOrStore(p.Hash(), &sync.Mutex{})
+			lock := rl.(*sync.Mutex)
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			priceInfos, err := c.costRepo.GetMatchingForecastCost(ctx, v, param.TimeStandard, param.PricePolicy)
+			if err != nil {
+				mu.Lock()
+				errList = append(errList, err)
+				mu.Unlock()
+				utils.LogErrorf("Error fetching price info for spec %+v: %v", v, err)
+
+				return
+
+			}
+
+			if len(priceInfos) == 0 {
+				utils.LogInfof("No matching forecast cost found for spec: %+v, fetching from price collector", v)
+
+				resList, err := c.priceCollector.FetchPriceInfos(ctx, v)
+				if err != nil {
+					mu.Lock()
+					errList = append(errList, fmt.Errorf("error retrieving prices for %+v: %w", v, err))
+					mu.Unlock()
+					return
+				}
+
+				if len(resList) > 0 {
+					utils.LogInfof("Inserting fetched price results for spec: %+v", v)
+
+					err = c.costRepo.BatchInsertAllForecastCostResult(ctx, resList)
+					if err != nil {
+						mu.Lock()
+						errList = append(errList, fmt.Errorf("error batch inserting results for %+v: %w", v, err))
+						mu.Unlock()
+						return
+					}
+				}
+				priceInfos = resList
+			}
+
+			if len(priceInfos) > 0 {
+
+				minPrice := float64(math.MaxFloat64)
+				maxPrice := float64(math.SmallestNonzeroFloat64)
+
+				res := EsimateForecastCostSpecResult{
+					ProviderName:                          v.ProviderName,
+					RegionName:                            v.RegionName,
+					InstanceType:                          v.InstanceType,
+					ImageName:                             v.Image,
+					EstimateForecastCostSpecDetailResults: make([]EstimateForecastCostSpecDetailResult, 0),
+				}
+
+				for _, v := range priceInfos {
+
+					calculatedPrice := v.CalculatedMonthlyPrice
+					utils.LogInfof("Price calculated for spec %+v: %f", v, calculatedPrice)
+
+					if calculatedPrice < minPrice {
+						minPrice = calculatedPrice
+					}
+					if calculatedPrice > maxPrice {
+						maxPrice = calculatedPrice
+					}
+
+					specDetail := EstimateForecastCostSpecDetailResult{
+						ID:                     v.ID,
+						VCpu:                   v.VCpu,
+						Memory:                 fmt.Sprintf("%s %s", v.Memory, v.MemoryUnit),
+						Storage:                v.Storage,
+						OsType:                 v.OsType,
+						ProductDescription:     v.ProductDescription,
+						OriginalPricePolicy:    v.OriginalPricePolicy,
+						PricePolicy:            v.PricePolicy,
+						Unit:                   v.Unit,
+						Currency:               v.Currency,
+						Price:                  v.Price,
+						CalculatedMonthlyPrice: calculatedPrice,
+						PriceDescription:       v.PriceDescription,
+						LastUpdatedAt:          v.LastUpdatedAt,
+					}
+
+					res.SpecMinMonthlyPrice = minPrice
+					res.SpecMaxMonthlyPrice = maxPrice
+					res.EstimateForecastCostSpecDetailResults = append(res.EstimateForecastCostSpecDetailResults, specDetail)
+				}
+
+				mu.Lock()
+				results = append(results, res)
+				mu.Unlock()
+				utils.LogInfof("Successfully calculated forecast cost for spec: %+v", param)
+			}
+
+		}(v)
+	}
+	wg.Wait()
+
+	if len(errList) > 0 {
+		return esimateForecastCostSpecResult, fmt.Errorf("errors occurred during processing: %v", errList)
+	}
+
+	if len(results) > 0 {
+		esimateForecastCostSpecResult.EsimateForecastCostSpecResults = results
+
+		for _, v := range results {
+			esimateForecastCostSpecResult.TotalMinMonthlyPrice += v.SpecMinMonthlyPrice
+			esimateForecastCostSpecResult.TotalMaxMonthlyPrice += v.SpecMaxMonthlyPrice
+		}
+		utils.LogInfof("Total min monthly price: %f, Total max monthly price: %f", esimateForecastCostSpecResult.TotalMinMonthlyPrice, esimateForecastCostSpecResult.TotalMaxMonthlyPrice)
+
+	}
+
+	return esimateForecastCostSpecResult, nil
+}
+
 func (c *CostService) UpdatePriceInfos(param UpdatePriceInfosParam) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -75,7 +214,7 @@ func (c *CostService) UpdatePriceInfos(param UpdatePriceInfosParam) error {
 		}
 
 		if len(resList) > 0 {
-			err := c.costRepo.BatchInsertAllResult(ctx, param, resList)
+			err := c.costRepo.BatchInsertAllForecastCostResult(ctx, resList)
 			if err != nil {
 				return err
 			}

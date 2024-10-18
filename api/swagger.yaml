@@ -52,6 +52,17 @@ definitions:
       successMessage:
         type: string
     type: object
+  app.AntResponse-cost_EstimateForecastCostResult:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        $ref: '#/definitions/cost.EstimateForecastCostResult'
+      successMessage:
+        type: string
+    type: object
   app.AntResponse-cost_UpdateCostInfoResult:
     properties:
       code:
@@ -191,6 +202,34 @@ definitions:
       resourceType:
         $ref: '#/definitions/constant.ResourceType'
     type: object
+  app.EstimateForecastCostReq:
+    properties:
+      recommendSpecs:
+        items:
+          properties:
+            image:
+              type: string
+            instanceType:
+              type: string
+            providerName:
+              type: string
+            regionName:
+              type: string
+          type: object
+        type: array
+      recommendSpecsWithFormat:
+        items:
+          properties:
+            commonImage:
+              type: string
+            commonSpec:
+              type: string
+          type: object
+        type: array
+    required:
+    - recommendSpecs
+    - recommendSpecsWithFormat
+    type: object
   app.InstallLoadGeneratorReq:
     properties:
       installLocation:
@@ -321,6 +360,28 @@ definitions:
     x-enum-varnames:
     - Local
     - Remote
+  constant.PriceCurrency:
+    enum:
+    - USD
+    - KRW
+    type: string
+    x-enum-varnames:
+    - USD
+    - KRW
+  constant.PricePolicy:
+    enum:
+    - OnDemand
+    type: string
+    x-enum-varnames:
+    - OnDemand
+  constant.PriceUnit:
+    enum:
+    - PerHour
+    - PerYear
+    type: string
+    x-enum-varnames:
+    - PerHour
+    - PerYear
   constant.ResourceType:
     enum:
     - VM
@@ -333,6 +394,67 @@ definitions:
     - VNet
     - DataDisk
     - Etc
+  cost.EsimateForecastCostSpecResult:
+    properties:
+      estimateForecastCostSpecDetailResults:
+        items:
+          $ref: '#/definitions/cost.EstimateForecastCostSpecDetailResult'
+        type: array
+      imageName:
+        type: string
+      instanceType:
+        type: string
+      providerName:
+        type: string
+      regionName:
+        type: string
+      totalMaxMonthlyPrice:
+        type: number
+      totalMinMonthlyPrice:
+        type: number
+    type: object
+  cost.EstimateForecastCostResult:
+    properties:
+      esimateForecastCostSpecResults:
+        items:
+          $ref: '#/definitions/cost.EsimateForecastCostSpecResult'
+        type: array
+      totalMaxMonthlyPrice:
+        type: number
+      totalMinMonthlyPrice:
+        type: number
+    type: object
+  cost.EstimateForecastCostSpecDetailResult:
+    properties:
+      calculatedMonthlyPrice:
+        type: number
+      currency:
+        $ref: '#/definitions/constant.PriceCurrency'
+      id:
+        type: integer
+      lastUpdatedAt:
+        type: string
+      memory:
+        type: string
+      originalPricePolicy:
+        type: string
+      osType:
+        type: string
+      price:
+        type: string
+      priceDescription:
+        type: string
+      pricePolicy:
+        $ref: '#/definitions/constant.PricePolicy'
+      productDescription:
+        type: string
+      storage:
+        type: string
+      unit:
+        $ref: '#/definitions/constant.PriceUnit'
+      vCpu:
+        type: string
+    type: object
   cost.GetCostInfoResult:
     properties:
       category:
@@ -660,6 +782,40 @@ info:
   title: CM-ANT REST API
   version: 0.2.2
 paths:
+  /api/v1/cost/forecast:
+    post:
+      consumes:
+      - application/json
+      description: Estimate the forecast cost for cloud resources based on recommended
+        specifications. Requires either RecommendSpecs or RecommendSpecsWithFormat
+        in the request body. Returns an error if the required properties are missing
+        or if the request is invalid.
+      operationId: EstimateForecastCost
+      parameters:
+      - description: Request body containing estimation parameters
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.EstimateForecastCostReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully estimated forecast cost
+          schema:
+            $ref: '#/definitions/app.AntResponse-cost_EstimateForecastCostResult'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to estimate forecast cost
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Estimate Forecast Cost
+      tags:
+      - '[Cost Estimation]'
   /api/v1/cost/info:
     get:
       consumes:

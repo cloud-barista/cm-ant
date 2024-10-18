@@ -16,6 +16,53 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/cost/forecast": {
+            "post": {
+                "description": "Estimate the forecast cost for cloud resources based on recommended specifications. Requires either RecommendSpecs or RecommendSpecsWithFormat in the request body. Returns an error if the required properties are missing or if the request is invalid.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Cost Estimation]"
+                ],
+                "summary": "Estimate Forecast Cost",
+                "operationId": "EstimateForecastCost",
+                "parameters": [
+                    {
+                        "description": "Request body containing estimation parameters",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.EstimateForecastCostReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully estimated forecast cost",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-cost_EstimateForecastCostResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to estimate forecast cost",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/cost/info": {
             "get": {
                 "description": "Retrieve cost information for specified parameters within a defined date range. The date range must be within a 6-month period. Optionally, you can specify cost aggregation type and date order for the results.",
@@ -1125,6 +1172,23 @@ const docTemplate = `{
                 }
             }
         },
+        "app.AntResponse-cost_EstimateForecastCostResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/cost.EstimateForecastCostResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
         "app.AntResponse-cost_UpdateCostInfoResult": {
             "type": "object",
             "properties": {
@@ -1340,6 +1404,49 @@ const docTemplate = `{
                 }
             }
         },
+        "app.EstimateForecastCostReq": {
+            "type": "object",
+            "required": [
+                "recommendSpecs",
+                "recommendSpecsWithFormat"
+            ],
+            "properties": {
+                "recommendSpecs": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "image": {
+                                "type": "string"
+                            },
+                            "instanceType": {
+                                "type": "string"
+                            },
+                            "providerName": {
+                                "type": "string"
+                            },
+                            "regionName": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "recommendSpecsWithFormat": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "commonImage": {
+                                "type": "string"
+                            },
+                            "commonSpec": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "app.InstallLoadGeneratorReq": {
             "type": "object",
             "properties": {
@@ -1526,6 +1633,37 @@ const docTemplate = `{
                 "Remote"
             ]
         },
+        "constant.PriceCurrency": {
+            "type": "string",
+            "enum": [
+                "USD",
+                "KRW"
+            ],
+            "x-enum-varnames": [
+                "USD",
+                "KRW"
+            ]
+        },
+        "constant.PricePolicy": {
+            "type": "string",
+            "enum": [
+                "OnDemand"
+            ],
+            "x-enum-varnames": [
+                "OnDemand"
+            ]
+        },
+        "constant.PriceUnit": {
+            "type": "string",
+            "enum": [
+                "PerHour",
+                "PerYear"
+            ],
+            "x-enum-varnames": [
+                "PerHour",
+                "PerYear"
+            ]
+        },
         "constant.ResourceType": {
             "type": "string",
             "enum": [
@@ -1540,6 +1678,99 @@ const docTemplate = `{
                 "DataDisk",
                 "Etc"
             ]
+        },
+        "cost.EsimateForecastCostSpecResult": {
+            "type": "object",
+            "properties": {
+                "estimateForecastCostSpecDetailResults": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cost.EstimateForecastCostSpecDetailResult"
+                    }
+                },
+                "imageName": {
+                    "type": "string"
+                },
+                "instanceType": {
+                    "type": "string"
+                },
+                "providerName": {
+                    "type": "string"
+                },
+                "regionName": {
+                    "type": "string"
+                },
+                "totalMaxMonthlyPrice": {
+                    "type": "number"
+                },
+                "totalMinMonthlyPrice": {
+                    "type": "number"
+                }
+            }
+        },
+        "cost.EstimateForecastCostResult": {
+            "type": "object",
+            "properties": {
+                "esimateForecastCostSpecResults": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cost.EsimateForecastCostSpecResult"
+                    }
+                },
+                "totalMaxMonthlyPrice": {
+                    "type": "number"
+                },
+                "totalMinMonthlyPrice": {
+                    "type": "number"
+                }
+            }
+        },
+        "cost.EstimateForecastCostSpecDetailResult": {
+            "type": "object",
+            "properties": {
+                "calculatedMonthlyPrice": {
+                    "type": "number"
+                },
+                "currency": {
+                    "$ref": "#/definitions/constant.PriceCurrency"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lastUpdatedAt": {
+                    "type": "string"
+                },
+                "memory": {
+                    "type": "string"
+                },
+                "originalPricePolicy": {
+                    "type": "string"
+                },
+                "osType": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "string"
+                },
+                "priceDescription": {
+                    "type": "string"
+                },
+                "pricePolicy": {
+                    "$ref": "#/definitions/constant.PricePolicy"
+                },
+                "productDescription": {
+                    "type": "string"
+                },
+                "storage": {
+                    "type": "string"
+                },
+                "unit": {
+                    "$ref": "#/definitions/constant.PriceUnit"
+                },
+                "vCpu": {
+                    "type": "string"
+                }
+            }
         },
         "cost.GetCostInfoResult": {
             "type": "object",

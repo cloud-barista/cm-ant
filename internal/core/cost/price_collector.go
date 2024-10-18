@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
@@ -17,6 +18,7 @@ import (
 type PriceCollector interface {
 	Readyz(context.Context) error
 	GetPriceInfos(context.Context, UpdatePriceInfosParam) (PriceInfos, error)
+	FetchPriceInfos(context.Context, RecommendSpecParam) (PriceInfos, error)
 }
 
 var (
@@ -189,6 +191,153 @@ func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param UpdatePr
 	})
 
 	return createdPriceInfo, nil
+}
+
+func (s *SpiderPriceCollector) FetchPriceInfos(ctx context.Context, param RecommendSpecParam) (PriceInfos, error) {
+	connectionName := fmt.Sprintf("%s-%s", strings.ToLower(param.ProviderName), strings.ToLower(param.RegionName))
+
+	req := spider.PriceInfoReq{
+		ConnectionName: connectionName,
+		FilterList:     s.generateFilter(param),
+	}
+
+	result, err := s.sc.GetPriceInfoWithContext(ctx, param.RegionName, req)
+
+	if err != nil {
+
+		if strings.Contains(err.Error(), "you don't have any permission") {
+			return nil, fmt.Errorf("you don't have permission to query the price for %s", param.ProviderName)
+		}
+		return nil, err
+	}
+
+	createdPriceInfo := make([]*PriceInfo, 0)
+	if result.CloudPriceList != nil {
+		for i := range result.CloudPriceList {
+			p := result.CloudPriceList[i]
+
+			if p.PriceList != nil {
+				for j := range p.PriceList {
+
+					pl := p.PriceList[j]
+
+					productInfo := pl.ProductInfo
+					vCpu := s.naChecker(productInfo.Vcpu)
+					originalMemory := s.naChecker(productInfo.Memory)
+
+					if vCpu == "" || originalMemory == "" {
+						continue
+					}
+
+					memory, memoryUnit := s.splitMemory(originalMemory)
+					zoneName := s.naChecker(productInfo.ZoneName)
+					osType := s.naChecker(productInfo.OperatingSystem)
+					storage := s.naChecker(productInfo.Storage)
+					productDescription := s.naChecker(productInfo.Description)
+
+					var price, originalCurrency, originalUnit, priceDescription string
+					var unit constant.PriceUnit
+					var currency constant.PriceCurrency
+
+					priceInfo := pl.PriceInfo
+
+					if priceInfo.PricingPolicies != nil {
+						for k := range priceInfo.PricingPolicies {
+							policy := priceInfo.PricingPolicies[k]
+							originalPricePolicy := s.naChecker(policy.PricingPolicy)
+							priceDescription = s.naChecker(policy.Description)
+							originalCurrency = s.naChecker(policy.Currency)
+							originalUnit = s.naChecker(policy.Unit)
+							unit = s.parseUnit(originalUnit)
+							currency = s.parseCurrency(policy.Currency)
+							convertedPrice, err := strconv.ParseFloat(policy.Price, 64)
+							if err != nil {
+								utils.LogWarnf("not allowed for error; %s", err)
+								continue
+							}
+
+							if convertedPrice == float64(0) {
+								utils.LogWarn("not allowed for empty price")
+								continue
+							}
+							price = s.naChecker(policy.Price)
+
+							if price == "" {
+								utils.LogWarn("not allowed for empty price")
+								continue
+							}
+
+							if strings.Contains(strings.ToLower(priceDescription), "dedicated") {
+								utils.LogWarnf("not allowed for dedicated instance hour; %s", priceDescription)
+								continue
+							}
+
+							pi := PriceInfo{
+								ProviderName:           param.ProviderName,
+								RegionName:             productInfo.RegionName,
+								InstanceType:           productInfo.InstanceType,
+								ZoneName:               zoneName,
+								VCpu:                   vCpu,
+								OriginalMemory:         originalMemory,
+								Memory:                 memory,
+								MemoryUnit:             memoryUnit,
+								Storage:                storage,
+								OsType:                 osType,
+								ProductDescription:     productDescription,
+								OriginalPricePolicy:    originalPricePolicy,
+								PricePolicy:            constant.OnDemand,
+								Price:                  price,
+								Currency:               currency,
+								Unit:                   unit,
+								OriginalUnit:           originalUnit,
+								OriginalCurrency:       originalCurrency,
+								PriceDescription:       priceDescription,
+								CalculatedMonthlyPrice: s.calculatePrice(price, unit),
+								LastUpdatedAt:          time.Now(),
+								ImageName:              param.Image,
+							}
+
+							if !priceValidator[param.ProviderName](&pi) {
+								continue
+							}
+
+							createdPriceInfo = append(createdPriceInfo, &pi)
+						}
+					}
+
+				}
+			}
+		}
+	}
+
+	sort.Slice(createdPriceInfo, func(i, j int) bool {
+		return createdPriceInfo[i].Price < createdPriceInfo[j].Price
+	})
+
+	return createdPriceInfo, nil
+}
+
+func (s *SpiderPriceCollector) generateFilter(param RecommendSpecParam) []spider.FilterReq {
+
+	providerName := strings.ToLower(param.ProviderName)
+	param.ProviderName = providerName
+
+	ret := []spider.FilterReq{
+		{
+			Key:   "pricingPolicy",
+			Value: onDemandPricingPolicyMap[providerName],
+		},
+		{
+			Key:   "regionName",
+			Value: param.RegionName,
+		},
+		{
+			Key:   "instanceType",
+			Value: param.InstanceType,
+		},
+	}
+
+	return ret
 }
 
 func (s *SpiderPriceCollector) generateFilterList(param UpdatePriceInfosParam) []spider.FilterReq {

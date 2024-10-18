@@ -6,10 +6,97 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/config"
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/core/cost"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/labstack/echo/v4"
 )
+
+// @Id EstimateForecastCost
+// @Summary Estimate Forecast Cost
+// @Description Estimate the forecast cost for cloud resources based on recommended specifications. Requires either RecommendSpecs or RecommendSpecsWithFormat in the request body. Returns an error if the required properties are missing or if the request is invalid.
+// @Tags [Cost Estimation]
+// @Accept json
+// @Produce json
+// @Param body body EstimateForecastCostReq true "Request body containing estimation parameters"
+// @Success 200 {object} app.AntResponse[cost.EstimateForecastCostResult] "Successfully estimated forecast cost"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Failed to estimate forecast cost"
+// @Router /api/v1/cost/forecast [post]
+func (a *AntServer) estimateForecastCost(c echo.Context) error {
+	var req EstimateForecastCostReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponseJson(http.StatusBadRequest, err.Error())
+	}
+
+	if len(req.RecommendSpecs) == 0 && len(req.RecommendSpecsWithFormat) == 0 {
+		return errorResponseJson(http.StatusBadRequest, "request is invalid. check the required request body properties")
+	}
+
+	pastTime := time.Now().Add(-config.AppConfig.Cost.Estimation.Forcast.PriceUpdateInterval)
+
+	recommendSpecs := make([]cost.RecommendSpecParam, 0)
+
+	if len(req.RecommendSpecs) > 0 {
+		for _, v := range req.RecommendSpecs {
+			param := cost.RecommendSpecParam{
+				ProviderName: strings.TrimSpace(strings.ToLower(v.ProviderName)),
+				RegionName:   strings.TrimSpace(v.RegionName),
+				InstanceType: strings.TrimSpace(v.InstanceType),
+				Image:        strings.TrimSpace(v.Image),
+			}
+			recommendSpecs = append(recommendSpecs, param)
+		}
+	}
+
+	if len(req.RecommendSpecsWithFormat) > 0 {
+		for _, v := range req.RecommendSpecsWithFormat {
+
+			ci := strings.TrimSpace(v.CommonImage)
+			cs := strings.TrimSpace(v.CommonSpec)
+
+			splitedCommonImage := strings.Split(ci, "+")
+			splitedCommonSpec := strings.Split(cs, "+")
+
+			if len(splitedCommonImage) != 3 || len(splitedCommonSpec) != 3 {
+				utils.LogErrorf("common image and spec format is not correct; image: %s; spec: %s", ci, cs)
+				continue
+			}
+
+			if splitedCommonImage[0] != splitedCommonSpec[0] || splitedCommonImage[1] != splitedCommonSpec[1] {
+				utils.LogErrorf("common image and spec recommendation is wrong; image: %s; spec: %s", ci, cs)
+				continue
+			}
+
+			param := cost.RecommendSpecParam{
+				ProviderName: strings.TrimSpace(strings.ToLower(splitedCommonImage[0])),
+				RegionName:   strings.TrimSpace(splitedCommonImage[1]),
+				InstanceType: strings.TrimSpace(splitedCommonSpec[2]),
+				Image:        strings.TrimSpace(splitedCommonImage[2]),
+			}
+			recommendSpecs = append(recommendSpecs, param)
+		}
+	}
+
+	arg := cost.EstimateForecastCostParam{
+		RecommendSpecs: recommendSpecs,
+		TimeStandard:   time.Date(pastTime.Year(), pastTime.Month(), pastTime.Day(), 0, 0, 0, 0, pastTime.Location()),
+		PricePolicy:    constant.OnDemand,
+	}
+
+	res, err := a.services.costService.EstimateForecastCost(arg)
+
+	if err != nil {
+		return errorResponseJson(http.StatusInternalServerError, err.Error())
+	}
+
+	return successResponseJson(
+		c,
+		"retrieved pricing information",
+		res,
+	)
+}
 
 // @Id UpdatePriceInfos
 // @Summar Update Price Information

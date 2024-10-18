@@ -56,8 +56,13 @@ func (server *AntServer) InitRouter() error {
 			}
 		}
 	}
-
+	
+	
 	{
+		costEstimationHandler := versionRouter.Group("/cost-estimation")
+
+		costEstimationHandler.POST("/forecast", server.estimateForecastCost)
+
 		priceRouter := versionRouter.Group("/price")
 		{
 			priceRouter.POST("/info", server.updatePriceInfos)

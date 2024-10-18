@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/spf13/viper"
@@ -31,6 +32,14 @@ type AntConfig struct {
 		Username string `yaml:"username"`
 		Password string `yaml:"password"`
 	} `yaml:"tumblebug"`
+
+	Cost struct {
+		Estimation struct {
+			Forcast struct {
+				PriceUpdateInterval time.Duration `yaml:"priceUpdateInterval"`
+			} `yaml:"forecast"`
+		} `yaml:"estimation"`
+	} `yaml:"cost"`
 	Load struct {
 		Retry  int `yaml:"retry"`
 		JMeter struct {

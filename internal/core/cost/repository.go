@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"gorm.io/gorm"
@@ -82,6 +83,35 @@ func (r *CostRepository) GetAllMatchingPriceInfoList(ctx context.Context, param 
 	return priceInfoList, err
 }
 
+func (r *CostRepository) GetMatchingForecastCost(ctx context.Context, param RecommendSpecParam, timeStandard time.Time, pricePolicy constant.PricePolicy) (PriceInfos, error) {
+	var priceInfos []*PriceInfo
+
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		q := d.Model(&PriceInfo{}).
+			Where(
+				"LOWER(provider_name) = ? AND LOWER(region_name) = ? AND instance_type  = ? AND image_name  = ? AND price_policy = ? AND last_updated_at >= ?",
+				strings.ToLower(param.ProviderName),
+				strings.ToLower(param.RegionName),
+				strings.ToLower(param.InstanceType),
+				strings.ToLower(param.Image),
+				pricePolicy,
+				timeStandard,
+			)
+
+		if err := q.Find(&priceInfos).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return priceInfos, nil
+}
+
 func (r *CostRepository) CountMatchingPriceInfoList(ctx context.Context, param UpdatePriceInfosParam) (int64, error) {
 	var totalCount int64
 
@@ -103,7 +133,7 @@ func (r *CostRepository) CountMatchingPriceInfoList(ctx context.Context, param U
 
 }
 
-func (r *CostRepository) BatchInsertAllResult(ctx context.Context, param UpdatePriceInfosParam, created PriceInfos) error {
+func (r *CostRepository) BatchInsertAllForecastCostResult(ctx context.Context, created PriceInfos) error {
 
 	batchSize := 100
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
