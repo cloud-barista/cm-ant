@@ -61,12 +61,12 @@ func (a *AntServer) estimateForecastCost(c echo.Context) error {
 
 			if len(splitedCommonImage) != 3 || len(splitedCommonSpec) != 3 {
 				utils.LogErrorf("common image and spec format is not correct; image: %s; spec: %s", ci, cs)
-				continue
+				return errorResponseJson(http.StatusBadRequest, fmt.Sprintf("common image and spec format is not correct; image: %s; spec: %s", ci, cs))
 			}
 
 			if splitedCommonImage[0] != splitedCommonSpec[0] || splitedCommonImage[1] != splitedCommonSpec[1] {
 				utils.LogErrorf("common image and spec recommendation is wrong; image: %s; spec: %s", ci, cs)
-				continue
+				return errorResponseJson(http.StatusBadRequest, fmt.Sprintf("common image and spec recommendation is wrong; image: %s; spec: %s", ci, cs))
 			}
 
 			param := cost.RecommendSpecParam{
