@@ -1407,14 +1407,19 @@ const docTemplate = `{
         "app.EstimateForecastCostReq": {
             "type": "object",
             "required": [
-                "recommendSpecs",
-                "recommendSpecsWithFormat"
+                "specs",
+                "specsWithFormat"
             ],
             "properties": {
-                "recommendSpecs": {
+                "specs": {
                     "type": "array",
                     "items": {
                         "type": "object",
+                        "required": [
+                            "instanceType",
+                            "providerName",
+                            "regionName"
+                        ],
                         "properties": {
                             "image": {
                                 "type": "string"
@@ -1431,10 +1436,13 @@ const docTemplate = `{
                         }
                     }
                 },
-                "recommendSpecsWithFormat": {
+                "specsWithFormat": {
                     "type": "array",
                     "items": {
                         "type": "object",
+                        "required": [
+                            "commonSpec"
+                        ],
                         "properties": {
                             "commonImage": {
                                 "type": "string"

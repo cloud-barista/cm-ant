@@ -204,7 +204,7 @@ definitions:
     type: object
   app.EstimateForecastCostReq:
     properties:
-      recommendSpecs:
+      specs:
         items:
           properties:
             image:
@@ -215,20 +215,26 @@ definitions:
               type: string
             regionName:
               type: string
+          required:
+          - instanceType
+          - providerName
+          - regionName
           type: object
         type: array
-      recommendSpecsWithFormat:
+      specsWithFormat:
         items:
           properties:
             commonImage:
               type: string
             commonSpec:
               type: string
+          required:
+          - commonSpec
           type: object
         type: array
     required:
-    - recommendSpecs
-    - recommendSpecsWithFormat
+    - specs
+    - specsWithFormat
     type: object
   app.InstallLoadGeneratorReq:
     properties:

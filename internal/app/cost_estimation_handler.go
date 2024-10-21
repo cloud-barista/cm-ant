@@ -30,7 +30,7 @@ func (a *AntServer) estimateForecastCost(c echo.Context) error {
 		return errorResponseJson(http.StatusBadRequest, err.Error())
 	}
 
-	if len(req.RecommendSpecs) == 0 && len(req.RecommendSpecsWithFormat) == 0 {
+	if len(req.Specs) == 0 && len(req.SpecsWithFormat) == 0 {
 		return errorResponseJson(http.StatusBadRequest, "request is invalid. check the required request body properties")
 	}
 
@@ -38,8 +38,8 @@ func (a *AntServer) estimateForecastCost(c echo.Context) error {
 
 	recommendSpecs := make([]cost.RecommendSpecParam, 0)
 
-	if len(req.RecommendSpecs) > 0 {
-		for _, v := range req.RecommendSpecs {
+	if len(req.Specs) > 0 {
+		for _, v := range req.Specs {
 			param := cost.RecommendSpecParam{
 				ProviderName: strings.TrimSpace(strings.ToLower(v.ProviderName)),
 				RegionName:   strings.TrimSpace(v.RegionName),
@@ -50,31 +50,37 @@ func (a *AntServer) estimateForecastCost(c echo.Context) error {
 		}
 	}
 
-	if len(req.RecommendSpecsWithFormat) > 0 {
-		for _, v := range req.RecommendSpecsWithFormat {
+	if len(req.SpecsWithFormat) > 0 {
+		delim := "+"
 
-			ci := strings.TrimSpace(v.CommonImage)
+		for _, v := range req.SpecsWithFormat {
+
 			cs := strings.TrimSpace(v.CommonSpec)
+			ci := strings.TrimSpace(v.CommonImage)
 
-			splitedCommonImage := strings.Split(ci, "+")
-			splitedCommonSpec := strings.Split(cs, "+")
+			splitedCommonSpec := strings.Split(cs, delim)
+			splitedCommonImage := strings.Split(ci, delim)
 
-			if len(splitedCommonImage) != 3 || len(splitedCommonSpec) != 3 {
-				utils.LogErrorf("common image and spec format is not correct; image: %s; spec: %s", ci, cs)
-				return errorResponseJson(http.StatusBadRequest, fmt.Sprintf("common image and spec format is not correct; image: %s; spec: %s", ci, cs))
+			if len(splitedCommonSpec) != 3 {
+				utils.LogErrorf("common spec format is not correct; image: %s; spec: %s", ci, cs)
+				return errorResponseJson(http.StatusBadRequest, fmt.Sprintf("common spec format is not correct; image: %s; spec: %s", ci, cs))
 			}
 
-			if splitedCommonImage[0] != splitedCommonSpec[0] || splitedCommonImage[1] != splitedCommonSpec[1] {
+			if len(splitedCommonImage) == 3 && (splitedCommonImage[0] != splitedCommonSpec[0] || splitedCommonImage[1] != splitedCommonSpec[1]) {
 				utils.LogErrorf("common image and spec recommendation is wrong; image: %s; spec: %s", ci, cs)
 				return errorResponseJson(http.StatusBadRequest, fmt.Sprintf("common image and spec recommendation is wrong; image: %s; spec: %s", ci, cs))
 			}
 
 			param := cost.RecommendSpecParam{
-				ProviderName: strings.TrimSpace(strings.ToLower(splitedCommonImage[0])),
-				RegionName:   strings.TrimSpace(splitedCommonImage[1]),
+				ProviderName: strings.TrimSpace(strings.ToLower(splitedCommonSpec[0])),
+				RegionName:   strings.TrimSpace(splitedCommonSpec[1]),
 				InstanceType: strings.TrimSpace(splitedCommonSpec[2]),
-				Image:        strings.TrimSpace(splitedCommonImage[2]),
 			}
+
+			if len(splitedCommonImage) == 3 {
+				param.Image = strings.TrimSpace(splitedCommonImage[2])
+			}
+
 			recommendSpecs = append(recommendSpecs, param)
 		}
 	}

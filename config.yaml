@@ -1,6 +1,3 @@
-root:
-  path: 
-  
 server:
   port: 8880
 
@@ -15,6 +12,11 @@ tumblebug:
   port: 1323
   username: default
   password: default
+
+cost:
+  estimation:
+    forecast:
+      priceUpdateInterval: 7d
 
 load:
   retry: 2
