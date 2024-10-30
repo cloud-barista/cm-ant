@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 type CostService struct {
@@ -65,7 +67,14 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 	var errList []error
 	var esimateCostSpecResult EstimateCostResults
 
-	utils.LogInfof("Fetching estimate cost info for spec: %+v", param)
+	log.Info().Msgf("Fetching estimate cost info for spec: %+v", param)
+
+	fail := func(msgFormat string, err error, p RecommendSpecParam) {
+		mu.Lock()
+		errList = append(errList, err)
+		mu.Unlock()
+		log.Error().Msgf(msgFormat, p, err)
+	}
 
 	for _, v := range param.RecommendSpecs {
 		wg.Add(1)
@@ -79,57 +88,92 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 			lock.Lock()
 			defer lock.Unlock()
 
-			estimateCostInfos, err := c.costRepo.GetMatchingEstimateCostTx(ctx, v, param.TimeStandard, param.PricePolicy)
-			if err != nil {
-				mu.Lock()
-				errList = append(errList, err)
-				mu.Unlock()
-				utils.LogErrorf("Error fetching estimate cost info for spec %+v: %v", v, err)
+			var err error
+			var estimateCostInfos EstimateCostInfos
+			possibleFetch := true
 
+			if p.ProviderName == "ibm" || p.ProviderName == "azure" {
+				r, err := c.costRepo.GetMatchingEstimateCostWithoutTypeTx(ctx, v, param.TimeStandard, param.PricePolicy)
+				if err != nil {
+					fail("Error fetching estimate cost info: %v; %s", err, p)
+					return
+				}
+
+				// ibm and azure price fetching filter is not working so if user put never exist instance type,
+				// it always fetch price data from collector.
+				// check and matching with database values
+				if len(r) != 0 {
+					temp := make([]*EstimateCostInfo, 0)
+
+					for i := range r {
+						val := r[i]
+
+						if val == nil {
+							log.Warn().Msg("estimate cost info value is nil")
+							continue
+						}
+
+						if strings.EqualFold(v.InstanceType, p.InstanceType) {
+							temp = append(temp, val)
+						}
+					}
+
+					if len(temp) > 0 {
+						estimateCostInfos = temp
+					} else {
+						possibleFetch = false
+					}
+				}
+			} else {
+				estimateCostInfos, err = c.costRepo.GetMatchingEstimateCostTx(ctx, p, param.TimeStandard, param.PricePolicy)
+			}
+
+			if err != nil {
+				fail("Error fetching estimate cost info for spec: %v; %s", err, p)
 				return
 			}
 
-			if len(estimateCostInfos) == 0 {
-				utils.LogInfof("No matching estimate cost found for spec: %+v, fetching from price collector", v)
+			if len(estimateCostInfos) == 0 || possibleFetch {
+				log.Info().Msgf("No matching estimate cost found from database for spec: %+v, fetching from price collector", p)
 
-				resList, err := c.priceCollector.FetchPriceInfos(ctx, v)
+				resList, err := c.priceCollector.FetchPriceInfos(ctx, p)
 				if err != nil {
-					mu.Lock()
-					errList = append(errList, fmt.Errorf("error retrieving estimate cost info for %+v: %w", v, err))
-					mu.Unlock()
+					fail("Error retrieving estimate cost info spec: %v; %s", fmt.Errorf("error retrieving estimate cost info for %+v: %w", p, err), p)
 					return
 				}
 
 				if len(resList) > 0 {
-					utils.LogInfof("Inserting fetched estimate cost info results for spec: %+v", v)
+					log.Info().Msgf("Inserting fetched estimate cost info results for spec: %+v", p)
 
 					err = c.costRepo.BatchInsertAllEstimateCostResultTx(ctx, resList)
 					if err != nil {
-						mu.Lock()
-						errList = append(errList, fmt.Errorf("error batch inserting results for %+v: %w", v, err))
-						mu.Unlock()
+						fail("Error batch inserting estimate cost info spec: %v; %s", fmt.Errorf("error batch inserting results for %+v: %w", p, err), p)
 						return
 					}
 				}
 				estimateCostInfos = resList
 			}
 
+			res := EsimateCostSpecResults{
+				ProviderName:                  p.ProviderName,
+				RegionName:                    p.RegionName,
+				InstanceType:                  p.InstanceType,
+				ImageName:                     p.Image,
+				EstimateCostSpecDetailResults: make([]EstimateCostSpecDetailResult, 0),
+			}
+
 			if len(estimateCostInfos) > 0 {
+				minPrice := estimateCostInfos[0].CalculatedMonthlyPrice
+				maxPrice := estimateCostInfos[0].CalculatedMonthlyPrice
 
-				minPrice := float64(math.MaxFloat64)
-				maxPrice := float64(math.SmallestNonzeroFloat64)
+				for _, va := range estimateCostInfos {
 
-				res := EsimateCostSpecResults{
-					ProviderName:                  v.ProviderName,
-					RegionName:                    v.RegionName,
-					InstanceType:                  v.InstanceType,
-					ImageName:                     v.Image,
-					EstimateCostSpecDetailResults: make([]EstimateCostSpecDetailResult, 0),
-				}
-
-				for _, v := range estimateCostInfos {
-					calculatedPrice := v.CalculatedMonthlyPrice
-					utils.LogInfof("Price calculated for spec %+v: %f", v, calculatedPrice)
+					if !strings.EqualFold(v.InstanceType, p.InstanceType) {
+						log.Warn().Msgf("%s instance type is not matching with provided condition %s", va.InstanceType, p.InstanceType)
+						continue
+					}
+					calculatedPrice := va.CalculatedMonthlyPrice
+					log.Info().Msgf("Price calculated for spec %+v: %f", p, calculatedPrice)
 
 					if calculatedPrice < minPrice {
 						minPrice = calculatedPrice
@@ -139,20 +183,20 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 					}
 
 					specDetail := EstimateCostSpecDetailResult{
-						ID:                     v.ID,
-						VCpu:                   v.VCpu,
-						Memory:                 fmt.Sprintf("%s %s", v.Memory, v.MemoryUnit),
-						Storage:                v.Storage,
-						OsType:                 v.OsType,
-						ProductDescription:     v.ProductDescription,
-						OriginalPricePolicy:    v.OriginalPricePolicy,
-						PricePolicy:            v.PricePolicy,
-						Unit:                   v.Unit,
-						Currency:               v.Currency,
-						Price:                  v.Price,
+						ID:                     va.ID,
+						VCpu:                   va.VCpu,
+						Memory:                 fmt.Sprintf("%s %s", va.Memory, va.MemoryUnit),
+						Storage:                va.Storage,
+						OsType:                 va.OsType,
+						ProductDescription:     va.ProductDescription,
+						OriginalPricePolicy:    va.OriginalPricePolicy,
+						PricePolicy:            va.PricePolicy,
+						Unit:                   va.Unit,
+						Currency:               va.Currency,
+						Price:                  va.Price,
 						CalculatedMonthlyPrice: calculatedPrice,
-						PriceDescription:       v.PriceDescription,
-						LastUpdatedAt:          v.LastUpdatedAt,
+						PriceDescription:       va.PriceDescription,
+						LastUpdatedAt:          va.LastUpdatedAt,
 					}
 
 					res.SpecMinMonthlyPrice = minPrice
@@ -160,10 +204,16 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 					res.EstimateCostSpecDetailResults = append(res.EstimateCostSpecDetailResults, specDetail)
 				}
 
+				if len(res.EstimateCostSpecDetailResults) > 0 {
+					sort.Slice(res.EstimateCostSpecDetailResults, func(i, j int) bool {
+						return res.EstimateCostSpecDetailResults[i].CalculatedMonthlyPrice < res.EstimateCostSpecDetailResults[j].CalculatedMonthlyPrice
+					})
+				}
+
 				mu.Lock()
 				results = append(results, res)
 				mu.Unlock()
-				utils.LogInfof("Successfully calculated cost for spec: %+v", param)
+				log.Info().Msgf("Successfully calculated cost for spec: %+v", param)
 			}
 
 		}(v)
@@ -176,13 +226,6 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 
 	if len(results) > 0 {
 		esimateCostSpecResult.EsimateCostSpecResults = results
-
-		for _, v := range results {
-			esimateCostSpecResult.TotalMinMonthlyPrice += v.SpecMinMonthlyPrice
-			esimateCostSpecResult.TotalMaxMonthlyPrice += v.SpecMaxMonthlyPrice
-		}
-		utils.LogInfof("Total min monthly price: %f, Total max monthly price: %f", esimateCostSpecResult.TotalMinMonthlyPrice, esimateCostSpecResult.TotalMaxMonthlyPrice)
-
 	}
 
 	return esimateCostSpecResult, nil
@@ -294,7 +337,7 @@ var (
 	ErrCostResultFormatInvalid = errors.New("cost result does not matching with interface")
 )
 
-func (c *CostService) UpdateCostInfo(param UpdateCostInfoParam) (UpdateEstimateForecastCostInfoResult, error) {
+func (c *CostService) UpdateEstimateForecastCostRaw(param UpdateEstimateForecastCostRawParam) (UpdateEstimateForecastCostInfoResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 

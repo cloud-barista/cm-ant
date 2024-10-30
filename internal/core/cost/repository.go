@@ -2,6 +2,7 @@ package cost
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -92,20 +93,54 @@ func (r *CostRepository) GetMatchingEstimateCostInfosTx(ctx context.Context, par
 	return priceInfoList, totalRows, err
 }
 
+func (r *CostRepository) GetMatchingEstimateCostWithoutTypeTx(ctx context.Context, param RecommendSpecParam, timeStandard time.Time, pricePolicy constant.PricePolicy) (EstimateCostInfos, error) {
+	var priceInfos []*EstimateCostInfo
+
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		q := d.Model(&EstimateCostInfo{}).
+			Where(
+				"LOWER(provider_name) = ? AND LOWER(region_name) = ? AND price_policy = ? AND last_updated_at >= ?",
+				strings.ToLower(param.ProviderName),
+				strings.ToLower(param.RegionName),
+				pricePolicy,
+				timeStandard,
+			)
+
+		if param.Image != "" {
+			q = q.Where("image_name  = ?", strings.ToLower(param.Image))
+		}
+
+		if err := q.Find(&priceInfos).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return priceInfos, nil
+}
+
 func (r *CostRepository) GetMatchingEstimateCostTx(ctx context.Context, param RecommendSpecParam, timeStandard time.Time, pricePolicy constant.PricePolicy) (EstimateCostInfos, error) {
 	var priceInfos []*EstimateCostInfo
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		q := d.Model(&EstimateCostInfo{}).
 			Where(
-				"LOWER(provider_name) = ? AND LOWER(region_name) = ? AND instance_type  = ? AND image_name  = ? AND price_policy = ? AND last_updated_at >= ?",
+				"LOWER(provider_name) = ? AND LOWER(region_name) = ? AND instance_type  = ? AND price_policy = ? AND last_updated_at >= ?",
 				strings.ToLower(param.ProviderName),
 				strings.ToLower(param.RegionName),
 				strings.ToLower(param.InstanceType),
-				strings.ToLower(param.Image),
 				pricePolicy,
 				timeStandard,
 			)
+
+		if param.Image != "" {
+			q = q.Where("image_name  = ?", strings.ToLower(param.Image))
+		}
 
 		if err := q.Find(&priceInfos).Error; err != nil {
 			return err
@@ -157,8 +192,6 @@ func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo EstimateFo
 				Granularity:      costInfo.Granularity,
 				StartDate:        costInfo.StartDate,
 				EndDate:          costInfo.EndDate,
-				NsId:             costInfo.NsId,
-				MciId:            costInfo.MciId,
 			}).First(&costInfo).Error
 
 		if err != nil && err != gorm.ErrRecordNotFound {
@@ -172,8 +205,10 @@ func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo EstimateFo
 			insertCount++
 		} else {
 			if err := d.Model(&costInfo).Updates(map[string]interface{}{
-				"cost": costInfo.Cost,
-				"unit": costInfo.Unit,
+				"cost":   costInfo.Cost,
+				"unit":   costInfo.Unit,
+				"ns_id":  costInfo.NsId,
+				"mci_id": costInfo.MciId,
 			}).Error; err != nil {
 				return err
 			}
@@ -250,5 +285,11 @@ func (r *CostRepository) GetEstimateForecastCostInfosTx(ctx context.Context, par
 		return nil
 	})
 
-	return costInfo, totalRows, err
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return costInfo, totalRows, err
+		}
+	}
+
+	return costInfo, totalRows, nil
 }

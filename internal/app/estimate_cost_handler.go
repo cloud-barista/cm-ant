@@ -11,7 +11,6 @@ import (
 	"github.com/cloud-barista/cm-ant/internal/core/cost"
 	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/labstack/echo/v4"
-	"github.com/rs/zerolog/log"
 )
 
 // @Id UpdateAndGetEstimateCost
@@ -245,8 +244,6 @@ func (server *AntServer) getEstimateCost(c echo.Context) error {
 // @Failure 500 {object} app.AntResponse[string] "Failed to retrieve estimated forecast cost information"
 // @Router /api/v1/cost/estimate/forecast [get]
 func (s *AntServer) getEstimateForecastCost(c echo.Context) error {
-
-	log.Info().Msgf("hello~")
 	var req GetEstimateForecastCostReq
 	if err := c.Bind(&req); err != nil {
 		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
@@ -314,10 +311,19 @@ func (s *AntServer) getEstimateForecastCost(c echo.Context) error {
 	return successResponseJson(c, "Successfully get estimate forecast cost", result)
 }
 
-// ---------------------------------------------------------------------------
-
-func (server *AntServer) updateCostInfos(c echo.Context) error {
-	var req UpdateCostInfoReq
+// @Id UpdateEstimateForecastCostRaw
+// @Summary Update and Retrieve Raw Estimated Forecast Cost
+// @Description Update and retrieve raw forecasted cost estimates for specified cost resources and additional AWS information over the past 14 days.
+// @Tags [Cost Estimate]
+// @Accept json
+// @Produce json
+// @Param body body UpdateEstimateForecastCostRawReq true "Request body containing details for cost estimation forecast"
+// @Success 200 {object} app.AntResponse[cost.UpdateEstimateForecastCostInfoResult] "Successfully updated and retrieved raw estimated forecast cost information in raw data"
+// @Failure 400 {object} app.AntResponse[string] "Migrated resource id list is required"
+// @Failure 500 {object} app.AntResponse[string] "Error updating or retrieving forecast cost information"
+// @Router /api/v1/cost/estimate/forecast/raw [post]
+func (server *AntServer) updateEstimateForecastCostRaw(c echo.Context) error {
+	var req UpdateEstimateForecastCostRawReq
 
 	if err := c.Bind(&req); err != nil {
 		return errorResponseJson(http.StatusBadRequest, "request body binding error")
@@ -338,7 +344,7 @@ func (server *AntServer) updateCostInfos(c echo.Context) error {
 
 	endDate := time.Now().Truncate(24*time.Hour).AddDate(0, 0, 1)
 	startDate := endDate.AddDate(0, 0, -14)
-	param := cost.UpdateCostInfoParam{
+	param := cost.UpdateEstimateForecastCostRawParam{
 		Provider:      "aws",
 		StartDate:     startDate,
 		EndDate:       endDate,
@@ -349,7 +355,7 @@ func (server *AntServer) updateCostInfos(c echo.Context) error {
 		},
 	}
 
-	r, err := server.services.costService.UpdateCostInfo(param)
+	r, err := server.services.costService.UpdateEstimateForecastCostRaw(param)
 
 	if err != nil {
 		return errorResponseJson(http.StatusInternalServerError, err.Error())
