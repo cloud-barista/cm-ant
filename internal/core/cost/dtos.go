@@ -35,19 +35,17 @@ func (r RecommendSpecParam) Hash() string {
 }
 
 type EstimateCostResults struct {
-	TotalMinMonthlyPrice   float64                  `json:"totalMinMonthlyPrice"`
-	TotalMaxMonthlyPrice   float64                  `json:"totalMaxMonthlyPrice"`
-	EsimateCostSpecResults []EsimateCostSpecResults `json:"esimateForecastCostSpecResults"`
+	EsimateCostSpecResults []EsimateCostSpecResults `json:"esimateCostSpecResults,omitempty"`
 }
 
 type EsimateCostSpecResults struct {
-	ProviderName                  string                         `json:"providerName"`
-	RegionName                    string                         `json:"regionName"`
-	InstanceType                  string                         `json:"instanceType"`
-	ImageName                     string                         `json:"imageName"`
-	SpecMinMonthlyPrice           float64                        `json:"totalMinMonthlyPrice"`
-	SpecMaxMonthlyPrice           float64                        `json:"totalMaxMonthlyPrice"`
-	EstimateCostSpecDetailResults []EstimateCostSpecDetailResult `json:"estimateForecastCostSpecDetailResults"`
+	ProviderName                  string                         `json:"providerName,omitempty"`
+	RegionName                    string                         `json:"regionName,omitempty"`
+	InstanceType                  string                         `json:"instanceType,omitempty"`
+	ImageName                     string                         `json:"imageName,omitempty"`
+	SpecMinMonthlyPrice           float64                        `json:"totalMinMonthlyPrice,omitempty"`
+	SpecMaxMonthlyPrice           float64                        `json:"totalMaxMonthlyPrice,omitempty"`
+	EstimateCostSpecDetailResults []EstimateCostSpecDetailResult `json:"estimateForecastCostSpecDetailResults,omitempty"`
 }
 
 type EstimateCostSpecDetailResult struct {
