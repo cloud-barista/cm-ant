@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 type CostService struct {
@@ -52,57 +55,201 @@ func (c *CostService) Readyz() error {
 	return nil
 }
 
-func (c *CostService) UpdatePriceInfos(param UpdatePriceInfosParam) error {
+var estimateCostUpdateLockMap sync.Map
+
+func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostParam) (EstimateCostResults, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	param.TimeStandard = time.Now().AddDate(0, 0, -7).Truncate(24 * time.Hour)
-	param.PricePolicy = constant.OnDemand
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var results []EsimateCostSpecResults
+	var errList []error
+	var esimateCostSpecResult EstimateCostResults
 
-	count, err := c.costRepo.CountMatchingPriceInfoList(ctx, param)
-	if err != nil {
-		return err
+	log.Info().Msgf("Fetching estimate cost info for spec: %+v", param)
+
+	fail := func(msgFormat string, err error, p RecommendSpecParam) {
+		mu.Lock()
+		errList = append(errList, err)
+		mu.Unlock()
+		log.Error().Msgf(msgFormat, p, err)
 	}
 
-	if count <= int64(0) {
-		resList, err := c.priceCollector.GetPriceInfos(ctx, param)
+	for _, v := range param.RecommendSpecs {
+		wg.Add(1)
+		go func(p RecommendSpecParam) {
+			defer wg.Done()
 
-		if err != nil {
-			if strings.Contains(err.Error(), "you don't have any permission") {
-				return fmt.Errorf("you don't have permission to query the price for %s", param.ProviderName)
+			// memory lock
+			rl, _ := estimateCostUpdateLockMap.LoadOrStore(p.Hash(), &sync.Mutex{})
+			lock := rl.(*sync.Mutex)
+
+			lock.Lock()
+			defer lock.Unlock()
+
+			var err error
+			var estimateCostInfos EstimateCostInfos
+			possibleFetch := true
+
+			if p.ProviderName == "ibm" || p.ProviderName == "azure" {
+				r, err := c.costRepo.GetMatchingEstimateCostWithoutTypeTx(ctx, v, param.TimeStandard, param.PricePolicy)
+				if err != nil {
+					fail("Error fetching estimate cost info: %v; %s", err, p)
+					return
+				}
+
+				// ibm and azure price fetching filter is not working so if user put never exist instance type,
+				// it always fetch price data from collector.
+				// check and matching with database values
+				if len(r) != 0 {
+					temp := make([]*EstimateCostInfo, 0)
+
+					for i := range r {
+						val := r[i]
+
+						if val == nil {
+							log.Warn().Msg("estimate cost info value is nil")
+							continue
+						}
+
+						if strings.EqualFold(v.InstanceType, p.InstanceType) {
+							temp = append(temp, val)
+						}
+					}
+
+					if len(temp) > 0 {
+						estimateCostInfos = temp
+					} else {
+						possibleFetch = false
+					}
+				}
+			} else {
+				estimateCostInfos, err = c.costRepo.GetMatchingEstimateCostTx(ctx, p, param.TimeStandard, param.PricePolicy)
 			}
-			return err
-		}
 
-		if len(resList) > 0 {
-			err := c.costRepo.BatchInsertAllResult(ctx, param, resList)
 			if err != nil {
-				return err
+				fail("Error fetching estimate cost info for spec: %v; %s", err, p)
+				return
 			}
-		}
+
+			if len(estimateCostInfos) == 0 || possibleFetch {
+				log.Info().Msgf("No matching estimate cost found from database for spec: %+v, fetching from price collector", p)
+
+				resList, err := c.priceCollector.FetchPriceInfos(ctx, p)
+				if err != nil {
+					fail("Error retrieving estimate cost info spec: %v; %s", fmt.Errorf("error retrieving estimate cost info for %+v: %w", p, err), p)
+					return
+				}
+
+				if len(resList) > 0 {
+					log.Info().Msgf("Inserting fetched estimate cost info results for spec: %+v", p)
+
+					err = c.costRepo.BatchInsertAllEstimateCostResultTx(ctx, resList)
+					if err != nil {
+						fail("Error batch inserting estimate cost info spec: %v; %s", fmt.Errorf("error batch inserting results for %+v: %w", p, err), p)
+						return
+					}
+				}
+				estimateCostInfos = resList
+			}
+
+			res := EsimateCostSpecResults{
+				ProviderName:                  p.ProviderName,
+				RegionName:                    p.RegionName,
+				InstanceType:                  p.InstanceType,
+				ImageName:                     p.Image,
+				EstimateCostSpecDetailResults: make([]EstimateCostSpecDetailResult, 0),
+			}
+
+			if len(estimateCostInfos) > 0 {
+				minPrice := estimateCostInfos[0].CalculatedMonthlyPrice
+				maxPrice := estimateCostInfos[0].CalculatedMonthlyPrice
+
+				for _, va := range estimateCostInfos {
+
+					if !strings.EqualFold(v.InstanceType, p.InstanceType) {
+						log.Warn().Msgf("%s instance type is not matching with provided condition %s", va.InstanceType, p.InstanceType)
+						continue
+					}
+					calculatedPrice := va.CalculatedMonthlyPrice
+					log.Info().Msgf("Price calculated for spec %+v: %f", p, calculatedPrice)
+
+					if calculatedPrice < minPrice {
+						minPrice = calculatedPrice
+					}
+					if calculatedPrice > maxPrice {
+						maxPrice = calculatedPrice
+					}
+
+					specDetail := EstimateCostSpecDetailResult{
+						ID:                     va.ID,
+						VCpu:                   va.VCpu,
+						Memory:                 fmt.Sprintf("%s %s", va.Memory, va.MemoryUnit),
+						Storage:                va.Storage,
+						OsType:                 va.OsType,
+						ProductDescription:     va.ProductDescription,
+						OriginalPricePolicy:    va.OriginalPricePolicy,
+						PricePolicy:            va.PricePolicy,
+						Unit:                   va.Unit,
+						Currency:               va.Currency,
+						Price:                  va.Price,
+						CalculatedMonthlyPrice: calculatedPrice,
+						PriceDescription:       va.PriceDescription,
+						LastUpdatedAt:          va.LastUpdatedAt,
+					}
+
+					res.SpecMinMonthlyPrice = minPrice
+					res.SpecMaxMonthlyPrice = maxPrice
+					res.EstimateCostSpecDetailResults = append(res.EstimateCostSpecDetailResults, specDetail)
+				}
+
+				if len(res.EstimateCostSpecDetailResults) > 0 {
+					sort.Slice(res.EstimateCostSpecDetailResults, func(i, j int) bool {
+						return res.EstimateCostSpecDetailResults[i].CalculatedMonthlyPrice < res.EstimateCostSpecDetailResults[j].CalculatedMonthlyPrice
+					})
+				}
+
+				mu.Lock()
+				results = append(results, res)
+				mu.Unlock()
+				log.Info().Msgf("Successfully calculated cost for spec: %+v", param)
+			}
+
+		}(v)
 	}
-	return nil
+	wg.Wait()
+
+	if len(errList) > 0 {
+		return esimateCostSpecResult, fmt.Errorf("errors occurred during processing: %v", errList)
+	}
+
+	if len(results) > 0 {
+		esimateCostSpecResult.EsimateCostSpecResults = results
+	}
+
+	return esimateCostSpecResult, nil
 }
 
-func (c *CostService) GetPriceInfos(param GetPriceInfosParam) (AllPriceInfoResult, error) {
+func (c *CostService) GetEstimateCost(param GetEstimateCostParam) (EstimateCostInfoResults, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	param.TimeStandard = time.Now().AddDate(0, 0, -7).Truncate(24 * time.Hour)
 	param.PricePolicy = constant.OnDemand
 
-	var res AllPriceInfoResult
+	var res EstimateCostInfoResults
 
-	priceInfos, err := c.costRepo.GetAllMatchingPriceInfoList(ctx, param)
+	estimateCostInfos, totalCount, err := c.costRepo.GetMatchingEstimateCostInfosTx(ctx, param)
 	if err != nil {
 		return res, err
 	}
 
-	priceInfoList := make([]PriceInfoResult, 0)
+	priceInfoList := make([]EstimateCostInfoResult, 0)
 
-	if len(priceInfos) > 0 {
-		for _, v := range priceInfos {
-			result := PriceInfoResult{
+	if len(estimateCostInfos) > 0 {
+		for _, v := range estimateCostInfos {
+			result := EstimateCostInfoResult{
 				ID:                     v.ID,
 				ProviderName:           v.ProviderName,
 				RegionName:             v.RegionName,
@@ -124,11 +271,62 @@ func (c *CostService) GetPriceInfos(param GetPriceInfosParam) (AllPriceInfoResul
 			priceInfoList = append(priceInfoList, result)
 		}
 
-		res.PriceInfoList = priceInfoList
-		res.ResultCount = int64(len(priceInfoList))
+		res.EstimateCostInfoResult = priceInfoList
+		res.ResultCount = int64(totalCount)
 
 		return res, nil
 	}
+
+	return res, nil
+}
+
+func (c *CostService) UpdateEstimateForecastCost(param UpdateEstimateForecastCostParam) (UpdateEstimateForecastCostInfoResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	var updateEstimateForecastCostInfoResult UpdateEstimateForecastCostInfoResult
+
+	r, err := c.costCollector.UpdateEstimateForecastCost(ctx, param)
+	if err != nil {
+		return updateEstimateForecastCostInfoResult, err
+	}
+
+	updateEstimateForecastCostInfoResult.FetchedDataCount = int64(len(r))
+
+	var updatedCount int64
+	var insertedCount int64
+
+	for _, costInfo := range r {
+		u, i, err := c.costRepo.UpsertCostInfo(ctx, costInfo)
+		if err != nil {
+			utils.LogErrorf("upsert error: %+v", costInfo)
+		}
+
+		updatedCount += u
+		insertedCount += i
+	}
+
+	utils.LogInfof("updated count: %d; inserted count : %d", updatedCount, insertedCount)
+
+	updateEstimateForecastCostInfoResult.UpdatedDataCount = updatedCount
+	updateEstimateForecastCostInfoResult.InsertedDataCount = insertedCount
+
+	return updateEstimateForecastCostInfoResult, nil
+}
+
+func (c *CostService) GetEstimateForecastCostInfos(param GetEstimateForecastCostParam) (GetEstimateForecastCostInfoResults, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	res := GetEstimateForecastCostInfoResults{}
+
+	r, totalCount, err := c.costRepo.GetEstimateForecastCostInfosTx(ctx, param)
+	if err != nil {
+		return res, err
+	}
+
+	res.GetEstimateForecastCostInfoResults = r
+	res.ResultCount = totalCount
 
 	return res, nil
 }
@@ -139,11 +337,11 @@ var (
 	ErrCostResultFormatInvalid = errors.New("cost result does not matching with interface")
 )
 
-func (c *CostService) UpdateCostInfo(param UpdateCostInfoParam) (UpdateCostInfoResult, error) {
+func (c *CostService) UpdateEstimateForecastCostRaw(param UpdateEstimateForecastCostRawParam) (UpdateEstimateForecastCostInfoResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	var updateCostInfoResult UpdateCostInfoResult
+	var updateCostInfoResult UpdateEstimateForecastCostInfoResult
 
 	r, err := c.costCollector.GetCostInfos(ctx, param)
 	if err != nil {
@@ -170,14 +368,4 @@ func (c *CostService) UpdateCostInfo(param UpdateCostInfoParam) (UpdateCostInfoR
 	updateCostInfoResult.InsertedDataCount = insertedCount
 
 	return updateCostInfoResult, nil
-}
-
-func (c *CostService) GetCostInfos(param GetCostInfoParam) ([]GetCostInfoResult, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-	r, err := c.costRepo.GetCostInfoWithFilter(ctx, param)
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
 }

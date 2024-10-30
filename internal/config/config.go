@@ -3,8 +3,10 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
 
@@ -31,6 +33,12 @@ type AntConfig struct {
 		Username string `yaml:"username"`
 		Password string `yaml:"password"`
 	} `yaml:"tumblebug"`
+
+	Cost struct {
+		Estimation struct {
+			UpdateInterval time.Duration `yaml:"updateInterval"`
+		} `yaml:"estimation"`
+	} `yaml:"cost"`
 	Load struct {
 		Retry  int `yaml:"retry"`
 		JMeter struct {
@@ -38,9 +46,9 @@ type AntConfig struct {
 			Version string `yaml:"version"`
 		} `yaml:"jmeter"`
 	} `yaml:"load"`
-	Logging struct {
+	Log struct {
 		Level string `yaml:"level"`
-	} `yaml:"logging"`
+	} `yaml:"log"`
 	Database struct {
 		Driver   string `yaml:"driver"`
 		Host     string `yaml:"host"`
@@ -52,7 +60,7 @@ type AntConfig struct {
 }
 
 func InitConfig() error {
-	utils.LogInfo("Initializing configuration...")
+	log.Info().Msg("Initializing configuration...")
 
 	cfg := AntConfig{}
 
@@ -66,17 +74,17 @@ func InitConfig() error {
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		utils.LogErrorf("Fatal error while reading config file: %v", err)
+		log.Error().Msgf("Fatal error while reading config file: %v", err)
 		return fmt.Errorf("fatal error while read config file: %w", err)
 	}
 
 	err = viper.Unmarshal(&cfg)
 	if err != nil {
-		utils.LogErrorf("Fatal error while unmarshaling config: %v", err)
+		log.Error().Msgf("Fatal error while unmarshaling config: %v", err)
 		return fmt.Errorf("fatal error while unmarshal from config to ant config: %w", err)
 	}
 
-	utils.LogInfof("Configuration loaded successfully: %+v", cfg)
+	log.Info().Msgf("Configuration loaded successfully: %+v", cfg)
 	AppConfig = cfg
 
 	return nil

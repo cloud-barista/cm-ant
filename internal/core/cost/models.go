@@ -7,9 +7,9 @@ import (
 	"gorm.io/gorm"
 )
 
-type PriceInfos []*PriceInfo
+type EstimateCostInfos []*EstimateCostInfo
 
-type PriceInfo struct {
+type EstimateCostInfo struct {
 	gorm.Model
 	ProviderName           string `gorm:"index"`
 	RegionName             string `gorm:"index"`
@@ -31,13 +31,14 @@ type PriceInfo struct {
 	OriginalCurrency       string
 	CalculatedMonthlyPrice float64 `gorm:"index"`
 	PriceDescription       string
+	LastUpdatedAt          time.Time
+	ImageName              string `gorm:"index"`
 }
 
-type CostInfos []CostInfo
+type EstimateForecastCostInfos []EstimateForecastCostInfo
 
-type CostInfo struct {
+type EstimateForecastCostInfo struct {
 	gorm.Model
-	MigrationId         string `gorm:"index"`
 	Provider            string `gorm:"index"`
 	ConnectionName      string
 	ResourceType        constant.ResourceType `gorm:"index"`
@@ -49,10 +50,6 @@ type CostInfo struct {
 	Granularity         string    `gorm:"index"`
 	StartDate           time.Time `gorm:"index"`
 	EndDate             time.Time `gorm:"index"`
-}
-
-type CostUpdateRestrict struct {
-	gorm.Model
-	StandardDate time.Time
-	UpdateCount  int64
+	NsId                string    `gorm:"index"`
+	MciId               string    `gorm:"index"`
 }
