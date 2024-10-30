@@ -15,8 +15,7 @@ tumblebug:
 
 cost:
   estimation:
-    forecast:
-      priceUpdateInterval: 7d
+    updateInterval: "168h"
 
 load:
   retry: 2
@@ -24,7 +23,7 @@ load:
     dir: "/opt/ant/jmeter"
     version: 5.6
 
-logging:
+log:
   level: info
 
 database:

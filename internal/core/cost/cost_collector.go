@@ -11,25 +11,29 @@ import (
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/spider"
+	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/internal/utils"
 )
 
 type CostCollector interface {
 	Readyz(context.Context) error
-	GetCostInfos(context.Context, UpdateCostInfoParam) (CostInfos, error)
+	UpdateEstimateForecastCost(context.Context, UpdateEstimateForecastCostParam) (EstimateForecastCostInfos, error)
+	GetCostInfos(context.Context, UpdateCostInfoParam) (EstimateForecastCostInfos, error)
 }
 
-type AwsCostExplorerSpiderCostCollector struct {
+type AwsCostExplorerBaristaCostCollector struct {
 	sc *spider.SpiderClient
+	tc *tumblebug.TumblebugClient
 }
 
-func NewAwsCostExplorerSpiderCostCollector(sc *spider.SpiderClient) CostCollector {
-	return &AwsCostExplorerSpiderCostCollector{
+func NewAwsCostExplorerSpiderCostCollector(sc *spider.SpiderClient, tc *tumblebug.TumblebugClient) CostCollector {
+	return &AwsCostExplorerBaristaCostCollector{
 		sc: sc,
+		tc: tc,
 	}
 }
 
-func (a *AwsCostExplorerSpiderCostCollector) Readyz(ctx context.Context) error {
+func (a *AwsCostExplorerBaristaCostCollector) Readyz(ctx context.Context) error {
 	err := a.sc.ReadyzWithContext(ctx)
 	if err != nil {
 		return err
@@ -88,7 +92,7 @@ type groupBy struct {
 	Type string `json:"type"` // DIMENSION | TAG | COST_CATEGORY
 }
 
-func (a *AwsCostExplorerSpiderCostCollector) generateFilterValue(
+func (a *AwsCostExplorerBaristaCostCollector) generateFilterValue(
 	costResources []CostResourceParam, awsAdditionalInfo AwsAdditionalInfoParam,
 ) (
 	[]string, []string, error,
@@ -124,7 +128,12 @@ func (a *AwsCostExplorerSpiderCostCollector) generateFilterValue(
 	return serviceValue, resourceIdValues, nil
 }
 
-func (a *AwsCostExplorerSpiderCostCollector) GetCostInfos(ctx context.Context, param UpdateCostInfoParam) (CostInfos, error) {
+func (a *AwsCostExplorerBaristaCostCollector) GetCostInfos(ctx context.Context, param UpdateCostInfoParam) (EstimateForecastCostInfos, error) {
+
+	if param.ConnectionName == "" {
+		param.ConnectionName = costExplorerConnectionName
+	}
+
 	serviceFilterValue, resourceIdFilterValue, err := a.generateFilterValue(param.CostResources, param.AwsAdditionalInfo)
 	if err != nil {
 		utils.LogError("parsing service and resource id for filtering cost explorer value")
@@ -218,7 +227,7 @@ func (a *AwsCostExplorerSpiderCostCollector) GetCostInfos(ctx context.Context, p
 		return nil, ErrCostResultEmpty
 	}
 
-	var costInfos = make([]CostInfo, 0)
+	var costInfos = make([]EstimateForecastCostInfo, 0)
 	for _, result := range res.ResultsByTime {
 		if result.Groups == nil {
 			utils.LogError("groups is nil; it must not be nil")
@@ -275,8 +284,8 @@ func (a *AwsCostExplorerSpiderCostCollector) GetCostInfos(ctx context.Context, p
 				continue
 			}
 
-			costInfo := CostInfo{
-				MigrationId:         param.MigrationId,
+			costInfo := EstimateForecastCostInfo{
+				// MigrationId:         param.MigrationId,
 				Provider:            param.Provider,
 				ConnectionName:      param.ConnectionName,
 				ResourceType:        resourceType,
@@ -295,4 +304,88 @@ func (a *AwsCostExplorerSpiderCostCollector) GetCostInfos(ctx context.Context, p
 	}
 
 	return costInfos, nil
+}
+
+const (
+	nsKey                      = "sys.namespace"
+	provider                   = "aws"
+	costExplorerConnectionName = "aws-us-east-1"
+	defaultNsId                = "ns01"
+	defaultMciId               = "mmci01"
+)
+
+func (a *AwsCostExplorerBaristaCostCollector) UpdateEstimateForecastCost(ctx context.Context, param UpdateEstimateForecastCostParam) (EstimateForecastCostInfos, error) {
+
+	if param.NsId == "" {
+		param.NsId = defaultNsId
+	}
+
+	if param.MciId == "" {
+		param.MciId = defaultMciId
+	}
+
+	res := EstimateForecastCostInfos{}
+
+	mci, err := a.tc.GetMciWithContext(ctx, param.NsId, param.MciId)
+
+	if err != nil {
+		utils.LogError("error while get mci from tumblebug; ", err)
+		return res, err
+	}
+
+	if len(mci.Vm) == 0 {
+		return nil, errors.New("there is no vm in mci")
+	}
+
+	mciLabels := mci.Label
+	_ = mciLabels[nsKey]
+
+	arg := UpdateCostInfoParam{
+		Provider:       provider,
+		ConnectionName: costExplorerConnectionName,
+		StartDate:      param.StartDate,
+		EndDate:        param.EndDate,
+		CostResources:  make([]CostResourceParam, 0),
+	}
+
+	vmIds := make([]string, 0)
+
+	for _, mci := range mci.Vm {
+		pn := mci.ConnectionConfig.ProviderName
+
+		if pn == "" || !strings.EqualFold(strings.ToLower(pn), "aws") {
+			utils.LogWarnf("CSP: %s, does not support yet", pn)
+			continue
+		}
+
+		vmId := mci.CspResourceId
+		_ = mci.ConnectionName
+		_ = mci.Label
+
+		vmIds = append(vmIds, vmId)
+	}
+
+	if len(vmIds) != 0 {
+		arg.CostResources = append(arg.CostResources, CostResourceParam{
+			ResourceType: constant.VM,
+			ResourceIds:  vmIds,
+		})
+	} else {
+		return res, errors.New("no vm resource create on aws")
+	}
+
+	infos, err := a.GetCostInfos(ctx, arg)
+
+	if err != nil {
+		utils.LogError("error while get cost info from spider;", err)
+		return res, fmt.Errorf("error from get cost infos +%w", err)
+	}
+
+	for i := range infos {
+		info := infos[i]
+		info.NsId = param.NsId
+		info.MciId = param.MciId
+	}
+
+	return infos, nil
 }

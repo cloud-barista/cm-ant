@@ -37,11 +37,12 @@ func (r *CostRepository) execInTransaction(ctx context.Context, fn func(*gorm.DB
 	return tx.Commit().Error
 }
 
-func (r *CostRepository) GetAllMatchingPriceInfoList(ctx context.Context, param GetPriceInfosParam) (PriceInfos, error) {
-	var priceInfoList []*PriceInfo
+func (r *CostRepository) GetMatchingEstimateCostInfosTx(ctx context.Context, param GetEstimateCostParam) (EstimateCostInfos, int64, error) {
+	var priceInfoList []*EstimateCostInfo
+	var totalRows int64
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
-		q := d.Model(&PriceInfo{}).
+		q := d.Model(&EstimateCostInfo{}).
 			Where(
 				"price_policy = ? AND updated_at >= ?",
 				param.PricePolicy, param.TimeStandard,
@@ -73,6 +74,14 @@ func (r *CostRepository) GetAllMatchingPriceInfoList(ctx context.Context, param 
 			q = q.Where("LOWER(os_type) = ?", strings.ToLower(param.OsType))
 		}
 
+		if err := q.Count(&totalRows).Error; err != nil {
+			return err
+		}
+
+		offset := (param.Page - 1) * param.Size
+		q = q.Offset(offset).
+			Limit(param.Size)
+
 		if err := q.Find(&priceInfoList).Error; err != nil {
 			return err
 		}
@@ -80,14 +89,14 @@ func (r *CostRepository) GetAllMatchingPriceInfoList(ctx context.Context, param 
 		return nil
 	})
 
-	return priceInfoList, err
+	return priceInfoList, totalRows, err
 }
 
-func (r *CostRepository) GetMatchingForecastCost(ctx context.Context, param RecommendSpecParam, timeStandard time.Time, pricePolicy constant.PricePolicy) (PriceInfos, error) {
-	var priceInfos []*PriceInfo
+func (r *CostRepository) GetMatchingEstimateCostTx(ctx context.Context, param RecommendSpecParam, timeStandard time.Time, pricePolicy constant.PricePolicy) (EstimateCostInfos, error) {
+	var priceInfos []*EstimateCostInfo
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
-		q := d.Model(&PriceInfo{}).
+		q := d.Model(&EstimateCostInfo{}).
 			Where(
 				"LOWER(provider_name) = ? AND LOWER(region_name) = ? AND instance_type  = ? AND image_name  = ? AND price_policy = ? AND last_updated_at >= ?",
 				strings.ToLower(param.ProviderName),
@@ -112,28 +121,7 @@ func (r *CostRepository) GetMatchingForecastCost(ctx context.Context, param Reco
 	return priceInfos, nil
 }
 
-func (r *CostRepository) CountMatchingPriceInfoList(ctx context.Context, param UpdatePriceInfosParam) (int64, error) {
-	var totalCount int64
-
-	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
-		q := d.Model(&PriceInfo{}).
-			Where(
-				"LOWER(provider_name) = ? AND LOWER(region_name) = ? AND price_policy = ? AND updated_at >= ?",
-				strings.ToLower(param.ProviderName), strings.ToLower(param.RegionName), param.PricePolicy, param.TimeStandard,
-			)
-
-		if param.InstanceType != "" {
-			q = q.Where("LOWER(instance_type) = ?", strings.ToLower(param.InstanceType))
-		}
-
-		return q.Count(&totalCount).Error
-	})
-
-	return totalCount, err
-
-}
-
-func (r *CostRepository) BatchInsertAllForecastCostResult(ctx context.Context, created PriceInfos) error {
+func (r *CostRepository) BatchInsertAllEstimateCostResultTx(ctx context.Context, created EstimateCostInfos) error {
 
 	batchSize := 100
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
@@ -155,14 +143,13 @@ func (r *CostRepository) BatchInsertAllForecastCostResult(ctx context.Context, c
 
 }
 
-func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo CostInfo) (int64, int64, error) {
+func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo EstimateForecastCostInfo) (int64, int64, error) {
 	var updateCount = int64(0)
 	var insertCount = int64(0)
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		err := d.
 			Model(costInfo).
-			Where(&CostInfo{
-				MigrationId:      costInfo.MigrationId,
+			Where(&EstimateForecastCostInfo{
 				Provider:         costInfo.Provider,
 				ResourceType:     costInfo.ResourceType,
 				Category:         costInfo.Category,
@@ -170,6 +157,8 @@ func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo CostInfo) 
 				Granularity:      costInfo.Granularity,
 				StartDate:        costInfo.StartDate,
 				EndDate:          costInfo.EndDate,
+				NsId:             costInfo.NsId,
+				MciId:            costInfo.MciId,
 			}).First(&costInfo).Error
 
 		if err != nil && err != gorm.ErrRecordNotFound {
@@ -188,7 +177,6 @@ func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo CostInfo) 
 			}).Error; err != nil {
 				return err
 			}
-
 			updateCount++
 		}
 
@@ -199,11 +187,12 @@ func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo CostInfo) 
 
 }
 
-func (r *CostRepository) GetCostInfoWithFilter(ctx context.Context, param GetCostInfoParam) ([]GetCostInfoResult, error) {
-	var costInfo []GetCostInfoResult
+func (r *CostRepository) GetEstimateForecastCostInfosTx(ctx context.Context, param GetEstimateForecastCostParam) ([]GetEstimateForecastCostInfoResult, int64, error) {
+	var costInfo []GetEstimateForecastCostInfoResult
+	var totalRows int64
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
-		query := d.Model(&CostInfo{})
+		query := d.Model(&EstimateForecastCostInfo{})
 
 		if len(param.Providers) > 0 {
 			query = query.Where("provider IN ?", param.Providers)
@@ -214,6 +203,14 @@ func (r *CostRepository) GetCostInfoWithFilter(ctx context.Context, param GetCos
 
 		if len(param.ResourceIds) > 0 {
 			query = query.Where("actual_resource_id IN ?", param.ResourceIds)
+		}
+
+		if len(param.NsIds) > 0 {
+			query = query.Where("ns_id IN ?", param.NsIds)
+		}
+
+		if len(param.MciIds) > 0 {
+			query = query.Where("mci_id IN ?", param.MciIds)
 		}
 
 		query = query.Where("start_date >= ? AND end_date <= ?", param.StartDate, param.EndDate)
@@ -238,6 +235,14 @@ func (r *CostRepository) GetCostInfoWithFilter(ctx context.Context, param GetCos
 			query = query.Order("resource_type " + string(param.ResourceTypeOrder))
 		}
 
+		if err := query.Count(&totalRows).Error; err != nil {
+			return err
+		}
+
+		offset := (param.Page - 1) * param.Size
+		query = query.Offset(offset).
+			Limit(param.Size)
+
 		if err := query.Find(&costInfo).Error; err != nil {
 			return err
 		}
@@ -245,5 +250,5 @@ func (r *CostRepository) GetCostInfoWithFilter(ctx context.Context, param GetCos
 		return nil
 	})
 
-	return costInfo, err
+	return costInfo, totalRows, err
 }

@@ -17,8 +17,7 @@ import (
 
 type PriceCollector interface {
 	Readyz(context.Context) error
-	GetPriceInfos(context.Context, UpdatePriceInfosParam) (PriceInfos, error)
-	FetchPriceInfos(context.Context, RecommendSpecParam) (PriceInfos, error)
+	FetchPriceInfos(context.Context, RecommendSpecParam) (EstimateCostInfos, error)
 }
 
 var (
@@ -33,21 +32,21 @@ var (
 		"ncpvpc":  "Monthly Flat Rate",
 	}
 
-	priceValidator = map[string]func(res *PriceInfo) bool{
-		"aws": func(res *PriceInfo) bool {
+	priceValidator = map[string]func(res *EstimateCostInfo) bool{
+		"aws": func(res *EstimateCostInfo) bool {
 			return !strings.Contains(res.PriceDescription, "Reservation")
 		},
-		"gcp":   func(res *PriceInfo) bool { return true },
-		"azure": func(res *PriceInfo) bool { return true },
-		"tencent": func(res *PriceInfo) bool {
+		"gcp":   func(res *EstimateCostInfo) bool { return true },
+		"azure": func(res *EstimateCostInfo) bool { return true },
+		"tencent": func(res *EstimateCostInfo) bool {
 			return res.OriginalPricePolicy == onDemandPricingPolicyMap[res.ProviderName]
 		},
-		"alibaba": func(res *PriceInfo) bool { return true },
-		"ibm": func(res *PriceInfo) bool {
+		"alibaba": func(res *EstimateCostInfo) bool { return true },
+		"ibm": func(res *EstimateCostInfo) bool {
 			return strings.Contains(res.OriginalUnit, "Instance-Hour")
 		},
-		"ncp":    func(res *PriceInfo) bool { return true },
-		"ncpvpc": func(res *PriceInfo) bool { return true },
+		"ncp":    func(res *EstimateCostInfo) bool { return true },
+		"ncpvpc": func(res *EstimateCostInfo) bool { return true },
 	}
 
 	units = map[string]bool{
@@ -79,121 +78,7 @@ func (s *SpiderPriceCollector) Readyz(ctx context.Context) error {
 	return nil
 }
 
-func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param UpdatePriceInfosParam) (PriceInfos, error) {
-	connectionName := fmt.Sprintf("%s-%s", strings.ToLower(param.ProviderName), strings.ToLower(param.RegionName))
-
-	req := spider.PriceInfoReq{
-		ConnectionName: connectionName,
-		FilterList:     s.generateFilterList(param),
-	}
-
-	result, err := s.sc.GetPriceInfoWithContext(ctx, param.RegionName, req)
-
-	if err != nil {
-
-		if strings.Contains(err.Error(), "you don't have any permission") {
-			return nil, fmt.Errorf("you don't have permission to query the price for %s", param.ProviderName)
-		}
-		return nil, err
-	}
-
-	createdPriceInfo := make([]*PriceInfo, 0)
-	if result.CloudPriceList != nil {
-		for i := range result.CloudPriceList {
-			p := result.CloudPriceList[i]
-
-			if p.PriceList != nil {
-				for j := range p.PriceList {
-
-					pl := p.PriceList[j]
-
-					productInfo := pl.ProductInfo
-					vCpu := s.naChecker(productInfo.Vcpu)
-					originalMemory := s.naChecker(productInfo.Memory)
-
-					if vCpu == "" || originalMemory == "" {
-						continue
-					}
-
-					memory, memoryUnit := s.splitMemory(originalMemory)
-					zoneName := s.naChecker(productInfo.ZoneName)
-					osType := s.naChecker(productInfo.OperatingSystem)
-					storage := s.naChecker(productInfo.Storage)
-					productDescription := s.naChecker(productInfo.Description)
-
-					var price, originalCurrency, originalUnit, priceDescription string
-					var unit constant.PriceUnit
-					var currency constant.PriceCurrency
-
-					priceInfo := pl.PriceInfo
-
-					if priceInfo.PricingPolicies != nil {
-						for k := range priceInfo.PricingPolicies {
-							policy := priceInfo.PricingPolicies[k]
-							originalPricePolicy := s.naChecker(policy.PricingPolicy)
-							priceDescription = s.naChecker(policy.Description)
-							originalCurrency = s.naChecker(policy.Currency)
-							originalUnit = s.naChecker(policy.Unit)
-							unit = s.parseUnit(originalUnit)
-							currency = s.parseCurrency(policy.Currency)
-							convertedPrice, err := strconv.ParseFloat(policy.Price, 64)
-							if err != nil {
-								continue
-							}
-
-							if convertedPrice == float64(0) {
-								continue
-							}
-							price = s.naChecker(policy.Price)
-
-							if price == "" {
-								continue
-							}
-
-							pi := PriceInfo{
-								ProviderName:           param.ProviderName,
-								RegionName:             productInfo.RegionName,
-								InstanceType:           productInfo.InstanceType,
-								ZoneName:               zoneName,
-								VCpu:                   vCpu,
-								OriginalMemory:         originalMemory,
-								Memory:                 memory,
-								MemoryUnit:             memoryUnit,
-								Storage:                storage,
-								OsType:                 osType,
-								ProductDescription:     productDescription,
-								OriginalPricePolicy:    originalPricePolicy,
-								PricePolicy:            constant.OnDemand,
-								Price:                  price,
-								Currency:               currency,
-								Unit:                   unit,
-								OriginalUnit:           originalUnit,
-								OriginalCurrency:       originalCurrency,
-								PriceDescription:       priceDescription,
-								CalculatedMonthlyPrice: s.calculatePrice(price, unit),
-							}
-
-							if !priceValidator[param.ProviderName](&pi) {
-								continue
-							}
-
-							createdPriceInfo = append(createdPriceInfo, &pi)
-						}
-					}
-
-				}
-			}
-		}
-	}
-
-	sort.Slice(createdPriceInfo, func(i, j int) bool {
-		return createdPriceInfo[i].Price < createdPriceInfo[j].Price
-	})
-
-	return createdPriceInfo, nil
-}
-
-func (s *SpiderPriceCollector) FetchPriceInfos(ctx context.Context, param RecommendSpecParam) (PriceInfos, error) {
+func (s *SpiderPriceCollector) FetchPriceInfos(ctx context.Context, param RecommendSpecParam) (EstimateCostInfos, error) {
 	connectionName := fmt.Sprintf("%s-%s", strings.ToLower(param.ProviderName), strings.ToLower(param.RegionName))
 
 	req := spider.PriceInfoReq{
@@ -211,7 +96,7 @@ func (s *SpiderPriceCollector) FetchPriceInfos(ctx context.Context, param Recomm
 		return nil, err
 	}
 
-	createdPriceInfo := make([]*PriceInfo, 0)
+	createdPriceInfo := make([]*EstimateCostInfo, 0)
 	if result.CloudPriceList != nil {
 		for i := range result.CloudPriceList {
 			p := result.CloudPriceList[i]
@@ -272,7 +157,7 @@ func (s *SpiderPriceCollector) FetchPriceInfos(ctx context.Context, param Recomm
 								continue
 							}
 
-							pi := PriceInfo{
+							pi := EstimateCostInfo{
 								ProviderName:           param.ProviderName,
 								RegionName:             productInfo.RegionName,
 								InstanceType:           productInfo.InstanceType,
@@ -335,32 +220,6 @@ func (s *SpiderPriceCollector) generateFilter(param RecommendSpecParam) []spider
 			Key:   "instanceType",
 			Value: param.InstanceType,
 		},
-	}
-
-	return ret
-}
-
-func (s *SpiderPriceCollector) generateFilterList(param UpdatePriceInfosParam) []spider.FilterReq {
-
-	providerName := strings.ToLower(param.ProviderName)
-	param.ProviderName = providerName
-
-	ret := []spider.FilterReq{
-		{
-			Key:   "pricingPolicy",
-			Value: onDemandPricingPolicyMap[providerName],
-		},
-		{
-			Key:   "regionName",
-			Value: param.RegionName,
-		},
-	}
-
-	if param.InstanceType != "" {
-		ret = append(ret, spider.FilterReq{
-			Key:   "instanceType",
-			Value: param.InstanceType,
-		})
 	}
 
 	return ret

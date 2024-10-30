@@ -56,24 +56,15 @@ func (server *AntServer) InitRouter() error {
 			}
 		}
 	}
-	
-	
+
 	{
-		costEstimationHandler := versionRouter.Group("/cost-estimation")
+		costEstimationHandler := versionRouter.Group("/cost/estimate")
 
-		costEstimationHandler.POST("/forecast", server.estimateForecastCost)
+		costEstimationHandler.POST("", server.updateAndGetEstimateCost)
+		costEstimationHandler.GET("", server.getEstimateCost)
 
-		priceRouter := versionRouter.Group("/price")
-		{
-			priceRouter.POST("/info", server.updatePriceInfos)
-			priceRouter.GET("/info", server.getPriceInfos)
-		}
-
-		costRouter := versionRouter.Group("/cost")
-		{
-			costRouter.POST("/info", server.updateCostInfos)
-			costRouter.GET("/info", server.getCostInfos)
-		}
+		costEstimationHandler.POST("/forecast", server.updateEstimateForecastCost)
+		costEstimationHandler.GET("/forecast", server.getEstimateForecastCost)
 	}
 
 	return nil
