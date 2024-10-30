@@ -193,6 +193,24 @@ definitions:
       successMessage:
         type: string
     type: object
+  app.AwsAdditionalInfoReq:
+    properties:
+      ownerId:
+        type: string
+      regions:
+        items:
+          type: string
+        type: array
+    type: object
+  app.CostResourceReq:
+    properties:
+      resourceIds:
+        items:
+          type: string
+        type: array
+      resourceType:
+        $ref: '#/definitions/constant.ResourceType'
+    type: object
   app.InstallLoadGeneratorReq:
     properties:
       installLocation:
@@ -291,6 +309,17 @@ definitions:
           type: object
         type: array
     type: object
+  app.UpdateEstimateForecastCostRawReq:
+    properties:
+      awsAdditionalInfo:
+        $ref: '#/definitions/app.AwsAdditionalInfoReq'
+      costResources:
+        items:
+          $ref: '#/definitions/app.CostResourceReq'
+        type: array
+    required:
+    - costResources
+    type: object
   app.UpdateEstimateForecastCostReq:
     properties:
       mciId:
@@ -354,6 +383,18 @@ definitions:
     x-enum-varnames:
     - PerHour
     - PerYear
+  constant.ResourceType:
+    enum:
+    - VM
+    - VNet
+    - DataDisk
+    - Etc
+    type: string
+    x-enum-varnames:
+    - VM
+    - VNet
+    - DataDisk
+    - Etc
   cost.EsimateCostSpecResults:
     properties:
       estimateForecastCostSpecDetailResults:
@@ -1012,6 +1053,39 @@ paths:
           schema:
             $ref: '#/definitions/app.AntResponse-string'
       summary: Update and Retrieve Estimated Forecast Cost
+      tags:
+      - '[Cost Estimate]'
+  /api/v1/cost/estimate/forecast/raw:
+    post:
+      consumes:
+      - application/json
+      description: Update and retrieve raw forecasted cost estimates for specified
+        cost resources and additional AWS information over the past 14 days.
+      operationId: UpdateEstimateForecastCostRaw
+      parameters:
+      - description: Request body containing details for cost estimation forecast
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.UpdateEstimateForecastCostRawReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully updated and retrieved raw estimated forecast cost
+            information in raw data
+          schema:
+            $ref: '#/definitions/app.AntResponse-cost_UpdateEstimateForecastCostInfoResult'
+        "400":
+          description: Migrated resource id list is required
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Error updating or retrieving forecast cost information
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Update and Retrieve Raw Estimated Forecast Cost
       tags:
       - '[Cost Estimate]'
   /api/v1/load/generators:

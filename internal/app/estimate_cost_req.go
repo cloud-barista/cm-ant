@@ -49,7 +49,7 @@ type GetEstimateForecastCostReq struct {
 
 // -------------------------------------------------------------------------------------------------------------------
 
-type UpdateCostInfoReq struct {
+type UpdateEstimateForecastCostRawReq struct {
 	CostResources     []CostResourceReq    `json:"costResources" validate:"required"`
 	AwsAdditionalInfo AwsAdditionalInfoReq `json:"awsAdditionalInfo"`
 }

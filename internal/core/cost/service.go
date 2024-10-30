@@ -294,7 +294,7 @@ var (
 	ErrCostResultFormatInvalid = errors.New("cost result does not matching with interface")
 )
 
-func (c *CostService) UpdateCostInfo(param UpdateCostInfoParam) (UpdateEstimateForecastCostInfoResult, error) {
+func (c *CostService) UpdateEstimateForecastCostRaw(param UpdateEstimateForecastCostRawParam) (UpdateEstimateForecastCostInfoResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 

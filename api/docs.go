@@ -324,6 +324,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/cost/estimate/forecast/raw": {
+            "post": {
+                "description": "Update and retrieve raw forecasted cost estimates for specified cost resources and additional AWS information over the past 14 days.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Cost Estimate]"
+                ],
+                "summary": "Update and Retrieve Raw Estimated Forecast Cost",
+                "operationId": "UpdateEstimateForecastCostRaw",
+                "parameters": [
+                    {
+                        "description": "Request body containing details for cost estimation forecast",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.UpdateEstimateForecastCostRawReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated and retrieved raw estimated forecast cost information in raw data",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-cost_UpdateEstimateForecastCostInfoResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Migrated resource id list is required",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Error updating or retrieving forecast cost information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/load/generators": {
             "get": {
                 "description": "Retrieve a list of all installed load generators with pagination support.",
@@ -1375,6 +1422,34 @@ const docTemplate = `{
                 }
             }
         },
+        "app.AwsAdditionalInfoReq": {
+            "type": "object",
+            "properties": {
+                "ownerId": {
+                    "type": "string"
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "app.CostResourceReq": {
+            "type": "object",
+            "properties": {
+                "resourceIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "resourceType": {
+                    "$ref": "#/definitions/constant.ResourceType"
+                }
+            }
+        },
         "app.InstallLoadGeneratorReq": {
             "type": "object",
             "properties": {
@@ -1525,6 +1600,23 @@ const docTemplate = `{
                 }
             }
         },
+        "app.UpdateEstimateForecastCostRawReq": {
+            "type": "object",
+            "required": [
+                "costResources"
+            ],
+            "properties": {
+                "awsAdditionalInfo": {
+                    "$ref": "#/definitions/app.AwsAdditionalInfoReq"
+                },
+                "costResources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.CostResourceReq"
+                    }
+                }
+            }
+        },
         "app.UpdateEstimateForecastCostReq": {
             "type": "object",
             "properties": {
@@ -1605,6 +1697,21 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "PerHour",
                 "PerYear"
+            ]
+        },
+        "constant.ResourceType": {
+            "type": "string",
+            "enum": [
+                "VM",
+                "VNet",
+                "DataDisk",
+                "Etc"
+            ],
+            "x-enum-varnames": [
+                "VM",
+                "VNet",
+                "DataDisk",
+                "Etc"
             ]
         },
         "cost.EsimateCostSpecResults": {

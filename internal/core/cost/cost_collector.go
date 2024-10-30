@@ -18,7 +18,7 @@ import (
 type CostCollector interface {
 	Readyz(context.Context) error
 	UpdateEstimateForecastCost(context.Context, UpdateEstimateForecastCostParam) (EstimateForecastCostInfos, error)
-	GetCostInfos(context.Context, UpdateCostInfoParam) (EstimateForecastCostInfos, error)
+	GetCostInfos(context.Context, UpdateEstimateForecastCostRawParam) (EstimateForecastCostInfos, error)
 }
 
 type AwsCostExplorerBaristaCostCollector struct {
@@ -128,7 +128,7 @@ func (a *AwsCostExplorerBaristaCostCollector) generateFilterValue(
 	return serviceValue, resourceIdValues, nil
 }
 
-func (a *AwsCostExplorerBaristaCostCollector) GetCostInfos(ctx context.Context, param UpdateCostInfoParam) (EstimateForecastCostInfos, error) {
+func (a *AwsCostExplorerBaristaCostCollector) GetCostInfos(ctx context.Context, param UpdateEstimateForecastCostRawParam) (EstimateForecastCostInfos, error) {
 
 	if param.ConnectionName == "" {
 		param.ConnectionName = costExplorerConnectionName
@@ -285,7 +285,6 @@ func (a *AwsCostExplorerBaristaCostCollector) GetCostInfos(ctx context.Context, 
 			}
 
 			costInfo := EstimateForecastCostInfo{
-				// MigrationId:         param.MigrationId,
 				Provider:            param.Provider,
 				ConnectionName:      param.ConnectionName,
 				ResourceType:        resourceType,
@@ -340,7 +339,7 @@ func (a *AwsCostExplorerBaristaCostCollector) UpdateEstimateForecastCost(ctx con
 	mciLabels := mci.Label
 	_ = mciLabels[nsKey]
 
-	arg := UpdateCostInfoParam{
+	arg := UpdateEstimateForecastCostRawParam{
 		Provider:       provider,
 		ConnectionName: costExplorerConnectionName,
 		StartDate:      param.StartDate,

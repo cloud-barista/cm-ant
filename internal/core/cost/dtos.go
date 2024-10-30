@@ -162,8 +162,7 @@ type GetEstimateForecastCostInfoResult struct {
 
 // -------------------------------------------------------------------
 
-type UpdateCostInfoParam struct {
-	// MigrationId       string
+type UpdateEstimateForecastCostRawParam struct {
 	Provider          string // currently only aws
 	ConnectionName    string
 	StartDate         time.Time

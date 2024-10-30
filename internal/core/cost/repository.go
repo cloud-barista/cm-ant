@@ -2,6 +2,7 @@ package cost
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -157,8 +158,6 @@ func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo EstimateFo
 				Granularity:      costInfo.Granularity,
 				StartDate:        costInfo.StartDate,
 				EndDate:          costInfo.EndDate,
-				NsId:             costInfo.NsId,
-				MciId:            costInfo.MciId,
 			}).First(&costInfo).Error
 
 		if err != nil && err != gorm.ErrRecordNotFound {
@@ -172,8 +171,10 @@ func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo EstimateFo
 			insertCount++
 		} else {
 			if err := d.Model(&costInfo).Updates(map[string]interface{}{
-				"cost": costInfo.Cost,
-				"unit": costInfo.Unit,
+				"cost":   costInfo.Cost,
+				"unit":   costInfo.Unit,
+				"ns_id":  costInfo.NsId,
+				"mci_id": costInfo.MciId,
 			}).Error; err != nil {
 				return err
 			}
@@ -250,5 +251,11 @@ func (r *CostRepository) GetEstimateForecastCostInfosTx(ctx context.Context, par
 		return nil
 	})
 
-	return costInfo, totalRows, err
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return costInfo, totalRows, err
+		}
+	}
+
+	return costInfo, totalRows, nil
 }

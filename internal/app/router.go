@@ -65,6 +65,8 @@ func (server *AntServer) InitRouter() error {
 
 		costEstimationHandler.POST("/forecast", server.updateEstimateForecastCost)
 		costEstimationHandler.GET("/forecast", server.getEstimateForecastCost)
+
+		costEstimationHandler.POST("/forecast/raw", server.updateEstimateForecastCostRaw)
 	}
 
 	return nil
