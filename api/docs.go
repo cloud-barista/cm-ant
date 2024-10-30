@@ -1816,17 +1816,11 @@ const docTemplate = `{
         "cost.EstimateCostResults": {
             "type": "object",
             "properties": {
-                "esimateForecastCostSpecResults": {
+                "esimateCostSpecResults": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/cost.EsimateCostSpecResults"
                     }
-                },
-                "totalMaxMonthlyPrice": {
-                    "type": "number"
-                },
-                "totalMinMonthlyPrice": {
-                    "type": "number"
                 }
             }
         },

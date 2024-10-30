@@ -462,14 +462,10 @@ definitions:
     type: object
   cost.EstimateCostResults:
     properties:
-      esimateForecastCostSpecResults:
+      esimateCostSpecResults:
         items:
           $ref: '#/definitions/cost.EsimateCostSpecResults'
         type: array
-      totalMaxMonthlyPrice:
-        type: number
-      totalMinMonthlyPrice:
-        type: number
     type: object
   cost.EstimateCostSpecDetailResult:
     properties:
