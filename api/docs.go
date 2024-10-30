@@ -16,9 +16,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/cost/info": {
+        "/api/v1/cost/estimate": {
             "get": {
-                "description": "Retrieve cost information for specified parameters within a defined date range. The date range must be within a 6-month period. Optionally, you can specify cost aggregation type and date order for the results.",
+                "description": "Fetch estimated cost details based on provider, region, instance type, and resource specifications. Pagination support is provided through ` + "`" + `Page` + "`" + ` and ` + "`" + `Size` + "`" + ` parameters.",
                 "consumes": [
                     "application/json"
                 ],
@@ -26,21 +26,152 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Cost Management]"
+                    "[Cost Estimate]"
                 ],
-                "summary": "Get Cost Information",
-                "operationId": "GetCostInfo",
+                "summary": "Retrieve Estimated Cost Information",
+                "operationId": "GetEstimateCost",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Start date for the cost information retrieval in 'YYYY-MM-DD' format",
+                        "description": "Cloud provider name to filter estimated costs",
+                        "name": "providerName",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Region name to filter estimated costs",
+                        "name": "regionName",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Instance type to filter estimated costs",
+                        "name": "instanceType",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Number of vCPUs to filter estimated costs",
+                        "name": "vCpu",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Memory size to filter estimated costs",
+                        "name": "memory",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Operating system type to filter estimated costs",
+                        "name": "osType",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number for pagination (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of records per page (default: 100, max: 100)",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved estimated cost information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-cost_EstimateCostInfoResults"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve estimated cost information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Update the estimate cost based on provided specifications and retrieve the updated cost estimation. Required fields for each specification include ` + "`" + `ProviderName` + "`" + `, ` + "`" + `RegionName` + "`" + `, and ` + "`" + `InstanceType` + "`" + `. Specifications can also be provided in a formatted string using ` + "`" + `+` + "`" + ` delimiter.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Cost Estimate]"
+                ],
+                "summary": "Update and Retrieve Estimated Cost Information",
+                "operationId": "UpdateAndGetEstimateCost",
+                "parameters": [
+                    {
+                        "description": "Request body for updating and retrieving estimated cost information",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.UpdateAndGetEstimateCostReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated and retrieved estimated cost information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-cost_EstimateCostResults"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters or format",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update or retrieve estimated cost information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cost/estimate/forecast": {
+            "get": {
+                "description": "Fetch estimated forecast cost data based on specified parameters, including a date range that must be within 6 months. Supports pagination and filtering by namespace IDs, migration configuration IDs, and resource types.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Cost Estimate]"
+                ],
+                "summary": "Retrieve Estimated Forecast Cost Information",
+                "operationId": "GetEstimateForecastCost",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date for the forecast cost retrieval in 'YYYY-MM-DD' format",
                         "name": "startDate",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "End date for the cost information retrieval in 'YYYY-MM-DD' format",
+                        "description": "End date for the forecast cost retrieval in 'YYYY-MM-DD' format",
                         "name": "endDate",
                         "in": "query",
                         "required": true
@@ -51,8 +182,8 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "List of migration IDs to filter the cost information",
-                        "name": "migrationIds",
+                        "description": "List of namespace IDs to filter forecast cost information",
+                        "name": "nsIds",
                         "in": "query"
                     },
                     {
@@ -61,8 +192,8 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "List of cloud providers to filter the cost information",
-                        "name": "provider",
+                        "description": "List of migration configuration IDs to filter forecast cost information",
+                        "name": "mciIds",
                         "in": "query"
                     },
                     {
@@ -71,7 +202,17 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "List of resource types to filter the cost information",
+                        "description": "List of cloud providers to filter forecast cost information",
+                        "name": "providers",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "List of resource types to filter forecast cost information",
                         "name": "resourceTypes",
                         "in": "query"
                     },
@@ -81,16 +222,15 @@ const docTemplate = `{
                             "type": "string"
                         },
                         "collectionFormat": "csv",
-                        "description": "List of resource IDs to filter the cost information",
+                        "description": "List of resource IDs to filter forecast cost information",
                         "name": "resourceIds",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Type of cost aggregation for the results (e.g., 'daily', 'weekly', 'monthly')",
+                        "description": "Type of cost aggregation (e.g., 'daily', 'weekly', 'monthly')",
                         "name": "costAggregationType",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     },
                     {
                         "type": "string",
@@ -103,23 +243,35 @@ const docTemplate = `{
                         "description": "Order of resource types in the result (e.g., 'asc', 'desc')",
                         "name": "resourceTypeOrder",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number for pagination (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of records per page (default: 10000, max: 10000)",
+                        "name": "size",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully retrieved cost information",
+                        "description": "Successfully retrieved estimated forecast cost information",
                         "schema": {
-                            "$ref": "#/definitions/app.AntResponse-array_cost_GetCostInfoResult"
+                            "$ref": "#/definitions/app.AntResponse-cost_GetEstimateForecastCostInfoResults"
                         }
                     },
                     "400": {
-                        "description": "Invalid request parameters",
+                        "description": "Invalid request parameters or date format errors",
                         "schema": {
                             "$ref": "#/definitions/app.AntResponse-string"
                         }
                     },
                     "500": {
-                        "description": "Failed to retrieve cost information",
+                        "description": "Failed to retrieve estimated forecast cost information",
                         "schema": {
                             "$ref": "#/definitions/app.AntResponse-string"
                         }
@@ -127,7 +279,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Update cost information for specified resources, including details such as migration ID, cost resources, and additional AWS info if applicable. The request body must include a valid migration ID and a list of cost resources. If AWS-specific details are provided, ensure all required fields are populated.",
+                "description": "Update and retrieve forecasted cost estimates for a specified namespace and migration configuration ID over the past 14 days.",
                 "consumes": [
                     "application/json"
                 ],
@@ -135,36 +287,36 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "[Cost Management]"
+                    "[Cost Estimate]"
                 ],
-                "summary": "Update Cost Information",
-                "operationId": "UpdateCostInfo",
+                "summary": "Update and Retrieve Estimated Forecast Cost",
+                "operationId": "UpdateEstimateForecastCost",
                 "parameters": [
                     {
-                        "description": "Request body containing cost update information",
+                        "description": "Request body containing NsId (Namespace ID) and MciId (Migration Configuration ID) for cost estimation forecast",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app.UpdateCostInfoReq"
+                            "$ref": "#/definitions/app.UpdateEstimateForecastCostReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successfully updated cost information",
+                        "description": "Successfully updated and retrieved estimated forecast cost information",
                         "schema": {
-                            "$ref": "#/definitions/app.AntResponse-cost_UpdateCostInfoResult"
+                            "$ref": "#/definitions/app.AntResponse-cost_UpdateEstimateForecastCostInfoResult"
                         }
                     },
                     "400": {
-                        "description": "Invalid request parameters",
+                        "description": "Request body binding error",
                         "schema": {
                             "$ref": "#/definitions/app.AntResponse-string"
                         }
                     },
                     "500": {
-                        "description": "Failed to update cost information",
+                        "description": "Failed to update or retrieve forecast cost information",
                         "schema": {
                             "$ref": "#/definitions/app.AntResponse-string"
                         }
@@ -887,126 +1039,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/price/info": {
-            "get": {
-                "description": "Retrieve pricing information for cloud resources based on specified query parameters. Returns price data based on provider, region, instance type, vCPU, memory, and OS type. It offer instances with the lowest monthly prices what in the database.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Price Management"
-                ],
-                "summary": "Get Price Information",
-                "operationId": "GetPriceInfos",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Cloud provider name - aws|alibaba|tencent|gcp|azure|ibm",
-                        "name": "providerName",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Region name",
-                        "name": "regionName",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Instance type",
-                        "name": "instanceType",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Number of vCPUs",
-                        "name": "vCpu",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Amount of memory",
-                        "name": "memory",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Operating system type",
-                        "name": "osType",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully retrieved pricing information",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request parameters",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to retrieve pricing information",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Retrieve pricing information for cloud resources based on specified parameters. If saved data is more than 7 days, fetch new data and insert new price data even if same price as before.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Price Management]"
-                ],
-                "operationId": "UpdatePriceInfos",
-                "parameters": [
-                    {
-                        "description": "Request body containing get price information",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/app.UpdatePriceInfosReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully retrieved pricing information",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request parameters",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to retrieve pricing information",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    }
-                }
-            }
-        },
         "/readyz": {
             "get": {
                 "description": "This endpoint checks if the CB-Ant API server is ready by verifying the status of both the load service and the cost service. If either service is unavailable, it returns a 503 status indicating the server is not ready.",
@@ -1045,26 +1077,6 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "app.AntResponse-array_cost_GetCostInfoResult": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "integer"
-                },
-                "errorMessage": {
-                    "type": "string"
-                },
-                "result": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/cost.GetCostInfoResult"
-                    }
-                },
-                "successMessage": {
-                    "type": "string"
-                }
-            }
-        },
         "app.AntResponse-array_load_LoadTestStatistics": {
             "type": "object",
             "properties": {
@@ -1125,7 +1137,7 @@ const docTemplate = `{
                 }
             }
         },
-        "app.AntResponse-cost_UpdateCostInfoResult": {
+        "app.AntResponse-cost_EstimateCostInfoResults": {
             "type": "object",
             "properties": {
                 "code": {
@@ -1135,7 +1147,58 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "result": {
-                    "$ref": "#/definitions/cost.UpdateCostInfoResult"
+                    "$ref": "#/definitions/cost.EstimateCostInfoResults"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-cost_EstimateCostResults": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/cost.EstimateCostResults"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-cost_GetEstimateForecastCostInfoResults": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/cost.GetEstimateForecastCostInfoResults"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-cost_UpdateEstimateForecastCostInfoResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/cost.UpdateEstimateForecastCostInfoResult"
                 },
                 "successMessage": {
                     "type": "string"
@@ -1312,34 +1375,6 @@ const docTemplate = `{
                 }
             }
         },
-        "app.AwsAdditionalInfoReq": {
-            "type": "object",
-            "properties": {
-                "ownerId": {
-                    "type": "string"
-                },
-                "regions": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "app.CostResourceReq": {
-            "type": "object",
-            "properties": {
-                "resourceIds": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "resourceType": {
-                    "$ref": "#/definitions/constant.ResourceType"
-                }
-            }
-        },
         "app.InstallLoadGeneratorReq": {
             "type": "object",
             "properties": {
@@ -1443,45 +1478,60 @@ const docTemplate = `{
                 }
             }
         },
-        "app.UpdateCostInfoReq": {
+        "app.UpdateAndGetEstimateCostReq": {
             "type": "object",
-            "required": [
-                "connectionName",
-                "costResources"
-            ],
             "properties": {
-                "awsAdditionalInfo": {
-                    "$ref": "#/definitions/app.AwsAdditionalInfoReq"
-                },
-                "connectionName": {
-                    "type": "string"
-                },
-                "costResources": {
+                "specs": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/app.CostResourceReq"
+                        "type": "object",
+                        "required": [
+                            "instanceType",
+                            "providerName",
+                            "regionName"
+                        ],
+                        "properties": {
+                            "image": {
+                                "type": "string"
+                            },
+                            "instanceType": {
+                                "type": "string"
+                            },
+                            "providerName": {
+                                "type": "string"
+                            },
+                            "regionName": {
+                                "type": "string"
+                            }
+                        }
                     }
                 },
-                "migrationId": {
-                    "type": "string"
+                "specsWithFormat": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "commonSpec"
+                        ],
+                        "properties": {
+                            "commonImage": {
+                                "type": "string"
+                            },
+                            "commonSpec": {
+                                "type": "string"
+                            }
+                        }
+                    }
                 }
             }
         },
-        "app.UpdatePriceInfosReq": {
+        "app.UpdateEstimateForecastCostReq": {
             "type": "object",
-            "required": [
-                "instanceType",
-                "providerName",
-                "regionName"
-            ],
             "properties": {
-                "instanceType": {
+                "mciId": {
                     "type": "string"
                 },
-                "providerName": {
-                    "type": "string"
-                },
-                "regionName": {
+                "nsId": {
                     "type": "string"
                 }
             }
@@ -1526,22 +1576,201 @@ const docTemplate = `{
                 "Remote"
             ]
         },
-        "constant.ResourceType": {
+        "constant.PriceCurrency": {
             "type": "string",
             "enum": [
-                "VM",
-                "VNet",
-                "DataDisk",
-                "Etc"
+                "USD",
+                "KRW"
             ],
             "x-enum-varnames": [
-                "VM",
-                "VNet",
-                "DataDisk",
-                "Etc"
+                "USD",
+                "KRW"
             ]
         },
-        "cost.GetCostInfoResult": {
+        "constant.PricePolicy": {
+            "type": "string",
+            "enum": [
+                "OnDemand"
+            ],
+            "x-enum-varnames": [
+                "OnDemand"
+            ]
+        },
+        "constant.PriceUnit": {
+            "type": "string",
+            "enum": [
+                "PerHour",
+                "PerYear"
+            ],
+            "x-enum-varnames": [
+                "PerHour",
+                "PerYear"
+            ]
+        },
+        "cost.EsimateCostSpecResults": {
+            "type": "object",
+            "properties": {
+                "estimateForecastCostSpecDetailResults": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cost.EstimateCostSpecDetailResult"
+                    }
+                },
+                "imageName": {
+                    "type": "string"
+                },
+                "instanceType": {
+                    "type": "string"
+                },
+                "providerName": {
+                    "type": "string"
+                },
+                "regionName": {
+                    "type": "string"
+                },
+                "totalMaxMonthlyPrice": {
+                    "type": "number"
+                },
+                "totalMinMonthlyPrice": {
+                    "type": "number"
+                }
+            }
+        },
+        "cost.EstimateCostInfoResult": {
+            "type": "object",
+            "properties": {
+                "calculatedMonthlyPrice": {
+                    "type": "number"
+                },
+                "currency": {
+                    "$ref": "#/definitions/constant.PriceCurrency"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "instanceType": {
+                    "type": "string"
+                },
+                "lastUpdatedAt": {
+                    "type": "string"
+                },
+                "memory": {
+                    "type": "string"
+                },
+                "originalPricePolicy": {
+                    "type": "string"
+                },
+                "osType": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "string"
+                },
+                "priceDescription": {
+                    "type": "string"
+                },
+                "pricePolicy": {
+                    "$ref": "#/definitions/constant.PricePolicy"
+                },
+                "productDescription": {
+                    "type": "string"
+                },
+                "providerName": {
+                    "type": "string"
+                },
+                "regionName": {
+                    "type": "string"
+                },
+                "storage": {
+                    "type": "string"
+                },
+                "unit": {
+                    "$ref": "#/definitions/constant.PriceUnit"
+                },
+                "vCpu": {
+                    "type": "string"
+                }
+            }
+        },
+        "cost.EstimateCostInfoResults": {
+            "type": "object",
+            "properties": {
+                "estimateCostInfoResult": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cost.EstimateCostInfoResult"
+                    }
+                },
+                "resultCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cost.EstimateCostResults": {
+            "type": "object",
+            "properties": {
+                "esimateForecastCostSpecResults": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cost.EsimateCostSpecResults"
+                    }
+                },
+                "totalMaxMonthlyPrice": {
+                    "type": "number"
+                },
+                "totalMinMonthlyPrice": {
+                    "type": "number"
+                }
+            }
+        },
+        "cost.EstimateCostSpecDetailResult": {
+            "type": "object",
+            "properties": {
+                "calculatedMonthlyPrice": {
+                    "type": "number"
+                },
+                "currency": {
+                    "$ref": "#/definitions/constant.PriceCurrency"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lastUpdatedAt": {
+                    "type": "string"
+                },
+                "memory": {
+                    "type": "string"
+                },
+                "originalPricePolicy": {
+                    "type": "string"
+                },
+                "osType": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "string"
+                },
+                "priceDescription": {
+                    "type": "string"
+                },
+                "pricePolicy": {
+                    "$ref": "#/definitions/constant.PricePolicy"
+                },
+                "productDescription": {
+                    "type": "string"
+                },
+                "storage": {
+                    "type": "string"
+                },
+                "unit": {
+                    "$ref": "#/definitions/constant.PriceUnit"
+                },
+                "vCpu": {
+                    "type": "string"
+                }
+            }
+        },
+        "cost.GetEstimateForecastCostInfoResult": {
             "type": "object",
             "properties": {
                 "category": {
@@ -1567,7 +1796,21 @@ const docTemplate = `{
                 }
             }
         },
-        "cost.UpdateCostInfoResult": {
+        "cost.GetEstimateForecastCostInfoResults": {
+            "type": "object",
+            "properties": {
+                "getEstimateForecastCostInfoResults": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/cost.GetEstimateForecastCostInfoResult"
+                    }
+                },
+                "resultCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "cost.UpdateEstimateForecastCostInfoResult": {
             "type": "object",
             "properties": {
                 "fetchedDataCount": {

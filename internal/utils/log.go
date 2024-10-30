@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	colorReset = "\033[0m"
-	colorRed   = "\033[31m"
-	colorGreen = "\033[32m"
+	colorReset  = "\033[0m"
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
 )
 
 // LogLevel type to represent different log levels
@@ -16,6 +17,7 @@ type LogLevel string
 
 const (
 	Info  LogLevel = "INFO"
+	Warn  LogLevel = "WARN"
 	Error LogLevel = "ERROR"
 )
 
@@ -25,6 +27,8 @@ func Log(level LogLevel, v ...interface{}) {
 	switch level {
 	case Info:
 		color = colorGreen
+	case Warn:
+		color = colorYellow
 	case Error:
 		color = colorRed
 	default:
@@ -54,6 +58,14 @@ func LogInfo(v ...interface{}) {
 
 func LogInfof(format string, v ...interface{}) {
 	Logf(Info, format, v...)
+}
+
+func LogWarn(v ...interface{}) {
+	Log(Warn, v...)
+}
+
+func LogWarnf(format string, v ...interface{}) {
+	Logf(Warn, format, v...)
 }
 
 func LogError(v ...interface{}) {

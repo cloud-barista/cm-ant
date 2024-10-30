@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
@@ -16,7 +17,7 @@ import (
 
 type PriceCollector interface {
 	Readyz(context.Context) error
-	GetPriceInfos(context.Context, UpdatePriceInfosParam) (PriceInfos, error)
+	FetchPriceInfos(context.Context, RecommendSpecParam) (EstimateCostInfos, error)
 }
 
 var (
@@ -31,21 +32,21 @@ var (
 		"ncpvpc":  "Monthly Flat Rate",
 	}
 
-	priceValidator = map[string]func(res *PriceInfo) bool{
-		"aws": func(res *PriceInfo) bool {
+	priceValidator = map[string]func(res *EstimateCostInfo) bool{
+		"aws": func(res *EstimateCostInfo) bool {
 			return !strings.Contains(res.PriceDescription, "Reservation")
 		},
-		"gcp":   func(res *PriceInfo) bool { return true },
-		"azure": func(res *PriceInfo) bool { return true },
-		"tencent": func(res *PriceInfo) bool {
+		"gcp":   func(res *EstimateCostInfo) bool { return true },
+		"azure": func(res *EstimateCostInfo) bool { return true },
+		"tencent": func(res *EstimateCostInfo) bool {
 			return res.OriginalPricePolicy == onDemandPricingPolicyMap[res.ProviderName]
 		},
-		"alibaba": func(res *PriceInfo) bool { return true },
-		"ibm": func(res *PriceInfo) bool {
+		"alibaba": func(res *EstimateCostInfo) bool { return true },
+		"ibm": func(res *EstimateCostInfo) bool {
 			return strings.Contains(res.OriginalUnit, "Instance-Hour")
 		},
-		"ncp":    func(res *PriceInfo) bool { return true },
-		"ncpvpc": func(res *PriceInfo) bool { return true },
+		"ncp":    func(res *EstimateCostInfo) bool { return true },
+		"ncpvpc": func(res *EstimateCostInfo) bool { return true },
 	}
 
 	units = map[string]bool{
@@ -77,12 +78,12 @@ func (s *SpiderPriceCollector) Readyz(ctx context.Context) error {
 	return nil
 }
 
-func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param UpdatePriceInfosParam) (PriceInfos, error) {
+func (s *SpiderPriceCollector) FetchPriceInfos(ctx context.Context, param RecommendSpecParam) (EstimateCostInfos, error) {
 	connectionName := fmt.Sprintf("%s-%s", strings.ToLower(param.ProviderName), strings.ToLower(param.RegionName))
 
 	req := spider.PriceInfoReq{
 		ConnectionName: connectionName,
-		FilterList:     s.generateFilterList(param),
+		FilterList:     s.generateFilter(param),
 	}
 
 	result, err := s.sc.GetPriceInfoWithContext(ctx, param.RegionName, req)
@@ -95,7 +96,7 @@ func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param UpdatePr
 		return nil, err
 	}
 
-	createdPriceInfo := make([]*PriceInfo, 0)
+	createdPriceInfo := make([]*EstimateCostInfo, 0)
 	if result.CloudPriceList != nil {
 		for i := range result.CloudPriceList {
 			p := result.CloudPriceList[i]
@@ -136,19 +137,27 @@ func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param UpdatePr
 							currency = s.parseCurrency(policy.Currency)
 							convertedPrice, err := strconv.ParseFloat(policy.Price, 64)
 							if err != nil {
+								utils.LogWarnf("not allowed for error; %s", err)
 								continue
 							}
 
 							if convertedPrice == float64(0) {
+								utils.LogWarn("not allowed for empty price")
 								continue
 							}
 							price = s.naChecker(policy.Price)
 
 							if price == "" {
+								utils.LogWarn("not allowed for empty price")
 								continue
 							}
 
-							pi := PriceInfo{
+							if strings.Contains(strings.ToLower(priceDescription), "dedicated") {
+								utils.LogWarnf("not allowed for dedicated instance hour; %s", priceDescription)
+								continue
+							}
+
+							pi := EstimateCostInfo{
 								ProviderName:           param.ProviderName,
 								RegionName:             productInfo.RegionName,
 								InstanceType:           productInfo.InstanceType,
@@ -169,6 +178,8 @@ func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param UpdatePr
 								OriginalCurrency:       originalCurrency,
 								PriceDescription:       priceDescription,
 								CalculatedMonthlyPrice: s.calculatePrice(price, unit),
+								LastUpdatedAt:          time.Now(),
+								ImageName:              param.Image,
 							}
 
 							if !priceValidator[param.ProviderName](&pi) {
@@ -191,7 +202,7 @@ func (s *SpiderPriceCollector) GetPriceInfos(ctx context.Context, param UpdatePr
 	return createdPriceInfo, nil
 }
 
-func (s *SpiderPriceCollector) generateFilterList(param UpdatePriceInfosParam) []spider.FilterReq {
+func (s *SpiderPriceCollector) generateFilter(param RecommendSpecParam) []spider.FilterReq {
 
 	providerName := strings.ToLower(param.ProviderName)
 	param.ProviderName = providerName
@@ -205,13 +216,10 @@ func (s *SpiderPriceCollector) generateFilterList(param UpdatePriceInfosParam) [
 			Key:   "regionName",
 			Value: param.RegionName,
 		},
-	}
-
-	if param.InstanceType != "" {
-		ret = append(ret, spider.FilterReq{
+		{
 			Key:   "instanceType",
 			Value: param.InstanceType,
-		})
+		},
 	}
 
 	return ret
