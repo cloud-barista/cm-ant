@@ -221,8 +221,6 @@ func mapLoadTestExecutionInfoResult(executionInfo LoadTestExecutionInfo) LoadTes
 		Duration:                   executionInfo.Duration,
 		RampUpTime:                 executionInfo.RampUpTime,
 		RampUpSteps:                executionInfo.RampUpSteps,
-		Hostname:                   executionInfo.Hostname,
-		Port:                       executionInfo.Port,
 		AgentHostname:              executionInfo.AgentHostname,
 		AgentInstalled:             executionInfo.AgentInstalled,
 		CompileDuration:            executionInfo.CompileDuration,

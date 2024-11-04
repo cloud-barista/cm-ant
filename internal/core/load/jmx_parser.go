@@ -3,6 +3,7 @@ package load
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"io"
 	"log"
 	"net/url"
@@ -107,7 +108,7 @@ var jmxHttpSamplerTemplate = map[string]string{
 
 func parseTestPlanStructToString(w io.Writer, param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo) error {
 	resultPath := fmt.Sprintf("%s/result", loadGeneratorInstallInfo.InstallPath)
-	httpRequests, err := httpReqParseToJmx(param.Hostname, param.Port, param.HttpReqs)
+	httpRequests, err := httpReqParseToJmx(param.HttpReqs)
 	if err != nil {
 		return err
 	}
@@ -150,7 +151,7 @@ func parseTestPlanStructToString(w io.Writer, param RunLoadTestParam, loadGenera
 	return nil
 }
 
-func httpReqParseToJmx(hostname, port string, httpReqs []RunLoadTestHttpParam) (string, error) {
+func httpReqParseToJmx(httpReqs []RunLoadTestHttpParam) (string, error) {
 	var builder strings.Builder
 	for i, req := range httpReqs {
 		method := strings.ToUpper(req.Method)
@@ -167,14 +168,14 @@ func httpReqParseToJmx(hostname, port string, httpReqs []RunLoadTestHttpParam) (
 				return "", err
 			}
 
-			h := req.Hostname
+			h := strings.TrimSpace(req.Hostname)
 			if h == "" {
-				h = hostname
+				continue
 			}
 
-			p := req.Port
+			p := strings.TrimSpace(req.Port)
 			if p == "" {
-				p = port
+				continue
 			}
 
 			jmxHttpTemplateData := jmxHttpTemplateData{
@@ -198,7 +199,7 @@ func httpReqParseToJmx(hostname, port string, httpReqs []RunLoadTestHttpParam) (
 				}
 				jmxHttpTemplateData.Params = params
 			} else if method == "POST" {
-				jmxHttpTemplateData.BodyData = req.BodyData
+				jmxHttpTemplateData.BodyData = ConvertToHTMLEntities(req.BodyData)
 			}
 
 			var buf bytes.Buffer
@@ -213,4 +214,12 @@ func httpReqParseToJmx(hostname, port string, httpReqs []RunLoadTestHttpParam) (
 	}
 	result := builder.String()
 	return result, nil
+}
+
+func ConvertToHTMLEntities(jsonStr string) string {
+	escapedStr := html.EscapeString(jsonStr)
+
+	escapedStr = strings.ReplaceAll(escapedStr, "\n", "&#xd;")
+
+	return escapedStr
 }

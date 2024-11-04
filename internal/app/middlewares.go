@@ -36,7 +36,7 @@ func setMiddleware(e *echo.Echo) {
 				OnTimeoutRouteErrorHandler: func(err error, c echo.Context) {
 					utils.LogInfo(c.Path())
 				},
-				Timeout: 300 * time.Second,
+				Timeout: 3000 * time.Second,
 			},
 		),
 

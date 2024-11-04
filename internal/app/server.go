@@ -51,7 +51,7 @@ func NewAntServer() (*AntServer, error) {
 	}
 
 	client := &http.Client{
-		Timeout: 5 * time.Minute,
+		Timeout: 50 * time.Minute,
 	}
 
 	tumblebugClient := tumblebug.NewTumblebugClient(client)
