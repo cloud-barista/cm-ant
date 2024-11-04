@@ -994,6 +994,65 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/load/tests/state/last": {
+            "get": {
+                "description": "Retrieve a last load test execution state by given ids.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test State Management]"
+                ],
+                "summary": "Get Last Load Test Execution State",
+                "operationId": "GetLastLoadTestExecutionState",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "nsId",
+                        "name": "nsId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "mciId",
+                        "name": "mciId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Load test key",
+                        "name": "vmId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test execution state information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_LoadTestExecutionStateResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test execution state information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/load/tests/state/{loadTestKey}": {
             "get": {
                 "description": "Retrieve a load test execution state by load test key.",
@@ -1480,23 +1539,37 @@ const docTemplate = `{
         },
         "app.RunLoadGeneratorHttpReq": {
             "type": "object",
+            "required": [
+                "bodyData",
+                "hostname",
+                "method",
+                "path",
+                "port",
+                "protocol"
+            ],
             "properties": {
                 "bodyData": {
+                    "description": "{\"xxx\": \"tttt\", \"wwwww\": \"wotjkenr\"}",
                     "type": "string"
                 },
                 "hostname": {
+                    "description": "xx.xx.xx.xx or asx.bbb.com",
                     "type": "string"
                 },
                 "method": {
+                    "description": "GET or POST",
                     "type": "string"
                 },
                 "path": {
+                    "description": "/xxx/www/sss or possibly empty",
                     "type": "string"
                 },
                 "port": {
+                    "description": "1 ~ 65353",
                     "type": "string"
                 },
                 "protocol": {
+                    "description": "http or https",
                     "type": "string"
                 }
             }
@@ -1505,15 +1578,14 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "agentHostname": {
+                    "description": "basically, it is same as host for vm",
                     "type": "string"
                 },
-                "agentInstalled": {
+                "collectAdditionalSystemMetrics": {
+                    "description": "agent tcp default port is 5555",
                     "type": "boolean"
                 },
                 "duration": {
-                    "type": "string"
-                },
-                "hostname": {
                     "type": "string"
                 },
                 "httpReqs": {
@@ -1523,12 +1595,23 @@ const docTemplate = `{
                     }
                 },
                 "installLoadGenerator": {
-                    "$ref": "#/definitions/app.InstallLoadGeneratorReq"
+                    "description": "localhost for installing load generator; local | remote",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/app.InstallLoadGeneratorReq"
+                        }
+                    ]
                 },
                 "loadGeneratorInstallInfoId": {
+                    "description": "if already installed load generator simply put this field",
                     "type": "integer"
                 },
-                "port": {
+                "mciId": {
+                    "description": "for metadata usage",
+                    "type": "string"
+                },
+                "nsId": {
+                    "description": "for validate agent host and connect to tumblebug resources",
                     "type": "string"
                 },
                 "rampUpSteps": {
@@ -1538,9 +1621,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "testName": {
+                    "description": "test scenario",
                     "type": "string"
                 },
                 "virtualUsers": {
+                    "type": "string"
+                },
+                "vmId": {
+                    "description": "for metadata usage",
                     "type": "string"
                 }
             }
@@ -1549,6 +1637,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "loadTestKey": {
+                    "type": "string"
+                },
+                "mciId": {
+                    "type": "string"
+                },
+                "nsId": {
+                    "type": "string"
+                },
+                "vmId": {
                     "type": "string"
                 }
             }
@@ -1631,30 +1728,16 @@ const docTemplate = `{
         "constant.ExecutionStatus": {
             "type": "string",
             "enum": [
-                "on_preparing",
-                "on_running",
+                "on_processing",
                 "on_fetching",
                 "successed",
-                "test_failed",
-                "update_failed",
-                "result_failed",
-                "failed",
-                "processing",
-                "fetching",
-                "success"
+                "test_failed"
             ],
             "x-enum-varnames": [
-                "OnPreparing",
-                "OnRunning",
+                "OnProcessing",
                 "OnFetching",
                 "Successed",
-                "TestFailed",
-                "UpdateFailed",
-                "ResultFailed",
-                "Failed",
-                "Processing",
-                "Fetching",
-                "Success"
+                "TestFailed"
             ]
         },
         "constant.InstallLocation": {
@@ -2128,9 +2211,6 @@ const docTemplate = `{
                 "executionDuration": {
                     "type": "string"
                 },
-                "hostname": {
-                    "type": "string"
-                },
                 "id": {
                     "type": "integer"
                 },
@@ -2147,9 +2227,6 @@ const docTemplate = `{
                     "$ref": "#/definitions/load.LoadTestExecutionStateResult"
                 },
                 "loadTestKey": {
-                    "type": "string"
-                },
-                "port": {
                     "type": "string"
                 },
                 "rampUpSteps": {

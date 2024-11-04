@@ -69,10 +69,16 @@ type LoadGeneratorInstallInfo struct {
 
 type LoadTestExecutionState struct {
 	gorm.Model
-	LoadTestKey                 string `gorm:"index:idx_state_load_test_key,unique"`
+	LoadTestKey string `gorm:"index:idx_state_load_test_key,unique"`
+
+	NsId  string
+	MciId string
+	VmId  string
+
 	ExecutionStatus             constant.ExecutionStatus
 	StartAt                     time.Time
 	FinishAt                    *time.Time
+	ExpectedFinishAt            time.Time
 	TotalExpectedExcutionSecond uint64
 	FailureMessage              string
 	CompileDuration             string
@@ -86,16 +92,20 @@ type LoadTestExecutionState struct {
 
 type LoadTestExecutionInfo struct {
 	gorm.Model
-	LoadTestKey                string `gorm:"index:idx_info_load_test_key,unique"`
-	TestName                   string
-	VirtualUsers               string
-	Duration                   string
-	RampUpTime                 string
-	RampUpSteps                string
-	Hostname                   string
-	Port                       string
-	AgentHostname              string
-	AgentInstalled             bool
+	LoadTestKey  string `gorm:"index:idx_info_load_test_key,unique"`
+	TestName     string `gorm:"index:idx_info_load_test_name"`
+	VirtualUsers string
+	Duration     string
+	RampUpTime   string
+	RampUpSteps  string
+
+	NsId  string
+	MciId string
+	VmId  string
+
+	AgentHostname  string
+	AgentInstalled bool
+
 	CompileDuration            string
 	ExecutionDuration          string
 	LoadTestExecutionHttpInfos []LoadTestExecutionHttpInfo

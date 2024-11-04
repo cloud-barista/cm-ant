@@ -10,107 +10,90 @@ JMETER_FOLDER="apache-jmeter-${JMETER_VERSION}"
 JMETER_FULL_PATH="${JMETER_WORK_DIR}/${JMETER_FOLDER}"
 JMETER_INSTALL_URL="https://archive.apache.org/dist/jmeter/binaries/${JMETER_FOLDER}.tgz"
 
-echo "This is jmeter working directory >>>>>>>>>>>>>>>>> ${JMETER_WORK_DIR}"
-echo "This is jmeter folder name >>>>>>>>>>>>>>>>>>>>>>> ${JMETER_FOLDER}"
+echo "This is jmeter working directory >>> ${JMETER_WORK_DIR}"
+echo "This is jmeter folder name >>> ${JMETER_FOLDER}"
 
-echo
-echo
+# Create directories if they don't exist
+create_directory() {
+  local dir=$1
+  if [ ! -e "$dir" ]; then
+    sudo mkdir -p "$dir"
+    echo "Created directory: $dir"
+  fi
+}
 
+create_directory "${JMETER_WORK_DIR}"
+create_directory "${JMETER_WORK_DIR}/result"
+create_directory "${JMETER_WORK_DIR}/test_plan"
 
-if [ ! -e "${JMETER_WORK_DIR}" ]; then
-  sudo mkdir -p "${JMETER_WORK_DIR}"
-  echo "jmeter path folder created"
-fi
-
-if [ ! -e "${JMETER_WORK_DIR}/result" ]; then
-  sudo mkdir -p "${JMETER_WORK_DIR}/result"
-  echo "test plan path folder created"
-fi
-
-
-if [ ! -e "${JMETER_WORK_DIR}/test_plan" ]; then
-  sudo mkdir -p "${JMETER_WORK_DIR}/test_plan"
-  echo "test plan path folder created"
-fi
-
-
-echo "[CM-ANT] [Step 1/6] Installing default required tools..."
-
+echo "[CM-ANT] [Step 1/6] Installing required tools..."
 sudo apt install -y software-properties-common
 sudo add-apt-repository universe -y
 sudo apt-get update -y
 sudo apt-get install -y wget openjdk-17-jre
 
-sleep 1s
-
-echo
-echo
-
+# Function to extract JMeter
 unzip_jmeter() {
-  sudo tar -xf "${JMETER_FULL_PATH}.tgz" -C "${JMETER_WORK_DIR}" && sudo rm "${JMETER_FULL_PATH}.tgz"
+  sudo tar -xf "${JMETER_WORK_DIR}/${JMETER_FOLDER}.tgz" -C "${JMETER_WORK_DIR}" &&
+    sudo rm "${JMETER_WORK_DIR}/${JMETER_FOLDER}.tgz"
   sudo rm -rf "${JMETER_FULL_PATH}/docs" "${JMETER_FULL_PATH}/printable_docs"
 }
 
 echo "[CM-ANT] [Step 2/6] Downloading and Extracting Apache JMeter..."
 if [ -d "${JMETER_FULL_PATH}" ]; then
-  echo "[CM-ANT] Jmeter is already installed."
-elif [ -f "${JMETER_FULL_PATH}.tgz" ]; then
-  echo "[CM-ANT] Jmeter gzip file is installed on ${JMETER_WORK_DIR}. Let's do remaining installation."
-  unzip_jmeter
+  echo "[CM-ANT] JMeter is already installed."
 else
-  echo "[CM-ANT] JMeter is installing on path ${JMETER_WORK_DIR}"
-  sudo wget "${JMETER_INSTALL_URL}" -P "${JMETER_WORK_DIR}"
+  if [ ! -f "${JMETER_WORK_DIR}/${JMETER_FOLDER}.tgz" ]; then
+    echo "[CM-ANT] Downloading JMeter..."
+    sudo wget "${JMETER_INSTALL_URL}" -P "${JMETER_WORK_DIR}"
+  fi
+  echo "[CM-ANT] Extracting JMeter..."
   unzip_jmeter
 fi
 
-sudo chmod -R 777 ${JMETER_WORK_DIR}
+sudo chmod -R 777 "${JMETER_WORK_DIR}"
 
-echo
-echo
+# Install CMD Runner
+install_cmd_runner() {
+  local version="2.2.1"
+  local jar="cmdrunner-${version}.jar"
+  if [ ! -f "${JMETER_FULL_PATH}/lib/${jar}" ]; then
+    echo "[CM-ANT] [Step 3/6] Installing CMD Runner..."
+    wget "https://repo1.maven.org/maven2/kg/apc/cmdrunner/${version}/${jar}" -P "${JMETER_WORK_DIR}" &&
+      sudo chmod +x "${JMETER_WORK_DIR}/${jar}" &&
+      sudo mv "${JMETER_WORK_DIR}/${jar}" "${JMETER_FULL_PATH}/lib/"
+  fi
+}
 
-# install cmd runner
-echo "[CM-ANT] [Step 3/6] Download CMD Runner to install plugins..."
-CMD_RUNNER_VERSION="2.2.1"
-CMD_RUNNER_JAR="cmdrunner-$CMD_RUNNER_VERSION.jar"
+# Install Plugin Manager
+install_plugin_manager() {
+  local version="1.6"
+  local jar="jmeter-plugins-manager-${version}.jar"
+  if [ ! -f "${JMETER_FULL_PATH}/lib/ext/${jar}" ]; then
+    echo "[CM-ANT] [Step 4/6] Installing Plugin Manager..."
+    wget "https://repo1.maven.org/maven2/kg/apc/jmeter-plugins-manager/${version}/${jar}" -P "${JMETER_WORK_DIR}" &&
+      sudo chmod +x "${JMETER_WORK_DIR}/${jar}" &&
+      sudo mv "${JMETER_WORK_DIR}/${jar}" "${JMETER_FULL_PATH}/lib/ext/"
+  fi
+}
 
-if [ ! -e "$CMD_RUNNER_JAR" ]; then
-    wget "https://repo1.maven.org/maven2/kg/apc/cmdrunner/$CMD_RUNNER_VERSION/$CMD_RUNNER_JAR" &&
-    sudo chmod +x "$CMD_RUNNER_JAR" &&
-    sudo mv $CMD_RUNNER_JAR "$JMETER_FULL_PATH/lib/"
-    echo "[CB-ANT] Installed cmd runner."
-fi
+# Install required plugins
+install_required_plugins() {
+  echo "[CM-ANT] [Step 5/6] Installing required plugins for load testing..."
+  java -jar "${JMETER_FULL_PATH}/lib/cmdrunner-2.2.1.jar" --tool org.jmeterplugins.repository.PluginManagerCMD install jpgc-perfmon,jpgc-casutg
+}
 
+# Configure JMeter
+configure_jmeter() {
+  echo "[CM-ANT] [Step 6/6] Configuring JMeter..."
+  sudo chmod +x "${JMETER_FULL_PATH}/bin/jmeter.sh"
+  "${JMETER_FULL_PATH}/bin/jmeter.sh" --version
+}
 
-echo
-echo
+# Execute steps
+install_cmd_runner
+install_plugin_manager
+install_required_plugins
+configure_jmeter
 
-# install plugin manager
-echo "[CM-ANT] [Step 4/6] Download Plugin Manager to manage plugins..."
-PLUGIN_MANAGER_VERSION="1.6"
-PLUGIN_MANAGER_JAR="jmeter-plugins-manager-$PLUGIN_MANAGER_VERSION.jar"
-
-if [ ! -e "$PLUGIN_MANAGER_JAR" ]; then
-    wget "https://repo1.maven.org/maven2/kg/apc/jmeter-plugins-manager/$PLUGIN_MANAGER_VERSION/$PLUGIN_MANAGER_JAR" &&
-    sudo chmod +x "$PLUGIN_MANAGER_JAR" &&
-    sudo mv $PLUGIN_MANAGER_JAR "$JMETER_FULL_PATH/lib/ext/"
-    echo "[CB-ANT] Installed plugin manager."
-fi
-
-
-echo
-echo
-
-# install perfmon plugin
-echo "[CM-ANT] [Step 5/6] Install required plugins to do load test..."
-java -jar "$JMETER_FULL_PATH/lib/$CMD_RUNNER_JAR" --tool org.jmeterplugins.repository.PluginManagerCMD install jpgc-perfmon,jpgc-casutg
-echo "[CB-ANT] Installed required plugins."
-
-
-echo
-echo
-
-echo "[CM-ANT] [Step 6/6] Configuring JMeter..."
-sudo chmod +x "${JMETER_FULL_PATH}/bin/jmeter.sh"
-"${JMETER_FULL_PATH}"/bin/jmeter.sh --version
-
-echo "[CM-ANT] Jmeter is completely installed on ${JMETER_FULL_PATH}"
+echo "[CM-ANT] JMeter installation completed successfully at ${JMETER_FULL_PATH}"
