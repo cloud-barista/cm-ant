@@ -101,15 +101,21 @@ type RunLoadTestParam struct {
 	LoadTestKey                string                    `json:"loadTestKey"`
 	InstallLoadGenerator       InstallLoadGeneratorParam `json:"installLoadGenerator"`
 	LoadGeneratorInstallInfoId uint                      `json:"loadGeneratorInstallInfoId"`
-	TestName                   string                    `json:"testName"`
-	VirtualUsers               string                    `json:"virtualUsers"`
-	Duration                   string                    `json:"duration"`
-	RampUpTime                 string                    `json:"rampUpTime"`
-	RampUpSteps                string                    `json:"rampUpSteps"`
-	Hostname                   string                    `json:"hostname"`
-	Port                       string                    `json:"port"`
-	AgentInstalled             bool                      `json:"agentInstalled"`
-	AgentHostname              string                    `json:"agentHostname"`
+
+	// test scenario
+	TestName     string `json:"testName"`
+	VirtualUsers string `json:"virtualUsers"`
+	Duration     string `json:"duration"`
+	RampUpTime   string `json:"rampUpTime"`
+	RampUpSteps  string `json:"rampUpSteps"`
+
+	// related tumblebug
+	NsId  string `json:"nsId"`
+	MciId string `json:"mciId"`
+	VmId  string `json:"vmId"`
+
+	CollectAdditionalSystemMetrics bool
+	AgentHostname                  string
 
 	HttpReqs []RunLoadTestHttpParam `json:"httpReqs,omitempty"`
 }
@@ -153,6 +159,9 @@ type LoadTestExecutionStateResult struct {
 
 type GetLoadTestExecutionStateParam struct {
 	LoadTestKey string `json:"loadTestKey"`
+	NsId        string `json:"nsId"`
+	MciId       string `json:"mciId"`
+	VmId        string `json:"vmId"`
 }
 
 type GetAllLoadTestExecutionInfosParam struct {
@@ -173,8 +182,6 @@ type LoadTestExecutionInfoResult struct {
 	Duration                   string                            `json:"duration,omitempty"`
 	RampUpTime                 string                            `json:"rampUpTime,omitempty"`
 	RampUpSteps                string                            `json:"rampUpSteps,omitempty"`
-	Hostname                   string                            `json:"hostname,omitempty"`
-	Port                       string                            `json:"port,omitempty"`
 	AgentHostname              string                            `json:"agentHostname,omitempty"`
 	AgentInstalled             bool                              `json:"agentInstalled,omitempty"`
 	CompileDuration            string                            `json:"compileDuration,omitempty"`
@@ -200,6 +207,9 @@ type GetLoadTestExecutionInfoParam struct {
 
 type StopLoadTestParam struct {
 	LoadTestKey string `json:"loadTestKey"`
+	NsId        string `json:"nsId"`
+	MciId       string `json:"mciId"`
+	VmId        string `json:"vmId"`
 }
 
 type ResultSummary struct {

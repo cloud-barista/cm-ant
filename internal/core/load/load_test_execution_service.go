@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 // RunLoadTest initiates the load test and performs necessary initializations.
@@ -25,32 +25,34 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 
 	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()
 	param.LoadTestKey = loadTestKey
+	log.Info().Msgf("Starting load test with key: %s", loadTestKey)
 
-	utils.LogInfof("Starting load test with key: %s", loadTestKey)
-
+	// check the installation of load generator.
+	// if it is not installed, then install it to user selected location.
 	if param.LoadGeneratorInstallInfoId == uint(0) {
-		utils.LogInfo("No LoadGeneratorInstallInfoId provided, installing load generator...")
+		log.Info().Msgf("No LoadGeneratorInstallInfoId provided, installing load generator...")
 		result, err := l.InstallLoadGenerator(param.InstallLoadGenerator)
 		if err != nil {
-			utils.LogErrorf("Error installing load generator: %v", err)
+			log.Error().Msgf("Error installing load generator: %v", err)
 			return "", err
 		}
 
 		param.LoadGeneratorInstallInfoId = result.ID
-		utils.LogInfof("Load generator installed with ID: %d", result.ID)
+		log.Info().Msgf("Load generator installed with ID: %d", result.ID)
 	}
 
 	if param.LoadGeneratorInstallInfoId == uint(0) {
-		utils.LogErrorf("LoadGeneratorInstallInfoId is still 0 after installation.")
-		return "", nil
+		log.Error().Msgf("LoadGeneratorInstallInfoId is still 0 after installation.")
+		return "", errors.New("error while load generator installation process")
 	}
 
-	utils.LogInfof("Retrieving load generator installation info with ID: %d", param.LoadGeneratorInstallInfoId)
 	loadGeneratorInstallInfo, err := l.loadRepo.GetValidLoadGeneratorInstallInfoByIdTx(ctx, param.LoadGeneratorInstallInfoId)
 	if err != nil {
-		utils.LogErrorf("Error retrieving load generator installation info: %v", err)
+		log.Error().Msgf("Error retrieving load generator installation info: %v", err)
 		return "", err
 	}
+
+	log.Info().Msgf("Retrieved load generator installation info with ID: %d", param.LoadGeneratorInstallInfoId)
 
 	duration, err := strconv.Atoi(param.Duration)
 	if err != nil {
@@ -63,12 +65,20 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 		return "", err
 	}
 
+	totalExecutionSecond := uint64(duration + rampUpTime)
+	startAt := time.Now()
+	e := startAt.Add(time.Duration(totalExecutionSecond) * time.Second)
+
 	stateArg := LoadTestExecutionState{
 		LoadGeneratorInstallInfoId:  loadGeneratorInstallInfo.ID,
 		LoadTestKey:                 loadTestKey,
-		ExecutionStatus:             constant.OnPreparing,
-		StartAt:                     time.Now(),
-		TotalExpectedExcutionSecond: uint64(duration + rampUpTime),
+		ExecutionStatus:             constant.OnProcessing,
+		StartAt:                     startAt,
+		ExpectedFinishAt:            e,
+		TotalExpectedExcutionSecond: totalExecutionSecond,
+		NsId:                        param.NsId,
+		MciId:                       param.MciId,
+		VmId:                        param.VmId,
 	}
 
 	go l.processLoadTest(param, &loadGeneratorInstallInfo, &stateArg)
@@ -89,28 +99,32 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 	}
 
 	loadArg := LoadTestExecutionInfo{
-		LoadTestKey:                loadTestKey,
-		TestName:                   param.TestName,
-		VirtualUsers:               param.VirtualUsers,
-		Duration:                   param.Duration,
-		RampUpTime:                 param.RampUpTime,
-		RampUpSteps:                param.RampUpSteps,
-		Hostname:                   param.Hostname,
-		Port:                       param.Port,
-		AgentInstalled:             param.AgentInstalled,
-		AgentHostname:              param.AgentHostname,
+		LoadTestKey:  loadTestKey,
+		TestName:     param.TestName,
+		VirtualUsers: param.VirtualUsers,
+		Duration:     param.Duration,
+		RampUpTime:   param.RampUpTime,
+		RampUpSteps:  param.RampUpSteps,
+
+		NsId:  param.NsId,
+		MciId: param.MciId,
+		VmId:  param.VmId,
+
+		AgentInstalled: param.CollectAdditionalSystemMetrics,
+		AgentHostname:  param.AgentHostname,
+
 		LoadGeneratorInstallInfoId: loadGeneratorInstallInfo.ID,
 		LoadTestExecutionHttpInfos: hs,
 	}
 
-	utils.LogInfof("Saving load test execution info for key: %s", loadTestKey)
+	log.Info().Msgf("Saving load test execution info for key: %s", loadTestKey)
 	err = l.loadRepo.SaveForLoadTestExecutionTx(ctx, &loadArg, &stateArg)
 	if err != nil {
-		utils.LogErrorf("Error saving load test execution info: %v", err)
+		log.Error().Msgf("Error saving load test execution info: %v", err)
 		return "", err
 	}
 
-	utils.LogInfof("Load test started successfully with key: %s", loadTestKey)
+	log.Info().Msgf("Load test started successfully with key: %s", loadTestKey)
 
 	return loadTestKey, nil
 
@@ -120,6 +134,53 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 // Depending on whether the installation location is local or remote, it creates the test plan and runs test commands.
 // Fetches and saves test results from the local or remote system.
 func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo, loadTestExecutionState *LoadTestExecutionState) {
+
+	// check the installation of agent for additional metrics
+	if param.CollectAdditionalSystemMetrics {
+		if strings.TrimSpace(param.AgentHostname) == "" {
+			mci, err := l.tumblebugClient.GetMciWithContext(context.Background(), param.NsId, param.MciId)
+
+			if err != nil {
+				log.Error().Msgf("unexpected error occurred while fetching mci for install metrics agent")
+				return
+			}
+
+			if len(mci.Vm) == 0 {
+				log.Error().Msgf("unexpected error occurred while fetching mci for install metrics agent")
+				return
+			}
+
+			if len(mci.Vm) == 1 {
+				param.AgentHostname = mci.Vm[0].PublicIP
+			} else {
+				for _, v := range mci.Vm {
+					if v.Id == param.VmId {
+						param.AgentHostname = v.PublicIP
+					}
+				}
+			}
+
+			if param.AgentHostname == "" {
+				log.Error().Msgf("invalid agent hostname for test %s", param.LoadTestKey)
+				return
+			}
+		}
+
+		arg := MonitoringAgentInstallationParams{
+			NsId:  param.NsId,
+			MciId: param.MciId,
+			VmIds: []string{param.VmId},
+		}
+
+		// install and run the agent for collect metrics
+		_, err := l.InstallMonitoringAgent(arg)
+		if err != nil {
+			log.Error().Msgf("unexpected error occurred while fetching mci for ")
+			return
+		}
+
+		log.Info().Msgf("metrics agent installed successfully for load test; %s %s %s", arg.NsId, arg.MciId, arg.VmIds)
+	}
 
 	loadTestDone := make(chan bool)
 
@@ -140,17 +201,17 @@ func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInsta
 	}
 
 	dataParam := &fetchDataParam{
-		LoadTestDone:    loadTestDone,
-		LoadTestKey:     param.LoadTestKey,
-		InstallLocation: loadGeneratorInstallInfo.InstallLocation,
-		InstallPath:     loadGeneratorInstallInfo.InstallPath,
-		PublicKeyName:   loadGeneratorInstallInfo.PublicKeyName,
-		PrivateKeyName:  loadGeneratorInstallInfo.PrivateKeyName,
-		Username:        username,
-		PublicIp:        publicIp,
-		Port:            port,
-		AgentInstalled:  param.AgentInstalled,
-		Home:            home,
+		LoadTestDone:                   loadTestDone,
+		LoadTestKey:                    param.LoadTestKey,
+		InstallLocation:                loadGeneratorInstallInfo.InstallLocation,
+		InstallPath:                    loadGeneratorInstallInfo.InstallPath,
+		PublicKeyName:                  loadGeneratorInstallInfo.PublicKeyName,
+		PrivateKeyName:                 loadGeneratorInstallInfo.PrivateKeyName,
+		Username:                       username,
+		PublicIp:                       publicIp,
+		Port:                           port,
+		CollectAdditionalSystemMetrics: param.CollectAdditionalSystemMetrics,
+		Home:                           home,
 	}
 
 	go l.fetchData(dataParam)
@@ -160,9 +221,11 @@ func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInsta
 		close(loadTestDone)
 		updateErr := l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
 		if updateErr != nil {
-			utils.LogErrorf("Error updating load test execution state: %v", updateErr)
+			log.Error().Msgf("Error updating load test execution state: %v", updateErr)
 			return
 		}
+
+		log.Info().Msgf("successfully done load test for %s", dataParam.LoadTestKey)
 	}()
 
 	compileDuration, executionDuration, loadTestErr := l.executeLoadTest(param, loadGeneratorInstallInfo)
@@ -180,7 +243,7 @@ func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInsta
 
 	updateErr := l.updateLoadTestExecution(loadTestExecutionState)
 	if updateErr != nil {
-		loadTestExecutionState.ExecutionStatus = constant.UpdateFailed
+		loadTestExecutionState.ExecutionStatus = constant.TestFailed
 		loadTestExecutionState.FailureMessage = updateErr.Error()
 		finishAt := time.Now()
 		loadTestExecutionState.FinishAt = &finishAt
@@ -313,16 +376,29 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	state, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, GetLoadTestExecutionStateParam{
-		LoadTestKey: param.LoadTestKey,
-	})
+	var arg GetLoadTestExecutionStateParam
+
+	if param.LoadTestKey == "" {
+		arg = GetLoadTestExecutionStateParam{
+			NsId:  param.NsId,
+			MciId: param.MciId,
+			VmId:  param.VmId,
+		}
+
+	} else {
+		arg = GetLoadTestExecutionStateParam{
+			LoadTestKey: param.LoadTestKey,
+		}
+	}
+
+	state, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, arg)
 
 	if err != nil {
-		return err
+		return fmt.Errorf("error occurred while retrieve load test execution state: %w", err)
 	}
 
 	if state.ExecutionStatus == constant.Successed {
-		return nil
+		return errors.New("load test is already completed")
 	}
 
 	installInfo := state.LoadGeneratorInstallInfo
@@ -344,7 +420,7 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 		err := utils.InlineCmd(killCmd)
 
 		if err != nil {
-			log.Println(err)
+			log.Error().Msg(err.Error())
 			return err
 		}
 	}

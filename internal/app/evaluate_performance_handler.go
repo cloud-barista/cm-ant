@@ -9,13 +9,14 @@ import (
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
 	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 )
 
 const (
 	seoul = "37.53/127.02"
 )
-
 
 // getAllLoadGeneratorInstallInfo handler function that retrieves all load generator installation information.
 // @Id GetAllLoadGeneratorInstallInfo
@@ -175,40 +176,91 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 		req.InstallLoadGenerator = InstallLoadGeneratorReq{}
 	} else if req.InstallLoadGenerator.InstallLocation != constant.Local &&
 		req.InstallLoadGenerator.InstallLocation != constant.Remote {
-		return errorResponseJson(http.StatusBadRequest, "load test install location is invalid.")
+		return errorResponseJson(http.StatusBadRequest, "invalid load test install location")
+	}
+
+	if strings.TrimSpace(req.TestName) == "" {
+		req.TestName = uuid.New().String()
+	}
+
+	if _, err := strconv.Atoi(strings.TrimSpace(req.VirtualUsers)); err != nil {
+		log.Error().Msgf("virtual user count is invalid")
+		return errorResponseJson(http.StatusBadRequest, "virtual user  is not correct. check and retry.")
+	}
+
+	if _, err := strconv.Atoi(strings.TrimSpace(req.Duration)); err != nil {
+		log.Error().Msgf("duration is invalid")
+		return errorResponseJson(http.StatusBadRequest, "duration is not correct. check and retry.")
+	}
+
+	if _, err := strconv.Atoi(strings.TrimSpace(req.RampUpTime)); err != nil {
+		log.Error().Msgf("ramp up time is invalid")
+		return errorResponseJson(http.StatusBadRequest, "ramp up time is not correct. check and retry.")
+	}
+
+	if _, err := strconv.Atoi(strings.TrimSpace(req.RampUpSteps)); err != nil {
+		log.Error().Msgf("ramp up steps is invalid")
+		return errorResponseJson(http.StatusBadRequest, "ramp up steps is not correct. check and retry.")
+	}
+
+	if len(req.HttpReqs) == 0 {
+		log.Error().Msgf("http request have to have at least one; %s", req.TestName)
+		return errorResponseJson(http.StatusBadRequest, "http request have to have at least one or more")
 	}
 
 	var https []load.RunLoadTestHttpParam
 	for _, h := range req.HttpReqs {
+		if h.Method == "" {
+			log.Error().Msgf("method for load test is empty. cannot start load test; %s", req.TestName)
+			return errorResponseJson(http.StatusBadRequest, "load test running info is not correct.; Method")
+		}
+
+		if h.Protocol == "" {
+			h.Protocol = "http"
+		}
+
+		if h.Hostname == "" {
+			log.Error().Msgf("hostname for load test is empty. cannot start load test; %s", req.TestName)
+			return errorResponseJson(http.StatusBadRequest, "load test running info is not correct.; Hostname")
+		}
+
+		if t, err := strconv.Atoi(h.Port); err != nil && (t < 1 || t > 65353) {
+			log.Error().Msgf("port range is not valid. check the range of ports")
+			return errorResponseJson(http.StatusBadRequest, "load test running info is not correct.; Port")
+		}
+
 		hh := load.RunLoadTestHttpParam{
-			Method:   h.Method,
-			Protocol: h.Protocol,
-			Hostname: h.Hostname,
-			Port:     h.Port,
-			Path:     h.Path,
-			BodyData: h.BodyData,
+			Method:   strings.TrimSpace(h.Method),
+			Protocol: strings.TrimSpace(h.Protocol),
+			Hostname: strings.TrimSpace(h.Hostname),
+			Port:     strings.TrimSpace(h.Port),
+			Path:     strings.TrimSpace(h.Path),
+			BodyData: strings.TrimSpace(h.BodyData),
 		}
 
 		https = append(https, hh)
 	}
 
 	arg := load.RunLoadTestParam{
-
 		InstallLoadGenerator: load.InstallLoadGeneratorParam{
 			InstallLocation: req.InstallLoadGenerator.InstallLocation,
 			Coordinates:     []string{seoul},
 		},
 		LoadGeneratorInstallInfoId: req.LoadGeneratorInstallInfoId,
-		TestName:                   req.TestName,
-		VirtualUsers:               req.VirtualUsers,
-		Duration:                   req.Duration,
-		RampUpTime:                 req.RampUpTime,
-		RampUpSteps:                req.RampUpSteps,
-		Hostname:                   req.Hostname,
-		Port:                       req.Port,
-		AgentInstalled:             req.AgentInstalled,
-		AgentHostname:              req.AgentHostname,
-		HttpReqs:                   https,
+		TestName:                   strings.TrimSpace(req.TestName),
+		VirtualUsers:               strings.TrimSpace(req.VirtualUsers),
+		Duration:                   strings.TrimSpace(req.Duration),
+		RampUpTime:                 strings.TrimSpace(req.RampUpTime),
+		RampUpSteps:                strings.TrimSpace(req.RampUpSteps),
+
+		CollectAdditionalSystemMetrics: req.CollectAdditionalSystemMetrics,
+		AgentHostname:                  strings.TrimSpace(req.AgentHostname),
+
+		NsId:  strings.TrimSpace(req.NsId),
+		MciId: strings.TrimSpace(req.MciId),
+		VmId:  strings.TrimSpace(req.VmId),
+
+		HttpReqs: https,
 	}
 
 	loadTestKey, err := s.services.loadService.RunLoadTest(arg)
@@ -243,7 +295,8 @@ func (s *AntServer) stopLoadTest(c echo.Context) error {
 		return errorResponseJson(http.StatusBadRequest, "load test stop info is not correct.")
 	}
 
-	if strings.TrimSpace(req.LoadTestKey) == "" {
+	if strings.TrimSpace(req.LoadTestKey) == "" ||
+		(strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.MciId) == "" || strings.TrimSpace(req.VmId) == "") {
 		return errorResponseJson(http.StatusBadRequest, "load test stop info is not correct.")
 	}
 
@@ -455,6 +508,46 @@ func (s *AntServer) getAllLoadTestExecutionState(c echo.Context) error {
 	}
 
 	return successResponseJson(c, "Successfully retrieved load test execution state information", result)
+}
+
+// getLoadTestExecutionState handler function that retrieves a load test execution state last executed with given ids.
+// @Id GetLastLoadTestExecutionState
+// @Summary Get Last Load Test Execution State
+// @Description Retrieve a last load test execution state by given ids.
+// @Tags [Load Test State Management]
+// @Accept json
+// @Produce json
+// @Param nsId query string true "nsId"
+// @Param mciId query string true "mciId"
+// @Param vmId query string true "Load test key"
+// @Success 200 {object} app.AntResponse[load.LoadTestExecutionStateResult] "Successfully retrieved load test execution state information"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test execution state information"
+// @Router /api/v1/load/tests/state/last [get]
+func (s *AntServer) getLastLoadTestExecutionState(c echo.Context) error {
+	var req GetLastLoadTestExecutionStateReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
+	}
+
+	if strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.MciId) == "" || strings.TrimSpace(req.VmId) == "" {
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
+	}
+
+	arg := load.GetLoadTestExecutionStateParam{
+		NsId:  req.NsId,
+		MciId: req.MciId,
+		VmId:  req.VmId,
+	}
+
+	result, err := s.services.loadService.GetLoadTestExecutionState(arg)
+
+	if err != nil {
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve load test execution state information")
+	}
+
+	return successResponseJson(c, "Successfully retrieved load test execution state information", result)
+
 }
 
 // getLoadTestExecutionState handler function that retrieves a load test execution state by key.

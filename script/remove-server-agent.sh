@@ -2,11 +2,20 @@
 
 set -e
 
-AGENT_WORK_DIR="${AGENT_WORK_DIR:="/opt/perfmon-agent"}"
+# Set default values for variables if not provided
+AGENT_WORK_DIR="${AGENT_WORK_DIR:=/opt/perfmon-agent}"
 TCP_PORT="${TCP_PORT:=5555}"
 
-kill -15 "$(lsof -t -i :${TCP_PORT})"
+# Check if a process is using the specified TCP port and terminate it if found
+if lsof -t -i :"${TCP_PORT}" &>/dev/null; then
+    echo "Terminating process on port ${TCP_PORT}..."
+    kill -15 "$(lsof -t -i :"${TCP_PORT}")"
+else
+    echo "No process found on port ${TCP_PORT}."
+fi
 
-sudo rm -rf $AGENT_WORK_DIR
+# Remove the agent work directory with sudo privileges
+echo "Removing agent work directory: ${AGENT_WORK_DIR}"
+sudo rm -rf "${AGENT_WORK_DIR}"
 
-echo "remove server agent completely!!"
+echo "Server agent removed completely!"

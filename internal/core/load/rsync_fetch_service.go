@@ -2,28 +2,30 @@ package load
 
 import (
 	"fmt"
-	"log"
+
 	"sync"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/config"
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 type fetchDataParam struct {
-	LoadTestDone    <-chan bool
-	LoadTestKey     string
-	InstallLocation constant.InstallLocation
-	InstallPath     string
-	PublicKeyName   string
-	PrivateKeyName  string
-	Username        string
-	PublicIp        string
-	Port            string
-	AgentInstalled  bool
-	fetchMx         sync.Mutex
-	fetchRunning    bool
-	Home            string
+	LoadTestDone                   <-chan bool
+	LoadTestKey                    string
+	InstallLocation                constant.InstallLocation
+	InstallPath                    string
+	PublicKeyName                  string
+	PrivateKeyName                 string
+	Username                       string
+	PublicIp                       string
+	Port                           string
+	CollectAdditionalSystemMetrics bool
+	fetchMx                        sync.Mutex
+	fetchRunning                   bool
+	Home                           string
 }
 
 func (f *fetchDataParam) setFetchRunning(running bool) {
@@ -53,16 +55,16 @@ func (l *LoadService) fetchData(f *fetchDataParam) {
 			if !f.isRunning() {
 				f.setFetchRunning(true)
 				if err := rsyncFiles(f); err != nil {
-					log.Println(err)
+					log.Error().Msgf("error while fetching data from rsync %s", err.Error())
 				}
 				f.setFetchRunning(false)
 			}
 		case <-done:
-			retry := 3
+			retry := config.AppConfig.Load.Retry
 			for retry > 0 {
 				if !f.isRunning() {
 					if err := rsyncFiles(f); err != nil {
-						log.Println(err)
+						log.Error().Msgf("error while fetching data from rsync %s", err.Error())
 					}
 					break
 				}
@@ -83,7 +85,7 @@ func rsyncFiles(f *fetchDataParam) error {
 	var wg sync.WaitGroup
 	resultsPrefix := []string{""}
 
-	if f.AgentInstalled {
+	if f.CollectAdditionalSystemMetrics {
 		resultsPrefix = append(resultsPrefix, "_cpu", "_disk", "_memory", "_network")
 	}
 
@@ -101,47 +103,60 @@ func rsyncFiles(f *fetchDataParam) error {
 		return err
 	}
 
-	if installLocation == constant.Local {
-		for _, p := range resultsPrefix {
-			wg.Add(1)
-			go func(prefix string) {
-				defer wg.Done()
-				fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
-				fromFilePath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, fileName)
-				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+	maxRetries := config.AppConfig.Load.Retry
+	retryDelay := 2 * time.Second
 
-				cmd := fmt.Sprintf(`rsync -avz %s %s`, fromFilePath, toFilePath)
-				utils.LogInfo("cmd for rsync: ", cmd)
-				err := utils.InlineCmd(cmd)
-				errorChan <- err
-			}(p)
-		}
-	} else if installLocation == constant.Remote {
-		for _, p := range resultsPrefix {
-			wg.Add(1)
-			go func(prefix string) {
-				defer wg.Done()
-				fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
-				fromFilePath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, fileName)
-				toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+	rsync := func(prefix string) {
+		defer wg.Done()
+		fileName := fmt.Sprintf("%s%s_result.csv", loadTestKey, prefix)
+		fromFilePath := fmt.Sprintf("%s/result/%s", loadGeneratorInstallPath, fileName)
+		toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
 
-				cmd := fmt.Sprintf(`rsync -avz -e "ssh -i %s -o StrictHostKeyChecking=no" %s@%s:%s %s`,
+		// Retry logic
+		for attempt := 1; attempt <= maxRetries; attempt++ {
+			var cmd string
+			if installLocation == constant.Local {
+				cmd = fmt.Sprintf(`rsync -avvz --no-whole-file %s %s`, fromFilePath, toFilePath)
+			} else if installLocation == constant.Remote {
+				cmd = fmt.Sprintf(`rsync -avvz -e "ssh -i %s -o StrictHostKeyChecking=no" %s@%s:%s %s`,
 					fmt.Sprintf("%s/.ssh/%s", f.Home, f.PrivateKeyName),
 					f.Username,
 					f.PublicIp,
 					fromFilePath,
 					toFilePath)
+			}
 
-				utils.LogInfo("cmd for rsync: ", cmd)
-				err := utils.InlineCmd(cmd)
-				errorChan <- err
-			}(p)
+			utils.LogInfo("cmd for rsync: ", cmd)
+			err := utils.InlineCmd(cmd)
+
+			if err == nil {
+				errorChan <- nil
+				return // Success, exit the retry loop
+			}
+
+			utils.LogError(fmt.Sprintf("Error during rsync attempt %d for %s: %v", attempt, fileName, err))
+
+			// Wait before retrying
+			if attempt < maxRetries {
+				time.Sleep(retryDelay)
+				retryDelay *= 2 // Exponential backoff
+			}
+		}
+
+		errorChan <- fmt.Errorf("failed to rsync %s after %d attempts", fileName, maxRetries)
+	}
+
+	if installLocation == constant.Local || installLocation == constant.Remote {
+		for _, p := range resultsPrefix {
+			wg.Add(1)
+			go rsync(p)
 		}
 	}
 
 	wg.Wait()
 	close(errorChan)
 
+	// Collect errors from the error channel
 	for err := range errorChan {
 		if err != nil {
 			return err
