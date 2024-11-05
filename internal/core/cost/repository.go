@@ -262,16 +262,17 @@ func (r *CostRepository) GetEstimateForecastCostInfosTx(ctx context.Context, par
 				Group("provider, resource_type, category, actual_resource_id, unit, date")
 		}
 
+
+		if err := d.Table("(?) AS sub", query).Count(&totalRows).Error; err != nil {
+			return err
+		}
+
 		if param.DateOrder != "" {
 			query = query.Order("date " + string(param.DateOrder))
 		}
 
 		if param.ResourceTypeOrder != "" {
 			query = query.Order("resource_type " + string(param.ResourceTypeOrder))
-		}
-
-		if err := query.Count(&totalRows).Error; err != nil {
-			return err
 		}
 
 		offset := (param.Page - 1) * param.Size
