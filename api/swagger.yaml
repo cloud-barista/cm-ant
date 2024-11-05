@@ -1195,38 +1195,7 @@ paths:
       summary: Uninstall Load Generator
       tags:
       - '[Load Generator Management]'
-  /api/v1/load/monitoring/agent/install:
-    post:
-      consumes:
-      - application/json
-      description: Install a monitoring agent on specific mci.
-      operationId: InstallMonitoringAgent
-      parameters:
-      - description: Monitoring Agent Installation Request
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/app.MonitoringAgentInstallationReq'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Successfully installed monitoring agent
-          schema:
-            $ref: '#/definitions/app.AntResponse-load_MonitoringAgentInstallationResult'
-        "400":
-          description: Monitoring agent installation info is not correct.
-          schema:
-            $ref: '#/definitions/app.AntResponse-string'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/app.AntResponse-string'
-      summary: Install Metrics Monitoring Agent
-      tags:
-      - '[Monitoring Agent Management]'
-  /api/v1/load/monitoring/agents:
+  /api/v1/load/monitoring/agent:
     get:
       consumes:
       - application/json
@@ -1271,7 +1240,38 @@ paths:
       summary: Retrieve Monitoring Agent Information
       tags:
       - '[Monitoring Agent Management]'
-  /api/v1/load/monitoring/agents/uninstall:
+  /api/v1/load/monitoring/agent/install:
+    post:
+      consumes:
+      - application/json
+      description: Install a monitoring agent on specific mci.
+      operationId: InstallMonitoringAgent
+      parameters:
+      - description: Monitoring Agent Installation Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/app.MonitoringAgentInstallationReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully installed monitoring agent
+          schema:
+            $ref: '#/definitions/app.AntResponse-load_MonitoringAgentInstallationResult'
+        "400":
+          description: Monitoring agent installation info is not correct.
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Install Metrics Monitoring Agent
+      tags:
+      - '[Monitoring Agent Management]'
+  /api/v1/load/monitoring/agent/uninstall:
     post:
       consumes:
       - application/json
@@ -1303,77 +1303,6 @@ paths:
       summary: Uninstall Monitoring Agents
       tags:
       - '[Monitoring Agent Management]'
-  /api/v1/load/test/metrics:
-    get:
-      consumes:
-      - application/json
-      description: Retrieve load test metrics based on provided parameters.
-      operationId: GetLoadTestMetrics
-      parameters:
-      - description: Load test key
-        in: query
-        name: loadTestKey
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Successfully retrieved load test metrics
-          schema:
-            $ref: '#/definitions/app.AntResponse-array_load_MetricsSummary'
-        "400":
-          description: Invalid request parameters
-          schema:
-            $ref: '#/definitions/app.AntResponse-string'
-        "500":
-          description: Failed to retrieve load test metrics
-          schema:
-            $ref: '#/definitions/app.AntResponse-string'
-      summary: Get load test metrics
-      tags:
-      - '[Load Test Result]'
-  /api/v1/load/test/result:
-    get:
-      consumes:
-      - application/json
-      description: Retrieve load test result based on provided parameters.
-      operationId: GetLoadTestResult
-      parameters:
-      - description: Load test key
-        in: query
-        name: loadTestKey
-        required: true
-        type: string
-      - description: Result format (normal or aggregate)
-        in: query
-        name: format
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Successfully retrieved load test metrics
-          schema:
-            allOf:
-            - $ref: '#/definitions/app.JsonResult'
-            - properties:
-                '[aggregate]':
-                  $ref: '#/definitions/app.AntResponse-array_load_LoadTestStatistics'
-                '[normal]':
-                  $ref: '#/definitions/app.AntResponse-array_load_ResultSummary'
-              type: object
-        "400":
-          description: Invalid request parameters
-          schema:
-            $ref: '#/definitions/app.AntResponse-string'
-        "500":
-          description: Failed to retrieve load test result
-          schema:
-            $ref: '#/definitions/app.AntResponse-string'
-      summary: Get load test result
-      tags:
-      - '[Load Test Result]'
   /api/v1/load/tests/infos:
     get:
       consumes:
@@ -1439,6 +1368,77 @@ paths:
       summary: Get Load Test Execution State
       tags:
       - '[Load Test Execution Management]'
+  /api/v1/load/tests/result:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve load test result based on provided parameters.
+      operationId: GetLoadTestResult
+      parameters:
+      - description: Load test key
+        in: query
+        name: loadTestKey
+        required: true
+        type: string
+      - description: Result format (normal or aggregate)
+        in: query
+        name: format
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved load test metrics
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.JsonResult'
+            - properties:
+                '[aggregate]':
+                  $ref: '#/definitions/app.AntResponse-array_load_LoadTestStatistics'
+                '[normal]':
+                  $ref: '#/definitions/app.AntResponse-array_load_ResultSummary'
+              type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve load test result
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get load test result
+      tags:
+      - '[Load Test Result]'
+  /api/v1/load/tests/result/metrics:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve load test metrics based on provided parameters.
+      operationId: GetLoadTestMetrics
+      parameters:
+      - description: Load test key
+        in: query
+        name: loadTestKey
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved load test metrics
+          schema:
+            $ref: '#/definitions/app.AntResponse-array_load_MetricsSummary'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve load test metrics
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get load test metrics
+      tags:
+      - '[Load Test Result]'
   /api/v1/load/tests/run:
     post:
       consumes:

@@ -329,7 +329,7 @@ func (s *AntServer) stopLoadTest(c echo.Context) error {
 // @Success 200 {object} app.JsonResult{[normal]=app.AntResponse[[]load.ResultSummary],[aggregate]=app.AntResponse[[]load.LoadTestStatistics]} "Successfully retrieved load test metrics"
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
 // @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test result"
-// @Router /api/v1/load/test/result [get]
+// @Router /api/v1/load/tests/result [get]
 func (s *AntServer) getLoadTestResult(c echo.Context) error {
 	var req GetLoadTestResultReq
 	if err := c.Bind(&req); err != nil {
@@ -371,7 +371,7 @@ func (s *AntServer) getLoadTestResult(c echo.Context) error {
 // @success 200 {object} app.AntResponse[[]load.MetricsSummary] "Successfully retrieved load test metrics"
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
 // @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test metrics"
-// @Router /api/v1/load/test/metrics [get]
+// @Router /api/v1/load/tests/result/metrics [get]
 func (s *AntServer) getLoadTestMetrics(c echo.Context) error {
 	var req GetLoadTestResultReq
 	if err := c.Bind(&req); err != nil {
@@ -636,7 +636,7 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 // @Success 200 {object} app.AntResponse[load.GetAllMonitoringAgentInfoResult] "Successfully retrieved monitoring agent information"
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
 // @Failure 500 {object} app.AntResponse[string] "Internal Server Error"
-// @Router /api/v1/load/monitoring/agents [get]
+// @Router /api/v1/load/monitoring/agent [get]
 func (s *AntServer) getAllMonitoringAgentInfos(c echo.Context) error {
 	var req GetAllMonitoringAgentInfosReq
 	if err := c.Bind(&req); err != nil {
@@ -677,7 +677,7 @@ func (s *AntServer) getAllMonitoringAgentInfos(c echo.Context) error {
 // @Success 200 {object} app.AntResponse[int64] "Number of affected results"
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
 // @Failure 500 {object} app.AntResponse[string] "Internal Server Error"
-// @Router /api/v1/load/monitoring/agents/uninstall [post]
+// @Router /api/v1/load/monitoring/agent/uninstall [post]
 func (s *AntServer) uninstallMonitoringAgent(c echo.Context) error {
 	var req MonitoringAgentInstallationReq
 
