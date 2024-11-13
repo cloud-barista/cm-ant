@@ -183,24 +183,24 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 		req.TestName = uuid.New().String()
 	}
 
-	if _, err := strconv.Atoi(strings.TrimSpace(req.VirtualUsers)); err != nil {
+	if v, err := strconv.Atoi(strings.TrimSpace(req.VirtualUsers)); err != nil && (v < 1 || v > 100) {
 		log.Error().Msgf("virtual user count is invalid")
-		return errorResponseJson(http.StatusBadRequest, "virtual user  is not correct. check and retry.")
+		return errorResponseJson(http.StatusBadRequest, "virtual user  is not correct. the range must be in 1 to 100")
 	}
 
-	if _, err := strconv.Atoi(strings.TrimSpace(req.Duration)); err != nil {
+	if v, err := strconv.Atoi(strings.TrimSpace(req.Duration)); err != nil && (v < 1 || v > 300) {
 		log.Error().Msgf("duration is invalid")
-		return errorResponseJson(http.StatusBadRequest, "duration is not correct. check and retry.")
+		return errorResponseJson(http.StatusBadRequest, "duration is not correct. the range must be in 1 to 300")
 	}
 
-	if _, err := strconv.Atoi(strings.TrimSpace(req.RampUpTime)); err != nil {
+	if v, err := strconv.Atoi(strings.TrimSpace(req.RampUpTime)); err != nil && (v < 1 || v > 60) {
 		log.Error().Msgf("ramp up time is invalid")
-		return errorResponseJson(http.StatusBadRequest, "ramp up time is not correct. check and retry.")
+		return errorResponseJson(http.StatusBadRequest, "ramp up time is not correct. the range must be in 1 to 60")
 	}
 
-	if _, err := strconv.Atoi(strings.TrimSpace(req.RampUpSteps)); err != nil {
+	if v, err := strconv.Atoi(strings.TrimSpace(req.RampUpSteps)); err != nil && (v < 1 || v > 20) {
 		log.Error().Msgf("ramp up steps is invalid")
-		return errorResponseJson(http.StatusBadRequest, "ramp up steps is not correct. check and retry.")
+		return errorResponseJson(http.StatusBadRequest, "ramp up steps is not correct. the range must be in 1 to 20")
 	}
 
 	if len(req.HttpReqs) == 0 {
