@@ -149,6 +149,7 @@ type LoadTestExecutionStateResult struct {
 	ExecutionStatus             constant.ExecutionStatus       `json:"executionStatus,omitempty"`
 	StartAt                     time.Time                      `json:"startAt,omitempty"`
 	FinishAt                    *time.Time                     `json:"finishAt,omitempty"`
+	IconCode 					constant.IconCode			   `json:"iconCode"`
 	TotalExpectedExcutionSecond uint64                         `json:"totalExpectedExecutionSecond,omitempty"`
 	FailureMessage              string                         `json:"failureMessage,omitempty"`
 	CompileDuration             string                         `json:"compileDuration,omitempty"`

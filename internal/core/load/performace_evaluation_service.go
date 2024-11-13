@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/internal/utils"
 )
@@ -145,7 +146,7 @@ func mapLoadTestExecutionHttpInfoResult(h LoadTestExecutionHttpInfo) LoadTestExe
 }
 
 func mapLoadTestExecutionStateResult(state LoadTestExecutionState) LoadTestExecutionStateResult {
-	return LoadTestExecutionStateResult{
+	stateResult := &LoadTestExecutionStateResult{
 		ID:                          state.ID,
 		LoadTestKey:                 state.LoadTestKey,
 		ExecutionStatus:             state.ExecutionStatus,
@@ -158,6 +159,19 @@ func mapLoadTestExecutionStateResult(state LoadTestExecutionState) LoadTestExecu
 		CreatedAt:                   state.CreatedAt,
 		UpdatedAt:                   state.UpdatedAt,
 	}
+
+
+	if stateResult.ExecutionStatus == constant.Successed {
+		stateResult.IconCode = constant.Ok
+	} else if stateResult.ExecutionStatus == constant.TestFailed {
+		stateResult.IconCode = constant.Fail
+	} else {
+		stateResult.IconCode = constant.Pending
+	}
+
+	return *stateResult
+
+	
 }
 
 func mapLoadGeneratorServerResult(s LoadGeneratorServer) LoadGeneratorServerResult {
