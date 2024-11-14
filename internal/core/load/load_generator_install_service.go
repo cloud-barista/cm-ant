@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/config"
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
 
@@ -40,7 +40,7 @@ const (
 // InstallLoadGenerator installs the load generator either locally or remotely.
 // Currently remote request is executing via cb-tumblebug.
 func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (LoadGeneratorInstallInfoResult, error) {
-	utils.LogInfo("Starting InstallLoadGenerator")
+	log.Info().Msg("Starting InstallLoadGenerator")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
@@ -56,10 +56,10 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 
 	err := l.loadRepo.GetOrInsertLoadGeneratorInstallInfoTx(ctx, loadGeneratorInstallInfo)
 	if err != nil {
-		utils.LogError("Failed to insert LoadGeneratorInstallInfo:", err)
+		log.Error().Msgf("Failed to insert LoadGeneratorInstallInfo; %v", err)
 		return result, err
 	}
-	utils.LogInfo("LoadGeneratorInstallInfo fetched successfully")
+	log.Info().Msg("LoadGeneratorInstallInfo fetched successfully")
 
 	defer func() {
 		if loadGeneratorInstallInfo.Status == "starting" {

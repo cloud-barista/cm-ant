@@ -63,7 +63,7 @@ func (l *LoadService) GetAllLoadTestExecutionState(param GetAllLoadTestExecution
 
 	for _, loadTestExecutionState := range result {
 		state := mapLoadTestExecutionStateResult(loadTestExecutionState)
-		state.LoadGeneratorInstallInfo = mapLoadGeneratorInstallInfoResult(loadTestExecutionState.LoadGeneratorInstallInfo)
+		// state.LoadGeneratorInstallInfo = mapLoadGeneratorInstallInfoResult(loadTestExecutionState.LoadGeneratorInstallInfo)
 		states = append(states, state)
 	}
 
@@ -87,7 +87,7 @@ func (l *LoadService) GetLoadTestExecutionState(param GetLoadTestExecutionStateP
 	}
 
 	res = mapLoadTestExecutionStateResult(state)
-	res.LoadGeneratorInstallInfo = mapLoadGeneratorInstallInfoResult(state.LoadGeneratorInstallInfo)
+	// res.LoadGeneratorInstallInfo = mapLoadGeneratorInstallInfoResult(state.LoadGeneratorInstallInfo)
 	return res, nil
 }
 
@@ -152,6 +152,7 @@ func mapLoadTestExecutionStateResult(state LoadTestExecutionState) LoadTestExecu
 		ExecutionStatus:             state.ExecutionStatus,
 		StartAt:                     state.StartAt,
 		FinishAt:                    state.FinishAt,
+		ExpectedFinishAt:  			 state.ExpectedFinishAt,
 		TotalExpectedExcutionSecond: state.TotalExpectedExcutionSecond,
 		FailureMessage:              state.FailureMessage,
 		CompileDuration:             state.CompileDuration,
