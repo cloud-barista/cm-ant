@@ -832,6 +832,86 @@
                 }
             }
         },
+        "/api/v1/load/tests/result/last": {
+            "get": {
+                "description": "Retrieve last load test result based on provided parameters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Result]"
+                ],
+                "summary": "Get last load test result by ns, mci, vm",
+                "operationId": "GetLastLoadTestResult",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ns id",
+                        "name": "nsId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "mci id",
+                        "name": "mciId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "vm id",
+                        "name": "vmId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Result format (normal or aggregate)",
+                        "name": "format",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test metrics",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/app.JsonResult"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "[aggregate]": {
+                                            "$ref": "#/definitions/app.AntResponse-array_load_LoadTestStatistics"
+                                        },
+                                        "[normal]": {
+                                            "$ref": "#/definitions/app.AntResponse-array_load_ResultSummary"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test result",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/load/tests/result/metrics": {
             "get": {
                 "description": "Retrieve load test metrics based on provided parameters.",
@@ -853,6 +933,71 @@
                         "name": "loadTestKey",
                         "in": "query",
                         "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test metrics",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-array_load_MetricsSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test metrics",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/load/tests/result/metrics/last": {
+            "get": {
+                "description": "Retrieve last load test metrics based on provided parameters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Result]"
+                ],
+                "summary": "Get last load test metrics by ns, mci, vm",
+                "operationId": "GetLastLoadTestMetrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ns id",
+                        "name": "nsId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "mci id",
+                        "name": "mciId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "vm id",
+                        "name": "vmId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Result format (normal for the moment)",
+                        "name": "format",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1732,6 +1877,19 @@
                 "TestFailed"
             ]
         },
+        "constant.IconCode": {
+            "type": "string",
+            "enum": [
+                "IC0001",
+                "IC0002",
+                "IC0003"
+            ],
+            "x-enum-varnames": [
+                "Ok",
+                "Fail",
+                "Pending"
+            ]
+        },
         "constant.InstallLocation": {
             "type": "string",
             "enum": [
@@ -2250,11 +2408,17 @@
                 "executionStatus": {
                     "$ref": "#/definitions/constant.ExecutionStatus"
                 },
+                "expectedFinishAt": {
+                    "type": "string"
+                },
                 "failureMessage": {
                     "type": "string"
                 },
                 "finishAt": {
                     "type": "string"
+                },
+                "iconCode": {
+                    "$ref": "#/definitions/constant.IconCode"
                 },
                 "id": {
                     "type": "integer"
