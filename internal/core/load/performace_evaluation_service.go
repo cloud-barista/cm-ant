@@ -6,7 +6,7 @@ import (
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
-	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 // LoadService represents a service for managing load operations.
@@ -51,15 +51,15 @@ func (l *LoadService) GetAllLoadTestExecutionState(param GetAllLoadTestExecution
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	utils.LogInfof("GetAllLoadExecutionStates called with param: %+v", param)
+	log.Info().Msgf("GetAllLoadExecutionStates called with param: %+v", param)
 	result, totalRows, err := l.loadRepo.GetPagingLoadTestExecutionStateTx(ctx, param)
 
 	if err != nil {
-		utils.LogErrorf("Error fetching load test execution state infos: %v", err)
+		log.Error().Msgf("Error fetching load test execution state infos; %v", err)
 		return res, err
 	}
 
-	utils.LogInfof("Fetched %d monitoring agent infos", len(result))
+	log.Info().Msgf("Fetched %d monitoring agent infos", len(result))
 
 	for _, loadTestExecutionState := range result {
 		state := mapLoadTestExecutionStateResult(loadTestExecutionState)
@@ -78,11 +78,11 @@ func (l *LoadService) GetLoadTestExecutionState(param GetLoadTestExecutionStateP
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	utils.LogInfof("GetLoadTestExecutionState called with param: %+v", param)
+	log.Info().Msgf("GetLoadTestExecutionState called with param: %+v", param)
 	state, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, param)
 
 	if err != nil {
-		utils.LogErrorf("Error fetching load test execution state infos: %v", err)
+		log.Error().Msgf("Error fetching load test execution state infos; %v", err)
 		return res, err
 	}
 
@@ -97,15 +97,15 @@ func (l *LoadService) GetAllLoadTestExecutionInfos(param GetAllLoadTestExecution
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	utils.LogInfof("GetAllLoadTestExecutionInfos called with param: %+v", param)
+	log.Info().Msgf("GetAllLoadTestExecutionInfos called with param: %+v", param)
 	result, totalRows, err := l.loadRepo.GetPagingLoadTestExecutionHistoryTx(ctx, param)
 
 	if err != nil {
-		utils.LogErrorf("Error fetching load test execution infos: %v", err)
+		log.Error().Msgf("Error fetching load test execution infos; %v", err)
 		return res, err
 	}
 
-	utils.LogInfof("Fetched %d load test execution infos:", len(result))
+	log.Info().Msgf("Fetched %d load test execution infos:", len(result))
 
 	for _, r := range result {
 		rs = append(rs, mapLoadTestExecutionInfoResult(r))
@@ -122,11 +122,11 @@ func (l *LoadService) GetLoadTestExecutionInfo(param GetLoadTestExecutionInfoPar
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	utils.LogInfof("GetLoadTestExecutionInfo called with param: %+v", param)
+	log.Info().Msgf("GetLoadTestExecutionInfo called with param: %+v", param)
 	executionInfo, err := l.loadRepo.GetLoadTestExecutionInfoTx(ctx, param)
 
 	if err != nil {
-		utils.LogErrorf("Error fetching load test execution state infos: %v", err)
+		log.Error().Msgf("Error fetching load test execution state infos; %v", err)
 		return res, err
 	}
 
@@ -152,7 +152,7 @@ func mapLoadTestExecutionStateResult(state LoadTestExecutionState) LoadTestExecu
 		ExecutionStatus:             state.ExecutionStatus,
 		StartAt:                     state.StartAt,
 		FinishAt:                    state.FinishAt,
-		ExpectedFinishAt:  			 state.ExpectedFinishAt,
+		ExpectedFinishAt:            state.ExpectedFinishAt,
 		TotalExpectedExcutionSecond: state.TotalExpectedExcutionSecond,
 		FailureMessage:              state.FailureMessage,
 		CompileDuration:             state.CompileDuration,
@@ -160,7 +160,6 @@ func mapLoadTestExecutionStateResult(state LoadTestExecutionState) LoadTestExecu
 		CreatedAt:                   state.CreatedAt,
 		UpdatedAt:                   state.UpdatedAt,
 	}
-
 
 	if stateResult.ExecutionStatus == constant.Successed {
 		stateResult.IconCode = constant.Ok
@@ -172,7 +171,6 @@ func mapLoadTestExecutionStateResult(state LoadTestExecutionState) LoadTestExecu
 
 	return *stateResult
 
-	
 }
 
 func mapLoadGeneratorServerResult(s LoadGeneratorServer) LoadGeneratorServerResult {

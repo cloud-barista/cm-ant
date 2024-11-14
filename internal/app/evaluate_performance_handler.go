@@ -8,7 +8,6 @@ import (
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
-	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
@@ -74,20 +73,20 @@ func (s *AntServer) getAllLoadGeneratorInstallInfo(c echo.Context) error {
 func (s *AntServer) installLoadGenerator(c echo.Context) error {
 	var req InstallLoadGeneratorReq
 
-	utils.LogInfo("Received request to install load generator")
+	log.Info().Msg("Received request to install load generator")
 
 	if err := c.Bind(&req); err != nil {
-		utils.LogError("Failed to bind request:", err)
+		log.Error().Msgf("Failed to bind request:", err)
 		return errorResponseJson(http.StatusBadRequest, "load generator installation info is not correct.")
 	}
 
 	if req.InstallLocation == "" ||
 		(req.InstallLocation != constant.Remote && req.InstallLocation != constant.Local) {
-		utils.LogError("Invalid install location:", req.InstallLocation)
+		log.Error().Msgf("Invalid install location:", req.InstallLocation)
 		return errorResponseJson(http.StatusBadRequest, "available install locations are remote or local.")
 	}
 
-	utils.LogInfo("Calling service layer to install load generator")
+	log.Info().Msgf("Calling service layer to install load generator")
 
 	// call service layer install load generator
 	param := load.InstallLoadGeneratorParam{
@@ -97,11 +96,11 @@ func (s *AntServer) installLoadGenerator(c echo.Context) error {
 	result, err := s.services.loadService.InstallLoadGenerator(param)
 
 	if err != nil {
-		utils.LogError("Error installing load generator:", err)
+		log.Error().Msgf("Error installing load generator:", err)
 		return errorResponseJson(http.StatusBadRequest, err.Error())
 	}
 
-	utils.LogInfo("Load generator installed successfully")
+	log.Info().Msg("Load generator installed successfully")
 
 	return successResponseJson(
 		c,

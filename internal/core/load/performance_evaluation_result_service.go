@@ -146,7 +146,7 @@ func (l *LoadService) GetLastLoadTestResult(param GetLastLoadTestResultParam) (i
 	state, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, stateQueryParam)
 
 	if err != nil {
-		utils.LogErrorf("Error fetching load test execution state infos: %v", err)
+		log.Error().Msgf("Error fetching load test execution state infos; %v", err)
 		return nil, err
 	}
 
@@ -190,7 +190,7 @@ func (l *LoadService) GetLastLoadTestMetrics(param GetLastLoadTestResultParam) (
 	state, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, stateQueryParam)
 
 	if err != nil {
-		utils.LogErrorf("Error fetching load test execution state infos: %v", err)
+		log.Error().Msgf("Error fetching load test execution state infos; %v", err)
 		return nil, err
 	}
 

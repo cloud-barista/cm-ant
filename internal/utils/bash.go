@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"log"
 	"os"
 	"os/exec"
+
+	"github.com/rs/zerolog/log"
 )
 
 func InlineCmd(cmdStr string) error {
@@ -11,12 +12,12 @@ func InlineCmd(cmdStr string) error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Println("error while execute bash call,", err)
-		log.Println(string(out))
+		log.Error().Msgf("error while execute bash call; %v", err)
+		log.Error().Msg(string(out))
 		return err
 	}
 
-	log.Println(string(out))
+	log.Info().Msgf(string(out))
 	return nil
 }
 
@@ -30,12 +31,12 @@ func Script(scriptPath string, envs []string, args ...string) error {
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Println("error while execute bash call,", err)
-		log.Println(string(out))
+		log.Error().Msgf("error while execute bash call; %v", err)
+		log.Error().Msgf(string(out))
 		return err
 	}
 
-	log.Println(string(out))
+	log.Info().Msgf(string(out))
 	return nil
 }
 
@@ -45,7 +46,7 @@ func InlineCmdAsync(cmdStr string) error {
 	var err error
 
 	if err = cmd.Start(); err != nil {
-		log.Println("error while async bash call:", err)
+		log.Error().Msgf("error while async bash call; %v", err)
 		return err
 	}
 

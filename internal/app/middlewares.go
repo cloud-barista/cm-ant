@@ -9,7 +9,6 @@ import (
 
 	"github.com/labstack/echo/v4/middleware"
 
-	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
 )
@@ -34,7 +33,7 @@ func setMiddleware(e *echo.Echo) {
 				Skipper:      middleware.DefaultSkipper,
 				ErrorMessage: "request timeout",
 				OnTimeoutRouteErrorHandler: func(err error, c echo.Context) {
-					utils.LogInfo(c.Path())
+					log.Info().Msg(c.Path())
 				},
 				Timeout: 3000 * time.Second,
 			},

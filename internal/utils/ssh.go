@@ -8,12 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 
 	"github.com/melbahja/goph"
 	"github.com/pkg/sftp"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -43,7 +43,7 @@ func AddToKnownHost(pemFilePath, publicIp, username string) error {
 		return err
 	}
 
-	log.Println(string(out))
+	log.Info().Msg(string(out))
 
 	return nil
 }

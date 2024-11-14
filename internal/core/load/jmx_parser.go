@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"log"
 	"net/url"
 	"strings"
 	"text/template"
 
 	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 type jmxTemplateData struct {
@@ -205,7 +205,7 @@ func httpReqParseToJmx(httpReqs []RunLoadTestHttpParam) (string, error) {
 			var buf bytes.Buffer
 			err = tmpl.Execute(&buf, jmxHttpTemplateData)
 			if err != nil {
-				log.Fatalf("Error executing template: %s", err)
+				log.Error().Msgf("Error executing template: %s", err)
 			}
 			builder.WriteString(buf.String())
 		}

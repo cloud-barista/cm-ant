@@ -401,13 +401,13 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 	resultFileName := fmt.Sprintf("%s_result.csv", loadTestKey)
 	loadGeneratorInstallVersion := loadGeneratorInstallInfo.InstallVersion
 
-	utils.LogInfof("Running load test with key: %s", loadTestKey)
+	log.Info().Msgf("Running load test with key: %s", loadTestKey)
 	compileDuration := "0"
 	executionDuration := "0"
 	start := time.Now()
 
 	if installLocation == constant.Remote {
-		utils.LogInfo("Remote execute detected.")
+		log.Info().Msg("Remote execute detected.")
 		var buf bytes.Buffer
 		err := parseTestPlanStructToString(&buf, param, loadGeneratorInstallInfo)
 		if err != nil {
@@ -445,7 +445,7 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 		}
 
 	} else if installLocation == constant.Local {
-		utils.LogInfo("Local execute detected.")
+		log.Info().Msg("Local execute detected.")
 
 		exist := utils.ExistCheck(loadGeneratorInstallPath)
 
@@ -480,14 +480,14 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 func (l *LoadService) updateLoadTestExecution(loadTestExecutionState *LoadTestExecutionState) error {
 	err := l.loadRepo.UpdateLoadTestExecutionInfoDuration(context.Background(), loadTestExecutionState.LoadTestKey, loadTestExecutionState.CompileDuration, loadTestExecutionState.ExecutionDuration)
 	if err != nil {
-		utils.LogErrorf("Error updating load test execution info: %v", err)
+		log.Error().Msgf("Error updating load test execution info; %v", err)
 		return err
 	}
 
 	loadTestExecutionState.ExecutionStatus = constant.OnFetching
 	err = l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
 	if err != nil {
-		utils.LogErrorf("Error updating load test execution state: %v", err)
+		log.Error().Msgf("Error updating load test execution state; %v", err)
 		return err
 	}
 	return nil
@@ -496,7 +496,7 @@ func (l *LoadService) updateLoadTestExecution(loadTestExecutionState *LoadTestEx
 // generateJmeterExecutionCmd generates the JMeter execution command.
 // Constructs a JMeter command string that includes the test plan path and result file path.
 func generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVersion, testPlanName, resultFileName string) string {
-	utils.LogInfof("Generating JMeter execution command for test plan: %s, result file: %s", testPlanName, resultFileName)
+	log.Info().Msgf("Generating JMeter execution command for test plan: %s, result file: %s", testPlanName, resultFileName)
 
 	var builder strings.Builder
 	testPath := fmt.Sprintf("%s/test_plan/%s", loadGeneratorInstallPath, testPlanName)
@@ -508,7 +508,7 @@ func generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVe
 	builder.WriteString(fmt.Sprintf(" -l=%s", resultPath))
 
 	builder.WriteString(fmt.Sprintf(" && sudo rm %s", testPath))
-	utils.LogInfof("JMeter execution command generated: %s", builder.String())
+	log.Info().Msgf("JMeter execution command generated: %s", builder.String())
 	return builder.String()
 }
 
@@ -575,6 +575,6 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 
 func killCmdGen(loadTestKey string) string {
 	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*%s'", loadTestKey)
-	utils.LogInfof("Generating kill command for load test key: %s", loadTestKey)
+	log.Info().Msgf("Generating kill command for load test key: %s", loadTestKey)
 	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
 }

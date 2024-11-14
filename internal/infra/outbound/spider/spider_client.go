@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/cloud-barista/cm-ant/internal/config"
-	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -62,7 +62,7 @@ func (s *SpiderClient) withUrl(endpoint string) string {
 func (s *SpiderClient) requestWithContext(ctx context.Context, method, url string, body []byte, header map[string]string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
 	if err != nil {
-		utils.LogErrorf("Failed to create request with context: %v", err)
+		log.Error().Msgf("Failed to create request with context; %v", err)
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
@@ -71,17 +71,17 @@ func (s *SpiderClient) requestWithContext(ctx context.Context, method, url strin
 		req.Header.Add(k, v)
 	}
 
-	utils.LogInfof("Sending request to client with endpoint [%s - %s]\n", method, url)
+	log.Info().Msgf("Sending request to client with endpoint [%s - %s]\n", method, url)
 	resp, err := s.client.Do(req)
 	if err != nil {
-		utils.LogErrorf("Failed to send request: %v", err)
+		log.Error().Msgf("Failed to send request; %v", err)
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		rb, _ := io.ReadAll(resp.Body)
-		utils.LogErrorf("Unexpected status code: %d, response: %s", resp.StatusCode, string(rb))
+		log.Error().Msgf("Unexpected status code: %d, response: %s", resp.StatusCode, string(rb))
 
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, ErrNotFound
@@ -96,11 +96,11 @@ func (s *SpiderClient) requestWithContext(ctx context.Context, method, url strin
 
 	rb, err := io.ReadAll(resp.Body)
 	if err != nil {
-		utils.LogErrorf("Failed to read response body: %v", err)
+		log.Error().Msgf("Failed to read response body; %v", err)
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	utils.LogInfo("Request with context completed successfully.")
+	log.Info().Msg("Request with context completed successfully.")
 	return rb, nil
 }
 
@@ -114,7 +114,7 @@ func (s *SpiderClient) ReadyzWithContext(ctx context.Context) error {
 	_, err := s.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
-		utils.LogError("error sending tumblebug readyz request:", err)
+		log.Error().Msgf("error sending tumblebug readyz request; %v", err)
 		return err
 	}
 
