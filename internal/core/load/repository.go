@@ -255,8 +255,8 @@ func (r *LoadRepository) InsertLoadTestExecutionStateTx(ctx context.Context, par
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		err := d.
 			Where(
-				"load_generator_install_info_id = ? AND load_test_key = ?",
-				param.LoadGeneratorInstallInfoId, param.LoadTestKey,
+				"load_test_key = ?",
+				param.LoadTestKey,
 			).
 			FirstOrCreate(param).Error
 
@@ -271,23 +271,13 @@ func (r *LoadRepository) InsertLoadTestExecutionStateTx(ctx context.Context, par
 
 }
 
-func (r *LoadRepository) SaveForLoadTestExecutionTx(ctx context.Context, loadParam *LoadTestExecutionInfo, stateParam *LoadTestExecutionState) error {
+func (r *LoadRepository) SaveForLoadTestExecutionTx(ctx context.Context, loadParam *LoadTestExecutionInfo) error {
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		err := d.
 			Where(
 				"load_test_key = ?", loadParam.LoadTestKey,
 			).
 			FirstOrCreate(loadParam).Error
-
-		if err != nil {
-			return err
-		}
-
-		stateParam.LoadTestExecutionInfoId = loadParam.ID
-		err = d.
-			Where("load_test_key = ?", stateParam.LoadTestKey).
-			FirstOrCreate(&stateParam).
-			Error
 
 		if err != nil {
 			return err
@@ -338,8 +328,8 @@ func (r *LoadRepository) GetPagingLoadTestExecutionStateTx(ctx context.Context, 
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		q := d.Model(&LoadTestExecutionState{}).
-			Preload("LoadGeneratorInstallInfo").
-			Preload("LoadGeneratorInstallInfo.LoadGeneratorServers").
+			// Preload("LoadGeneratorInstallInfo").
+			// Preload("LoadGeneratorInstallInfo.LoadGeneratorServers").
 			Order("load_test_execution_states.created_at desc")
 
 		if param.LoadTestKey != "" {
@@ -371,9 +361,8 @@ func (r *LoadRepository) GetLoadTestExecutionStateTx(ctx context.Context, param 
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 
-		q := d.Model(&loadTestExecutionState).
-			Preload("LoadGeneratorInstallInfo").
-			Preload("LoadGeneratorInstallInfo.LoadGeneratorServers")
+		q := d.Model(&loadTestExecutionState)
+
 
 		if param.LoadTestKey != "" {
 			q = q.Where("load_test_execution_states.load_test_key = ?", param.LoadTestKey)

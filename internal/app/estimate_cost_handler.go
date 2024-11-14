@@ -9,8 +9,8 @@ import (
 	"github.com/cloud-barista/cm-ant/internal/config"
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/core/cost"
-	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 )
 
 // @Id UpdateAndGetEstimateCost
@@ -74,12 +74,12 @@ func (a *AntServer) updateAndGetEstimateCost(c echo.Context) error {
 			splitedCommonImage := strings.Split(ci, delim)
 
 			if len(splitedCommonSpec) != 3 {
-				utils.LogErrorf("common spec format is not correct; image: %s; spec: %s", ci, cs)
+				log.Error().Msgf("common spec format is not correct; image: %s; spec: %s", ci, cs)
 				return errorResponseJson(http.StatusBadRequest, fmt.Sprintf("common spec format is not correct; image: %s; spec: %s", ci, cs))
 			}
 
 			if len(splitedCommonImage) == 3 && (splitedCommonImage[0] != splitedCommonSpec[0] || splitedCommonImage[1] != splitedCommonSpec[1]) {
-				utils.LogErrorf("common image and spec recommendation is wrong; image: %s; spec: %s", ci, cs)
+				log.Error().Msgf("common image and spec recommendation is wrong; image: %s; spec: %s", ci, cs)
 				return errorResponseJson(http.StatusBadRequest, fmt.Sprintf("common image and spec recommendation is wrong; image: %s; spec: %s", ci, cs))
 			}
 

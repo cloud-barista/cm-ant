@@ -509,54 +509,7 @@
                 }
             }
         },
-        "/api/v1/load/monitoring/agent/install": {
-            "post": {
-                "description": "Install a monitoring agent on specific mci.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Monitoring Agent Management]"
-                ],
-                "summary": "Install Metrics Monitoring Agent",
-                "operationId": "InstallMonitoringAgent",
-                "parameters": [
-                    {
-                        "description": "Monitoring Agent Installation Request",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/app.MonitoringAgentInstallationReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully installed monitoring agent",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-load_MonitoringAgentInstallationResult"
-                        }
-                    },
-                    "400": {
-                        "description": "Monitoring agent installation info is not correct.",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/load/monitoring/agents": {
+        "/api/v1/load/monitoring/agent": {
             "get": {
                 "description": "Retrieve monitoring agent information based on specified criteria.",
                 "consumes": [
@@ -624,7 +577,54 @@
                 }
             }
         },
-        "/api/v1/load/monitoring/agents/uninstall": {
+        "/api/v1/load/monitoring/agent/install": {
+            "post": {
+                "description": "Install a monitoring agent on specific mci.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Monitoring Agent Management]"
+                ],
+                "summary": "Install Metrics Monitoring Agent",
+                "operationId": "InstallMonitoringAgent",
+                "parameters": [
+                    {
+                        "description": "Monitoring Agent Installation Request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.MonitoringAgentInstallationReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully installed monitoring agent",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_MonitoringAgentInstallationResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Monitoring agent installation info is not correct.",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/load/monitoring/agent/uninstall": {
             "post": {
                 "description": "Uninstall monitoring agents from specified VMs or all VMs in an mci.",
                 "consumes": [
@@ -664,117 +664,6 @@
                     },
                     "500": {
                         "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/load/test/metrics": {
-            "get": {
-                "description": "Retrieve load test metrics based on provided parameters.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Load Test Result]"
-                ],
-                "summary": "Get load test metrics",
-                "operationId": "GetLoadTestMetrics",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Load test key",
-                        "name": "loadTestKey",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully retrieved load test metrics",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-array_load_MetricsSummary"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request parameters",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to retrieve load test metrics",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/load/test/result": {
-            "get": {
-                "description": "Retrieve load test result based on provided parameters.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "[Load Test Result]"
-                ],
-                "summary": "Get load test result",
-                "operationId": "GetLoadTestResult",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Load test key",
-                        "name": "loadTestKey",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Result format (normal or aggregate)",
-                        "name": "format",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Successfully retrieved load test metrics",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/app.JsonResult"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "[aggregate]": {
-                                            "$ref": "#/definitions/app.AntResponse-array_load_LoadTestStatistics"
-                                        },
-                                        "[normal]": {
-                                            "$ref": "#/definitions/app.AntResponse-array_load_ResultSummary"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request parameters",
-                        "schema": {
-                            "$ref": "#/definitions/app.AntResponse-string"
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to retrieve load test result",
                         "schema": {
                             "$ref": "#/definitions/app.AntResponse-string"
                         }
@@ -870,6 +759,262 @@
                     },
                     "500": {
                         "description": "Failed to retrieve load test execution state information",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/load/tests/result": {
+            "get": {
+                "description": "Retrieve load test result based on provided parameters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Result]"
+                ],
+                "summary": "Get load test result",
+                "operationId": "GetLoadTestResult",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Load test key",
+                        "name": "loadTestKey",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Result format (normal or aggregate)",
+                        "name": "format",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test metrics",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/app.JsonResult"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "[aggregate]": {
+                                            "$ref": "#/definitions/app.AntResponse-array_load_LoadTestStatistics"
+                                        },
+                                        "[normal]": {
+                                            "$ref": "#/definitions/app.AntResponse-array_load_ResultSummary"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test result",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/load/tests/result/last": {
+            "get": {
+                "description": "Retrieve last load test result based on provided parameters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Result]"
+                ],
+                "summary": "Get last load test result by ns, mci, vm",
+                "operationId": "GetLastLoadTestResult",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ns id",
+                        "name": "nsId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "mci id",
+                        "name": "mciId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "vm id",
+                        "name": "vmId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Result format (normal or aggregate)",
+                        "name": "format",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test metrics",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/app.JsonResult"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "[aggregate]": {
+                                            "$ref": "#/definitions/app.AntResponse-array_load_LoadTestStatistics"
+                                        },
+                                        "[normal]": {
+                                            "$ref": "#/definitions/app.AntResponse-array_load_ResultSummary"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test result",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/load/tests/result/metrics": {
+            "get": {
+                "description": "Retrieve load test metrics based on provided parameters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Result]"
+                ],
+                "summary": "Get load test metrics",
+                "operationId": "GetLoadTestMetrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Load test key",
+                        "name": "loadTestKey",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test metrics",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-array_load_MetricsSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test metrics",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/load/tests/result/metrics/last": {
+            "get": {
+                "description": "Retrieve last load test metrics based on provided parameters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Result]"
+                ],
+                "summary": "Get last load test metrics by ns, mci, vm",
+                "operationId": "GetLastLoadTestMetrics",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ns id",
+                        "name": "nsId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "mci id",
+                        "name": "mciId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "vm id",
+                        "name": "vmId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Result format (normal for the moment)",
+                        "name": "format",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test metrics",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-array_load_MetricsSummary"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test metrics",
                         "schema": {
                             "$ref": "#/definitions/app.AntResponse-string"
                         }
@@ -1732,6 +1877,19 @@
                 "TestFailed"
             ]
         },
+        "constant.IconCode": {
+            "type": "string",
+            "enum": [
+                "IC0001",
+                "IC0002",
+                "IC0003"
+            ],
+            "x-enum-varnames": [
+                "Ok",
+                "Fail",
+                "Pending"
+            ]
+        },
         "constant.InstallLocation": {
             "type": "string",
             "enum": [
@@ -2250,11 +2408,17 @@
                 "executionStatus": {
                     "$ref": "#/definitions/constant.ExecutionStatus"
                 },
+                "expectedFinishAt": {
+                    "type": "string"
+                },
                 "failureMessage": {
                     "type": "string"
                 },
                 "finishAt": {
                     "type": "string"
+                },
+                "iconCode": {
+                    "$ref": "#/definitions/constant.IconCode"
                 },
                 "id": {
                     "type": "integer"

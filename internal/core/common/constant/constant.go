@@ -119,3 +119,10 @@ const (
 	Asc  OrderType = "asc"
 	Desc OrderType = "desc"
 )
+
+type IconCode string
+const (
+	Ok IconCode = "IC0001"
+	Fail IconCode = "IC0002"
+	Pending IconCode = "IC0003"
+)

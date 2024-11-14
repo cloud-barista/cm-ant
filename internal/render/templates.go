@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"path/filepath"
 	"text/template"
 
 	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 )
 
 type Template struct { //the map[key] in key means 'Your html file name'
@@ -20,7 +20,7 @@ func NewTemplate() *Template {
 	templates, err := generateTemplateCache()
 
 	if err != nil {
-		log.Fatal("template parsing error", err)
+		log.Error().Msgf("template parsing error; %v", err)
 	}
 
 	return &Template{

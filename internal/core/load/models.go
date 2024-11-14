@@ -83,11 +83,11 @@ type LoadTestExecutionState struct {
 	FailureMessage              string
 	CompileDuration             string
 	ExecutionDuration           string
+	WithMetrics                 bool
 
-	LoadTestExecutionInfoId uint
-
-	LoadGeneratorInstallInfoId uint
-	LoadGeneratorInstallInfo   LoadGeneratorInstallInfo
+	// not to make one to one relationship between LoadTestExecutionInfo and LoadGeneratorInstallInfo
+	TestExecutionInfoId    uint
+	GeneratorInstallInfoId uint
 }
 
 type LoadTestExecutionInfo struct {
@@ -110,8 +110,11 @@ type LoadTestExecutionInfo struct {
 	ExecutionDuration          string
 	LoadTestExecutionHttpInfos []LoadTestExecutionHttpInfo
 
-	LoadTestExecutionState LoadTestExecutionState
+	// LoadTestExecutionInfo has one LoadTestExecutionState
+	LoadTestExecutionStateId uint
+	LoadTestExecutionState   LoadTestExecutionState
 
+	// LoadTestExecutionInfo has one LoadGeneratorInstallInfo
 	LoadGeneratorInstallInfoId uint
 	LoadGeneratorInstallInfo   LoadGeneratorInstallInfo
 }

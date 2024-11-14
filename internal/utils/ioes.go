@@ -4,9 +4,10 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 func WritePropertiesFile(filePath string, properties map[string]interface{}, emptyOmit bool) error {
@@ -52,7 +53,7 @@ func CreateFolder(filePath string) error {
 func ReadCSV(filename string) (*[][]string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		LogErrorf("can not opent files: %s; %s", filename, err)
+		log.Error().Msgf("can not opent files: %s; %s", filename, err)
 		return nil, err
 	}
 	defer file.Close()
@@ -68,7 +69,7 @@ func ReadCSV(filename string) (*[][]string, error) {
 				return &parsedCsv, nil
 			}
 
-			log.Println(err)
+			log.Error().Msgf("failed to read csv file from path %s; %v", filename, err)
 			break
 		}
 
@@ -83,10 +84,10 @@ func ExistCheck(path string) bool {
 
 	if err != nil {
 		if os.IsNotExist(err) {
-			LogErrorf("file / folder does not exist: %s", path)
+			log.Error().Msgf("file / folder does not exist: %s", path)
 
 		} else {
-			LogError(err)
+			log.Error().Msg(err.Error())
 		}
 
 		return false
@@ -102,7 +103,7 @@ func ExistCheck(path string) bool {
 func ReadToString(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		log.Println("file doesn't exist on correct path")
+		log.Error().Msgf("file doesn't exist on correct path; %v", err)
 		return "", err
 	}
 

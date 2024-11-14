@@ -12,7 +12,7 @@ import (
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/spider"
-	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 type PriceCollector interface {
@@ -137,23 +137,23 @@ func (s *SpiderPriceCollector) FetchPriceInfos(ctx context.Context, param Recomm
 							currency = s.parseCurrency(policy.Currency)
 							convertedPrice, err := strconv.ParseFloat(policy.Price, 64)
 							if err != nil {
-								utils.LogWarnf("not allowed for error; %s", err)
+								log.Warn().Msgf("not allowed for error; %s", err)
 								continue
 							}
 
 							if convertedPrice == float64(0) {
-								utils.LogWarn("not allowed for empty price")
+								log.Warn().Msg("not allowed for empty price")
 								continue
 							}
 							price = s.naChecker(policy.Price)
 
 							if price == "" {
-								utils.LogWarn("not allowed for empty price")
+								log.Warn().Msg("not allowed for empty price")
 								continue
 							}
 
 							if strings.Contains(strings.ToLower(priceDescription), "dedicated") {
-								utils.LogWarnf("not allowed for dedicated instance hour; %s", priceDescription)
+								log.Warn().Msgf("not allowed for dedicated instance hour; %s", priceDescription)
 								continue
 							}
 
@@ -259,7 +259,7 @@ func (s *SpiderPriceCollector) splitMemory(input string) (string, constant.Memor
 
 	number, err := strconv.ParseFloat(strings.TrimSpace(numberPart), 64)
 	if err != nil {
-		utils.LogErrorf("error while split memory : %s", err.Error())
+		log.Error().Msgf("error while split memory : %s", err.Error())
 		return "", ""
 	}
 

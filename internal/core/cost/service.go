@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
-	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/rs/zerolog/log"
 )
 
@@ -299,14 +298,14 @@ func (c *CostService) UpdateEstimateForecastCost(param UpdateEstimateForecastCos
 	for _, costInfo := range r {
 		u, i, err := c.costRepo.UpsertCostInfo(ctx, costInfo)
 		if err != nil {
-			utils.LogErrorf("upsert error: %+v", costInfo)
+			log.Error().Msgf("upsert error: %+v", costInfo)
 		}
 
 		updatedCount += u
 		insertedCount += i
 	}
 
-	utils.LogInfof("updated count: %d; inserted count : %d", updatedCount, insertedCount)
+	log.Info().Msgf("updated count: %d; inserted count : %d", updatedCount, insertedCount)
 
 	updateEstimateForecastCostInfoResult.UpdatedDataCount = updatedCount
 	updateEstimateForecastCostInfoResult.InsertedDataCount = insertedCount
@@ -356,13 +355,13 @@ func (c *CostService) UpdateEstimateForecastCostRaw(param UpdateEstimateForecast
 	for _, costInfo := range r {
 		u, i, err := c.costRepo.UpsertCostInfo(ctx, costInfo)
 		if err != nil {
-			utils.LogErrorf("upsert error: %+v", costInfo)
+			log.Error().Msgf("upsert error: %+v", costInfo)
 		}
 
 		updatedCount += u
 		insertedCount += i
 	}
-	utils.LogInfof("updated count: %d; inserted count : %d", updatedCount, insertedCount)
+	log.Info().Msgf("updated count: %d; inserted count : %d", updatedCount, insertedCount)
 
 	updateCostInfoResult.UpdatedDataCount = updatedCount
 	updateCostInfoResult.InsertedDataCount = insertedCount
