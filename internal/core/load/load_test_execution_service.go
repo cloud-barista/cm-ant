@@ -20,49 +20,23 @@ import (
 // Generates a load test key, installs the load generator or retrieves existing installation information,
 // saves the load test execution state, and then asynchronously runs the load test.
 func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()
 	param.LoadTestKey = loadTestKey
 	log.Info().Msgf("Starting load test with key: %s", loadTestKey)
 
-	// check the installation of load generator.
-	// if it is not installed, then install it to user selected location.
-	if param.LoadGeneratorInstallInfoId == uint(0) {
-		log.Info().Msgf("No LoadGeneratorInstallInfoId provided, installing load generator...")
-		result, err := l.InstallLoadGenerator(param.InstallLoadGenerator)
-		if err != nil {
-			log.Error().Msgf("Error installing load generator: %v", err)
-			return "", err
-		}
-
-		param.LoadGeneratorInstallInfoId = result.ID
-		log.Info().Msgf("Load generator installed with ID: %d", result.ID)
-	}
-
-	if param.LoadGeneratorInstallInfoId == uint(0) {
-		log.Error().Msgf("LoadGeneratorInstallInfoId is still 0 after installation.")
-		return "", errors.New("error while load generator installation process")
-	}
-
-	loadGeneratorInstallInfo, err := l.loadRepo.GetValidLoadGeneratorInstallInfoByIdTx(ctx, param.LoadGeneratorInstallInfoId)
-	if err != nil {
-		log.Error().Msgf("Error retrieving load generator installation info: %v", err)
-		return "", err
-	}
-
-	log.Info().Msgf("Retrieved load generator installation info with ID: %d", param.LoadGeneratorInstallInfoId)
-
 	duration, err := strconv.Atoi(param.Duration)
 	if err != nil {
-		return "", err
+		log.Error().Msgf("error while type convert; %s", err.Error())
+		return loadTestKey, err
 	}
 
 	rampUpTime, err := strconv.Atoi(param.RampUpTime)
 
 	if err != nil {
-		return "", err
+		return loadTestKey, err
 	}
 
 	totalExecutionSecond := uint64(duration + rampUpTime)
@@ -70,7 +44,6 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 	e := startAt.Add(time.Duration(totalExecutionSecond) * time.Second)
 
 	stateArg := LoadTestExecutionState{
-		LoadGeneratorInstallInfoId:  loadGeneratorInstallInfo.ID,
 		LoadTestKey:                 loadTestKey,
 		ExecutionStatus:             constant.OnProcessing,
 		StartAt:                     startAt,
@@ -79,9 +52,59 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 		NsId:                        param.NsId,
 		MciId:                       param.MciId,
 		VmId:                        param.VmId,
+		WithMetrics:                 param.CollectAdditionalSystemMetrics,
 	}
 
-	go l.processLoadTest(param, &loadGeneratorInstallInfo, &stateArg)
+	err = l.loadRepo.InsertLoadTestExecutionStateTx(ctx, &stateArg)
+	if err != nil {
+		log.Error().Msgf("Error saving initial load test execution state: %v", err)
+		return "", err
+	}
+	log.Info().Msgf("Initial load test execution state saved for key: %s", loadTestKey)
+
+	go l.processLoadTestAsync(param, &stateArg)
+
+	return loadTestKey, nil
+
+}
+
+func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecutionState *LoadTestExecutionState) {
+
+	var globalErr error
+
+	defer func() {
+		if globalErr != nil {
+			_ = l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
+		}
+	}()
+
+	failed := func(logMsg string, occuredError error) {
+		log.Error().Msg(logMsg)
+		loadTestExecutionState.ExecutionStatus = constant.TestFailed
+		loadTestExecutionState.FailureMessage = logMsg
+		globalErr = occuredError
+		finishAt := time.Now()
+		loadTestExecutionState.FinishAt = &finishAt
+	}
+
+	if param.LoadGeneratorInstallInfoId == uint(0) {
+		log.Info().Msgf("No LoadGeneratorInstallInfoId provided, installing load generator...")
+
+		result, err := l.InstallLoadGenerator(param.InstallLoadGenerator)
+		if err != nil {
+			failed(fmt.Sprintf("Error installing load generator: %v", err), err)
+			return
+		}
+
+		param.LoadGeneratorInstallInfoId = result.ID
+		log.Info().Msgf("Load generator installed with ID: %d", result.ID)
+	}
+
+	loadGeneratorInstallInfo, err := l.loadRepo.GetValidLoadGeneratorInstallInfoByIdTx(context.Background(), param.LoadGeneratorInstallInfoId)
+	if err != nil {
+		failed(fmt.Sprintf("Error installing load generator: %v", err), err)
+		return
+	}
 
 	var hs []LoadTestExecutionHttpInfo
 
@@ -98,8 +121,8 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 		hs = append(hs, hh)
 	}
 
-	loadArg := LoadTestExecutionInfo{
-		LoadTestKey:  loadTestKey,
+	loadTestExecutionInfoParam := LoadTestExecutionInfo{
+		LoadTestKey:  param.LoadTestKey,
 		TestName:     param.TestName,
 		VirtualUsers: param.VirtualUsers,
 		Duration:     param.Duration,
@@ -115,19 +138,136 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 
 		LoadGeneratorInstallInfoId: loadGeneratorInstallInfo.ID,
 		LoadTestExecutionHttpInfos: hs,
+
+		LoadTestExecutionStateId: loadTestExecutionState.ID,
 	}
 
-	log.Info().Msgf("Saving load test execution info for key: %s", loadTestKey)
-	err = l.loadRepo.SaveForLoadTestExecutionTx(ctx, &loadArg, &stateArg)
+	err = l.loadRepo.SaveForLoadTestExecutionTx(context.Background(), &loadTestExecutionInfoParam)
 	if err != nil {
-		log.Error().Msgf("Error saving load test execution info: %v", err)
-		return "", err
+		failed(fmt.Sprintf("Error saving load test execution info: %v", err), err)
+		return
 	}
 
-	log.Info().Msgf("Load test started successfully with key: %s", loadTestKey)
+	loadTestExecutionState.GeneratorInstallInfoId = loadGeneratorInstallInfo.ID
+	loadTestExecutionState.TestExecutionInfoId = loadTestExecutionInfoParam.ID
 
-	return loadTestKey, nil
+	err = l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
 
+	if err != nil {
+		failed(fmt.Sprintf("Error while update load test execution state to save load test execution info id and load generator install info id; %v", err), err)
+	}
+
+	if param.CollectAdditionalSystemMetrics {
+		if strings.TrimSpace(param.AgentHostname) == "" {
+			mci, err := l.tumblebugClient.GetMciWithContext(context.Background(), param.NsId, param.MciId)
+
+			if err != nil {
+				failed(fmt.Sprintf("unexpected error occurred while fetching mci for install metrics agent; %s", err), err)
+				return
+			}
+
+			if len(mci.Vm) == 0 {
+				failed("mci vm's length is zero", errors.New("mci vm's length is zero"))
+				return
+			}
+
+			if len(mci.Vm) == 1 {
+				param.AgentHostname = mci.Vm[0].PublicIP
+			} else {
+				for _, v := range mci.Vm {
+					if v.Id == param.VmId {
+						param.AgentHostname = v.PublicIP
+					}
+				}
+			}
+
+			if param.AgentHostname == "" {
+				err := errors.New("agent host name afeter get mci from tumblebug must be set to not nil")
+				failed(fmt.Sprintf("invalid agent hostname for test %s; %v", param.LoadTestKey, err), err)
+				return
+			}
+		}
+
+		arg := MonitoringAgentInstallationParams{
+			NsId:  param.NsId,
+			MciId: param.MciId,
+			VmIds: []string{param.VmId},
+		}
+
+		// install and run the agent for collect metrics
+		_, err := l.InstallMonitoringAgent(arg)
+		if err != nil {
+			failed(fmt.Sprintf("unexpected error occurred while installing monitoring agent; %s", err), err)
+			return
+		}
+
+		log.Info().Msgf("metrics agent installed successfully for load test; %s %s %s", arg.NsId, arg.MciId, arg.VmIds)
+	}
+
+	loadTestDone := make(chan bool)
+
+	var username string
+	var publicIp string
+	var port string
+	for _, s := range loadGeneratorInstallInfo.LoadGeneratorServers {
+		if s.IsMaster {
+			username = s.Username
+			publicIp = s.PublicIp
+			port = s.SshPort
+		}
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		failed(fmt.Sprintf("user home dir is not valid; %s", err), err)
+		return
+	}
+
+	dataParam := &fetchDataParam{
+		LoadTestDone:                   loadTestDone,
+		LoadTestKey:                    param.LoadTestKey,
+		InstallLocation:                loadGeneratorInstallInfo.InstallLocation,
+		InstallPath:                    loadGeneratorInstallInfo.InstallPath,
+		PublicKeyName:                  loadGeneratorInstallInfo.PublicKeyName,
+		PrivateKeyName:                 loadGeneratorInstallInfo.PrivateKeyName,
+		Username:                       username,
+		PublicIp:                       publicIp,
+		Port:                           port,
+		CollectAdditionalSystemMetrics: param.CollectAdditionalSystemMetrics,
+		Home:                           home,
+	}
+
+	go l.fetchData(dataParam)
+
+	defer func() {
+		loadTestDone <- true
+		close(loadTestDone)
+		updateErr := l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
+		if updateErr != nil {
+			failed(fmt.Sprintf("Error updating load test execution state: %v", updateErr), updateErr)
+			return
+		}
+
+		log.Info().Msgf("successfully done load test for %s", dataParam.LoadTestKey)
+	}()
+
+	compileDuration, executionDuration, loadTestErr := l.executeLoadTest(param, &loadGeneratorInstallInfo)
+
+	loadTestExecutionState.CompileDuration = compileDuration
+	loadTestExecutionState.ExecutionDuration = executionDuration
+
+	if loadTestErr != nil {
+		failed(fmt.Sprintf("Error while load testing: %v", loadTestErr), loadTestErr)
+		return
+	}
+
+	updateErr := l.updateLoadTestExecution(loadTestExecutionState)
+	if updateErr != nil {
+		failed(fmt.Sprintf("Error while updating load test execution: %v", updateErr), updateErr)
+		return
+	}
+
+	loadTestExecutionState.ExecutionStatus = constant.Successed
 }
 
 // processLoadTest executes the load test.
@@ -261,13 +401,13 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 	resultFileName := fmt.Sprintf("%s_result.csv", loadTestKey)
 	loadGeneratorInstallVersion := loadGeneratorInstallInfo.InstallVersion
 
-	utils.LogInfof("Running load test with key: %s", loadTestKey)
+	log.Info().Msgf("Running load test with key: %s", loadTestKey)
 	compileDuration := "0"
 	executionDuration := "0"
 	start := time.Now()
 
 	if installLocation == constant.Remote {
-		utils.LogInfo("Remote execute detected.")
+		log.Info().Msg("Remote execute detected.")
 		var buf bytes.Buffer
 		err := parseTestPlanStructToString(&buf, param, loadGeneratorInstallInfo)
 		if err != nil {
@@ -305,7 +445,7 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 		}
 
 	} else if installLocation == constant.Local {
-		utils.LogInfo("Local execute detected.")
+		log.Info().Msg("Local execute detected.")
 
 		exist := utils.ExistCheck(loadGeneratorInstallPath)
 
@@ -340,14 +480,14 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 func (l *LoadService) updateLoadTestExecution(loadTestExecutionState *LoadTestExecutionState) error {
 	err := l.loadRepo.UpdateLoadTestExecutionInfoDuration(context.Background(), loadTestExecutionState.LoadTestKey, loadTestExecutionState.CompileDuration, loadTestExecutionState.ExecutionDuration)
 	if err != nil {
-		utils.LogErrorf("Error updating load test execution info: %v", err)
+		log.Error().Msgf("Error updating load test execution info; %v", err)
 		return err
 	}
 
 	loadTestExecutionState.ExecutionStatus = constant.OnFetching
 	err = l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
 	if err != nil {
-		utils.LogErrorf("Error updating load test execution state: %v", err)
+		log.Error().Msgf("Error updating load test execution state; %v", err)
 		return err
 	}
 	return nil
@@ -356,7 +496,7 @@ func (l *LoadService) updateLoadTestExecution(loadTestExecutionState *LoadTestEx
 // generateJmeterExecutionCmd generates the JMeter execution command.
 // Constructs a JMeter command string that includes the test plan path and result file path.
 func generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVersion, testPlanName, resultFileName string) string {
-	utils.LogInfof("Generating JMeter execution command for test plan: %s, result file: %s", testPlanName, resultFileName)
+	log.Info().Msgf("Generating JMeter execution command for test plan: %s, result file: %s", testPlanName, resultFileName)
 
 	var builder strings.Builder
 	testPath := fmt.Sprintf("%s/test_plan/%s", loadGeneratorInstallPath, testPlanName)
@@ -368,7 +508,7 @@ func generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVe
 	builder.WriteString(fmt.Sprintf(" -l=%s", resultPath))
 
 	builder.WriteString(fmt.Sprintf(" && sudo rm %s", testPath))
-	utils.LogInfof("JMeter execution command generated: %s", builder.String())
+	log.Info().Msgf("JMeter execution command generated: %s", builder.String())
 	return builder.String()
 }
 
@@ -401,7 +541,11 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 		return errors.New("load test is already completed")
 	}
 
-	installInfo := state.LoadGeneratorInstallInfo
+	installInfo, err := l.loadRepo.GetValidLoadGeneratorInstallInfoByIdTx(ctx, state.GeneratorInstallInfoId)
+
+	if err != nil {
+		return fmt.Errorf("error occurred while retrieve load install info: %w", err)
+	}
 
 	killCmd := killCmdGen(param.LoadTestKey)
 
@@ -431,6 +575,6 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 
 func killCmdGen(loadTestKey string) string {
 	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*%s'", loadTestKey)
-	utils.LogInfof("Generating kill command for load test key: %s", loadTestKey)
+	log.Info().Msgf("Generating kill command for load test key: %s", loadTestKey)
 	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
 }

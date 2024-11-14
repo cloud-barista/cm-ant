@@ -2,10 +2,11 @@ package utils
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Worker interface {
@@ -29,17 +30,16 @@ func NewWorker(interval time.Duration) Worker {
 }
 
 func (w *tempFileRemoveWorker) Run() {
-
-	log.Println("TempFileRemoveWorker Started")
+	log.Info().Msg("TempFileRemoveWorker Started")
 
 	for {
 		select {
 		case <-w.ShutdownChannel:
-			log.Println("worker shut down..")
+			log.Info().Msg("worker shut down..")
 			w.ShutdownChannel <- "Down"
 			return
 		default:
-			log.Println("worker actions called")
+			log.Info().Msg("worker actions called")
 		}
 
 		w.Action()

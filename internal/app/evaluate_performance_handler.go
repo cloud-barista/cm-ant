@@ -8,7 +8,6 @@ import (
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
-	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
@@ -74,20 +73,20 @@ func (s *AntServer) getAllLoadGeneratorInstallInfo(c echo.Context) error {
 func (s *AntServer) installLoadGenerator(c echo.Context) error {
 	var req InstallLoadGeneratorReq
 
-	utils.LogInfo("Received request to install load generator")
+	log.Info().Msg("Received request to install load generator")
 
 	if err := c.Bind(&req); err != nil {
-		utils.LogError("Failed to bind request:", err)
+		log.Error().Msgf("Failed to bind request:", err)
 		return errorResponseJson(http.StatusBadRequest, "load generator installation info is not correct.")
 	}
 
 	if req.InstallLocation == "" ||
 		(req.InstallLocation != constant.Remote && req.InstallLocation != constant.Local) {
-		utils.LogError("Invalid install location:", req.InstallLocation)
+		log.Error().Msgf("Invalid install location:", req.InstallLocation)
 		return errorResponseJson(http.StatusBadRequest, "available install locations are remote or local.")
 	}
 
-	utils.LogInfo("Calling service layer to install load generator")
+	log.Info().Msgf("Calling service layer to install load generator")
 
 	// call service layer install load generator
 	param := load.InstallLoadGeneratorParam{
@@ -97,11 +96,11 @@ func (s *AntServer) installLoadGenerator(c echo.Context) error {
 	result, err := s.services.loadService.InstallLoadGenerator(param)
 
 	if err != nil {
-		utils.LogError("Error installing load generator:", err)
+		log.Error().Msgf("Error installing load generator:", err)
 		return errorResponseJson(http.StatusBadRequest, err.Error())
 	}
 
-	utils.LogInfo("Load generator installed successfully")
+	log.Info().Msg("Load generator installed successfully")
 
 	return successResponseJson(
 		c,
@@ -183,24 +182,24 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 		req.TestName = uuid.New().String()
 	}
 
-	if _, err := strconv.Atoi(strings.TrimSpace(req.VirtualUsers)); err != nil {
+	if v, err := strconv.Atoi(strings.TrimSpace(req.VirtualUsers)); err != nil && (v < 1 || v > 100) {
 		log.Error().Msgf("virtual user count is invalid")
-		return errorResponseJson(http.StatusBadRequest, "virtual user  is not correct. check and retry.")
+		return errorResponseJson(http.StatusBadRequest, "virtual user  is not correct. the range must be in 1 to 100")
 	}
 
-	if _, err := strconv.Atoi(strings.TrimSpace(req.Duration)); err != nil {
+	if v, err := strconv.Atoi(strings.TrimSpace(req.Duration)); err != nil && (v < 1 || v > 300) {
 		log.Error().Msgf("duration is invalid")
-		return errorResponseJson(http.StatusBadRequest, "duration is not correct. check and retry.")
+		return errorResponseJson(http.StatusBadRequest, "duration is not correct. the range must be in 1 to 300")
 	}
 
-	if _, err := strconv.Atoi(strings.TrimSpace(req.RampUpTime)); err != nil {
+	if v, err := strconv.Atoi(strings.TrimSpace(req.RampUpTime)); err != nil && (v < 1 || v > 60) {
 		log.Error().Msgf("ramp up time is invalid")
-		return errorResponseJson(http.StatusBadRequest, "ramp up time is not correct. check and retry.")
+		return errorResponseJson(http.StatusBadRequest, "ramp up time is not correct. the range must be in 1 to 60")
 	}
 
-	if _, err := strconv.Atoi(strings.TrimSpace(req.RampUpSteps)); err != nil {
+	if v, err := strconv.Atoi(strings.TrimSpace(req.RampUpSteps)); err != nil && (v < 1 || v > 20) {
 		log.Error().Msgf("ramp up steps is invalid")
-		return errorResponseJson(http.StatusBadRequest, "ramp up steps is not correct. check and retry.")
+		return errorResponseJson(http.StatusBadRequest, "ramp up steps is not correct. the range must be in 1 to 20")
 	}
 
 	if len(req.HttpReqs) == 0 {
@@ -702,4 +701,92 @@ func (s *AntServer) uninstallMonitoringAgent(c echo.Context) error {
 		"monitoring agent is successfully uninstalled",
 		affectedResults,
 	)
+}
+
+// getLastLoadTestResult handler function that retrieves a specific load test result.
+// @Id GetLastLoadTestResult
+// @Summary Get last load test result by ns, mci, vm
+// @Description Retrieve last load test result based on provided parameters.
+// @Tags [Load Test Result]
+// @Accept json
+// @Produce json
+// @Param nsId query string true "ns id"
+// @Param mciId query string true "mci id"
+// @Param vmId query string true "vm id"
+// @Param format query string false "Result format (normal or aggregate)"
+// @Success 200 {object} app.JsonResult{[normal]=app.AntResponse[[]load.ResultSummary],[aggregate]=app.AntResponse[[]load.LoadTestStatistics]} "Successfully retrieved load test metrics"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test result"
+// @Router /api/v1/load/tests/result/last [get]
+func (s *AntServer) getLastLoadTestResult(c echo.Context) error {
+	var req GetLastLoadTestResultReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
+	}
+
+	if strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.MciId) == "" || strings.TrimSpace(req.VmId) == "" {
+		return errorResponseJson(http.StatusBadRequest, "pass correct nsId / mciId / vmId")
+	}
+
+	if req.Format == "" {
+		req.Format = constant.Normal
+	} else if req.Format != constant.Normal && req.Format != constant.Aggregate {
+		req.Format = constant.Normal
+	}
+
+	arg := load.GetLastLoadTestResultParam{
+		NsId:   req.NsId,
+		MciId:  req.MciId,
+		VmId:   req.VmId,
+		Format: req.Format,
+	}
+
+	result, err := s.services.loadService.GetLastLoadTestResult(arg)
+
+	if err != nil {
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve load test result")
+	}
+
+	return successResponseJson(c, "Successfully retrieved load test result", result)
+}
+
+// getLastLoadTestMetrics handler function that retrieves metrics for a specific load test.
+// @Id GetLastLoadTestMetrics
+// @Summary Get last load test metrics by ns, mci, vm
+// @Description Retrieve last load test metrics based on provided parameters.
+// @Tags [Load Test Result]
+// @Accept json
+// @Produce json
+// @Param nsId query string true "ns id"
+// @Param mciId query string true "mci id"
+// @Param vmId query string true "vm id"
+// @Param format query string false "Result format (normal for the moment)"
+// @success 200 {object} app.AntResponse[[]load.MetricsSummary] "Successfully retrieved load test metrics"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test metrics"
+// @Router /api/v1/load/tests/result/metrics/last [get]
+func (s *AntServer) getLastLoadTestMetrics(c echo.Context) error {
+	var req GetLastLoadTestResultReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
+	}
+
+	if strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.MciId) == "" || strings.TrimSpace(req.VmId) == "" {
+		return errorResponseJson(http.StatusBadRequest, "pass correct nsId / mciId / vmId")
+	}
+
+	arg := load.GetLastLoadTestResultParam{
+		NsId:   req.NsId,
+		MciId:  req.MciId,
+		VmId:   req.VmId,
+		Format: constant.Normal,
+	}
+
+	result, err := s.services.loadService.GetLastLoadTestMetrics(arg)
+
+	if err != nil {
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve load test metrics")
+	}
+
+	return successResponseJson(c, "Successfully retrieved load test metrics", result)
 }

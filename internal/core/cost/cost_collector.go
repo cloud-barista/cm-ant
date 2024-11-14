@@ -13,6 +13,7 @@ import (
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/spider"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 type CostCollector interface {
@@ -136,7 +137,7 @@ func (a *AwsCostExplorerBaristaCostCollector) GetCostInfos(ctx context.Context, 
 
 	serviceFilterValue, resourceIdFilterValue, err := a.generateFilterValue(param.CostResources, param.AwsAdditionalInfo)
 	if err != nil {
-		utils.LogError("parsing service and resource id for filtering cost explorer value")
+		log.Error().Msgf("parsing service and resource id for filtering cost explorer value")
 		return nil, err
 	}
 
@@ -216,33 +217,33 @@ func (a *AwsCostExplorerBaristaCostCollector) GetCostInfos(ctx context.Context, 
 
 	if err != nil {
 		if errors.Is(err, spider.ErrSpiderCostResultEmpty) {
-			utils.LogError("error from spider: ", err)
+			log.Error().Msgf("error from spider: ", err)
 			return nil, ErrCostResultEmpty
 		}
 		return nil, err
 	}
 
 	if res == nil || res.ResultsByTime == nil || len(res.ResultsByTime) == 0 {
-		utils.LogError("cost result is empty: ")
+		log.Error().Msgf("cost result is empty: ")
 		return nil, ErrCostResultEmpty
 	}
 
 	var costInfos = make([]EstimateForecastCostInfo, 0)
 	for _, result := range res.ResultsByTime {
 		if result.Groups == nil {
-			utils.LogError("groups is nil; it must not be nil")
+			log.Error().Msgf("groups is nil; it must not be nil")
 			return nil, ErrCostResultFormatInvalid
 		}
 
 		if result.TimePeriod == nil || result.TimePeriod.Start == nil || result.TimePeriod.End == nil {
-			utils.LogError("time period is nil; it must not be nil")
+			log.Error().Msgf("time period is nil; it must not be nil")
 			return nil, ErrCostResultFormatInvalid
 		}
 
 		for _, group := range result.Groups {
 
 			if group == nil {
-				utils.LogError("sinble group is nil; it must not be nil")
+				log.Error().Msgf("sinble group is nil; it must not be nil")
 				continue
 			}
 
@@ -250,17 +251,17 @@ func (a *AwsCostExplorerBaristaCostCollector) GetCostInfos(ctx context.Context, 
 			awsService := constant.AwsService(category)
 			resourceType, ok := serviceToResourceType[awsService]
 			if !ok {
-				utils.LogErrorf("service : %s does not exist; category: %s", awsService, category)
+				log.Error().Msgf("service : %s does not exist; category: %s", awsService, category)
 				continue
 			}
 			mt, ok := group.Metrics[metrics]
 			if !ok {
-				utils.LogError("matric value does not exist:", metrics)
+				log.Error().Msgf("matric value does not exist:", metrics)
 				continue
 			}
 			cost, err := strconv.ParseFloat(utils.NilSafeStr(mt.Amount), 64)
 			if err != nil {
-				utils.LogError("cost parsing error:", mt.Amount)
+				log.Error().Msgf("cost parsing error:", mt.Amount)
 				continue
 			}
 			unit := utils.NilSafeStr(mt.Unit)
@@ -274,13 +275,13 @@ func (a *AwsCostExplorerBaristaCostCollector) GetCostInfos(ctx context.Context, 
 
 			startDate, err := time.Parse(time.RFC3339, utils.NilSafeStr(result.TimePeriod.Start))
 			if err != nil {
-				utils.LogError("start date parsing error:", result.TimePeriod.Start)
+				log.Error().Msgf("start date parsing error:", result.TimePeriod.Start)
 				continue
 			}
 
 			endDate, err := time.Parse(time.RFC3339, utils.NilSafeStr(result.TimePeriod.End))
 			if err != nil {
-				utils.LogError("end date parsing error to ")
+				log.Error().Msgf("end date parsing error to ")
 				continue
 			}
 
@@ -328,7 +329,7 @@ func (a *AwsCostExplorerBaristaCostCollector) UpdateEstimateForecastCost(ctx con
 	mci, err := a.tc.GetMciWithContext(ctx, param.NsId, param.MciId)
 
 	if err != nil {
-		utils.LogError("error while get mci from tumblebug; ", err)
+		log.Error().Msgf("error while get mci from tumblebug; ", err)
 		return res, err
 	}
 
@@ -353,7 +354,7 @@ func (a *AwsCostExplorerBaristaCostCollector) UpdateEstimateForecastCost(ctx con
 		pn := mci.ConnectionConfig.ProviderName
 
 		if pn == "" || !strings.EqualFold(strings.ToLower(pn), "aws") {
-			utils.LogWarnf("CSP: %s, does not support yet", pn)
+			log.Warn().Msgf("CSP: %s, does not support yet", pn)
 			continue
 		}
 
@@ -376,7 +377,7 @@ func (a *AwsCostExplorerBaristaCostCollector) UpdateEstimateForecastCost(ctx con
 	infos, err := a.GetCostInfos(ctx, arg)
 
 	if err != nil {
-		utils.LogError("error while get cost info from spider;", err)
+		log.Error().Msgf("error while get cost info from spider;", err)
 		return res, fmt.Errorf("error from get cost infos +%w", err)
 	}
 

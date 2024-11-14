@@ -126,7 +126,7 @@ func rsyncFiles(f *fetchDataParam) error {
 					toFilePath)
 			}
 
-			utils.LogInfo("cmd for rsync: ", cmd)
+			log.Info().Msgf("cmd for rsync: %s", cmd)
 			err := utils.InlineCmd(cmd)
 
 			if err == nil {
@@ -134,7 +134,7 @@ func rsyncFiles(f *fetchDataParam) error {
 				return // Success, exit the retry loop
 			}
 
-			utils.LogError(fmt.Sprintf("Error during rsync attempt %d for %s: %v", attempt, fileName, err))
+			log.Error().Msgf(fmt.Sprintf("Error during rsync attempt %d for %s: %v", attempt, fileName, err))
 
 			// Wait before retrying
 			if attempt < maxRetries {

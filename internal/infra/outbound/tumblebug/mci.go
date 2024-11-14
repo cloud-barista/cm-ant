@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 func (t *TumblebugClient) GetMciWithContext(ctx context.Context, nsId, mciId string) (MciRes, error) {
@@ -17,7 +17,7 @@ func (t *TumblebugClient) GetMciWithContext(ctx context.Context, nsId, mciId str
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
-		utils.LogError("error sending get mci request:", err)
+		log.Error().Msgf("error sending get mci request; %v", err)
 
 		if errors.Is(err, ErrInternalServerError) {
 			return mciObject, ErrNotFound
@@ -28,7 +28,7 @@ func (t *TumblebugClient) GetMciWithContext(ctx context.Context, nsId, mciId str
 	err = json.Unmarshal(resBytes, &mciObject)
 
 	if err != nil {
-		utils.LogError("error unmarshaling response body:", err)
+		log.Error().Msgf("error unmarshaling response body; %v", err)
 		return mciObject, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
 
@@ -41,14 +41,14 @@ func (t *TumblebugClient) CommandToMciWithContext(ctx context.Context, nsId, mci
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
-		utils.LogError("error marshaling request body:", err)
+		log.Error().Msgf("error marshaling request body; %v", err)
 		return "", err
 	}
 
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
 
 	if err != nil {
-		utils.LogError("error sending command to mci request:", err)
+		log.Error().Msgf("error sending command to mci request; %v", err)
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
 
@@ -63,14 +63,14 @@ func (t *TumblebugClient) CommandToVmWithContext(ctx context.Context, nsId, mciI
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
-		utils.LogError("error marshaling request body:", err)
+		log.Error().Msgf("error marshaling request body; %v", err)
 		return "", err
 	}
 
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
 
 	if err != nil {
-		utils.LogError("error sending command to vm request:", err)
+		log.Error().Msgf("error sending command to vm request; %v", err)
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
 
@@ -86,14 +86,14 @@ func (t *TumblebugClient) GetNsWithContext(ctx context.Context, nsId string) (Ge
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
-		utils.LogError("error sending get mci request:", err)
+		log.Error().Msgf("error sending get mci request; %v", err)
 		return nsRes, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	err = json.Unmarshal(resBytes, &nsRes)
 
 	if err != nil {
-		utils.LogError("error unmarshaling response body:", err)
+		log.Error().Msgf("error unmarshaling response body; %v", err)
 		return nsRes, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
 
@@ -106,21 +106,21 @@ func (t *TumblebugClient) GetRecommendVmWithContext(ctx context.Context, body Re
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
-		utils.LogError("error marshaling request body:", err)
+		log.Error().Msgf("error marshaling request body; %v", err)
 		return res, err
 	}
 
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
 
 	if err != nil {
-		utils.LogError("error sending get recommend vm request:", err)
+		log.Error().Msgf("error sending get recommend vm request; %v", err)
 		return res, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	err = json.Unmarshal(resBytes, &res)
 
 	if err != nil {
-		utils.LogError("error unmarshaling response body:", err)
+		log.Error().Msgf("error unmarshaling response body; %v", err)
 		return res, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
 
@@ -132,14 +132,14 @@ func (t *TumblebugClient) CreateNsWithContext(ctx context.Context, body CreateNs
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
-		utils.LogError("error marshaling request body:", err)
+		log.Error().Msgf("error marshaling request body; %v", err)
 		return err
 	}
 
 	_, err = t.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
 
 	if err != nil {
-		utils.LogError("error sending create ns request:", err)
+		log.Error().Msgf("error sending create ns request; %v", err)
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 
@@ -152,21 +152,21 @@ func (t *TumblebugClient) DynamicVmWithContext(ctx context.Context, nsId, mciId 
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
-		utils.LogError("error marshaling request body:", err)
+		log.Error().Msgf("error marshaling request body; %v", err)
 		return res, err
 	}
 
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
 
 	if err != nil {
-		utils.LogError("error sending dynamic vm request:", err)
+		log.Error().Msgf("error sending dynamic vm request; %v", err)
 		return res, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	err = json.Unmarshal(resBytes, &res)
 
 	if err != nil {
-		utils.LogError("error unmarshaling response body:", err)
+		log.Error().Msgf("error unmarshaling response body; %v", err)
 		return res, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
 
@@ -179,21 +179,21 @@ func (t *TumblebugClient) DynamicMciWithContext(ctx context.Context, nsId string
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
-		utils.LogError("error marshaling request body:", err)
+		log.Error().Msgf("error marshaling request body; %v", err)
 		return res, err
 	}
 
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
 
 	if err != nil {
-		utils.LogError("error sending dynamic mci request:", err)
+		log.Error().Msgf("error sending dynamic mci request; %v", err)
 		return res, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	err = json.Unmarshal(resBytes, &res)
 
 	if err != nil {
-		utils.LogError("error unmarshaling response body:", err)
+		log.Error().Msgf("error unmarshaling response body; %v", err)
 		return res, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
 
@@ -208,7 +208,7 @@ func (t *TumblebugClient) ControlLifecycleWithContext(ctx context.Context, nsId,
 	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
-		utils.LogError("error sending control lifecycle request:", err)
+		log.Error().Msgf("error sending control lifecycle request; %v", err)
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 
@@ -224,7 +224,7 @@ func (t *TumblebugClient) DeleteAllMciWithContext(ctx context.Context, nsId stri
 	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodDelete, url, nil)
 
 	if err != nil {
-		utils.LogError("error sending delete all mci request:", err)
+		log.Error().Msgf("error sending delete all mci request; %v", err)
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 
@@ -239,7 +239,7 @@ func (t *TumblebugClient) DeleteAllResourcesWithContext(ctx context.Context, nsI
 	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodDelete, url, nil)
 
 	if err != nil {
-		utils.LogError("error sending delete all mci request:", err)
+		log.Error().Msgf("error sending delete all mci request; %v", err)
 		return fmt.Errorf("failed to send request: %w", err)
 	}
 

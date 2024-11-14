@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
-	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -23,14 +22,14 @@ func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, regionName s
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
-		log.Println("marshalling body error;", err)
+		log.Error().Msgf("marshalling body error; %v", err)
 		return cloudPriceData, err
 	}
 
 	resBytes, err := s.requestWithContext(ctx, http.MethodPost, url, marshalledBody, nil)
 
 	if err != nil {
-		utils.LogError("error sending get price info data request:", err)
+		log.Error().Msgf("error sending get price info data request; %v", err)
 
 		return cloudPriceData, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -38,7 +37,7 @@ func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, regionName s
 	err = json.Unmarshal(resBytes, &cloudPriceData)
 
 	if err != nil {
-		utils.LogError("error unmarshaling response body:", err)
+		log.Error().Msgf("error unmarshaling response body; %v", err)
 		return cloudPriceData, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
 
@@ -57,14 +56,14 @@ func (s *SpiderClient) GetCostWithResourceWithContext(ctx context.Context, body 
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
-		log.Println("marshalling body error;", err)
+		log.Error().Msgf("marshalling body error; %v", err)
 		return &costWithResourceRes, err
 	}
 
 	resBytes, err := s.requestWithContext(ctx, http.MethodPost, url, marshalledBody, nil)
 
 	if err != nil {
-		utils.LogError("error sending get cost info data request:", err)
+		log.Error().Msgf("error sending get cost info data request; %v", err)
 
 		return &costWithResourceRes, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -72,7 +71,7 @@ func (s *SpiderClient) GetCostWithResourceWithContext(ctx context.Context, body 
 	err = json.Unmarshal(resBytes, &anycallRes)
 
 	if err != nil {
-		utils.LogError("error unmarshaling response body:", err)
+		log.Error().Msgf("error unmarshaling response body; %v", err)
 		return &costWithResourceRes, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
 
@@ -83,7 +82,7 @@ func (s *SpiderClient) GetCostWithResourceWithContext(ctx context.Context, body 
 	err = json.Unmarshal([]byte(anycallRes.OKeyValueList[0].Value), &costWithResourceRes)
 
 	if err != nil {
-		utils.LogError("error unmarshaling :", err)
+		log.Error().Msgf("error unmarshaling; %v", err)
 		return &costWithResourceRes, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
 

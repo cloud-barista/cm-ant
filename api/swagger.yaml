@@ -369,6 +369,16 @@ definitions:
     - OnFetching
     - Successed
     - TestFailed
+  constant.IconCode:
+    enum:
+    - IC0001
+    - IC0002
+    - IC0003
+    type: string
+    x-enum-varnames:
+    - Ok
+    - Fail
+    - Pending
   constant.InstallLocation:
     enum:
     - local
@@ -713,10 +723,14 @@ definitions:
         type: string
       executionStatus:
         $ref: '#/definitions/constant.ExecutionStatus'
+      expectedFinishAt:
+        type: string
       failureMessage:
         type: string
       finishAt:
         type: string
+      iconCode:
+        $ref: '#/definitions/constant.IconCode'
       id:
         type: integer
       loadGeneratorInstallInfo:
@@ -1409,6 +1423,57 @@ paths:
       summary: Get load test result
       tags:
       - '[Load Test Result]'
+  /api/v1/load/tests/result/last:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve last load test result based on provided parameters.
+      operationId: GetLastLoadTestResult
+      parameters:
+      - description: ns id
+        in: query
+        name: nsId
+        required: true
+        type: string
+      - description: mci id
+        in: query
+        name: mciId
+        required: true
+        type: string
+      - description: vm id
+        in: query
+        name: vmId
+        required: true
+        type: string
+      - description: Result format (normal or aggregate)
+        in: query
+        name: format
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved load test metrics
+          schema:
+            allOf:
+            - $ref: '#/definitions/app.JsonResult'
+            - properties:
+                '[aggregate]':
+                  $ref: '#/definitions/app.AntResponse-array_load_LoadTestStatistics'
+                '[normal]':
+                  $ref: '#/definitions/app.AntResponse-array_load_ResultSummary'
+              type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve load test result
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get last load test result by ns, mci, vm
+      tags:
+      - '[Load Test Result]'
   /api/v1/load/tests/result/metrics:
     get:
       consumes:
@@ -1437,6 +1502,50 @@ paths:
           schema:
             $ref: '#/definitions/app.AntResponse-string'
       summary: Get load test metrics
+      tags:
+      - '[Load Test Result]'
+  /api/v1/load/tests/result/metrics/last:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve last load test metrics based on provided parameters.
+      operationId: GetLastLoadTestMetrics
+      parameters:
+      - description: ns id
+        in: query
+        name: nsId
+        required: true
+        type: string
+      - description: mci id
+        in: query
+        name: mciId
+        required: true
+        type: string
+      - description: vm id
+        in: query
+        name: vmId
+        required: true
+        type: string
+      - description: Result format (normal for the moment)
+        in: query
+        name: format
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved load test metrics
+          schema:
+            $ref: '#/definitions/app.AntResponse-array_load_MetricsSummary'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve load test metrics
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get last load test metrics by ns, mci, vm
       tags:
       - '[Load Test Result]'
   /api/v1/load/tests/run:

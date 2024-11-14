@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/config"
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
 
@@ -40,7 +40,7 @@ const (
 // InstallLoadGenerator installs the load generator either locally or remotely.
 // Currently remote request is executing via cb-tumblebug.
 func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (LoadGeneratorInstallInfoResult, error) {
-	utils.LogInfo("Starting InstallLoadGenerator")
+	log.Info().Msg("Starting InstallLoadGenerator")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
@@ -56,17 +56,17 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 
 	err := l.loadRepo.GetOrInsertLoadGeneratorInstallInfoTx(ctx, loadGeneratorInstallInfo)
 	if err != nil {
-		utils.LogError("Failed to insert LoadGeneratorInstallInfo:", err)
+		log.Error().Msgf("Failed to insert LoadGeneratorInstallInfo; %v", err)
 		return result, err
 	}
-	utils.LogInfo("LoadGeneratorInstallInfo fetched successfully")
+	log.Info().Msg("LoadGeneratorInstallInfo fetched successfully")
 
 	defer func() {
 		if loadGeneratorInstallInfo.Status == "starting" {
 			loadGeneratorInstallInfo.Status = "failed"
 			err = l.loadRepo.UpdateLoadGeneratorInstallInfoTx(ctx, loadGeneratorInstallInfo)
 			if err != nil {
-				utils.LogError("Error updating LoadGeneratorInstallInfo to failed status:", err)
+				log.Error().Msgf("Error updating LoadGeneratorInstallInfo to failed status; %v", err)
 			}
 		}
 	}()
@@ -81,7 +81,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 
 	switch installLocation {
 	case constant.Local:
-		utils.LogInfo("Starting local installation of JMeter")
+		log.Info().Msgf("Starting local installation of JMeter")
 
 		jmeterPath := config.AppConfig.Load.JMeter.Dir
 		jmeterVersion := config.AppConfig.Load.JMeter.Version
@@ -94,18 +94,18 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 			})
 
 			if err != nil {
-				utils.LogError("Error while installing JMeter locally:", err)
+				log.Error().Msgf("Error while installing JMeter locally; %v", err)
 				return result, fmt.Errorf("error while installing jmeter; %s", err)
 			}
 		}
 
-		utils.LogInfo("Local installation of JMeter completed successfully")
+		log.Info().Msg("Local installation of JMeter completed successfully")
 	case constant.Remote:
-		utils.LogInfo("Starting remote installation of JMeter")
+		log.Info().Msg("Starting remote installation of JMeter")
 		// get the spec and image information
 		recommendVm, err := l.getRecommendVm(ctx, param.Coordinates)
 		if err != nil {
-			utils.LogError("Failed to get recommended VM:", err)
+			log.Error().Msgf("Failed to get recommended VM; %v", err)
 			return result, err
 		}
 		antVmCommonSpec := recommendVm[0].Name
@@ -113,38 +113,38 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		antVmCommonImage, err := utils.ReplaceAtIndex(antVmCommonSpec, imageOs, "+", 2)
 
 		if err != nil {
-			utils.LogError("Error replacing VM spec index:", err)
+			log.Error().Msgf("Error replacing VM spec index; %v", err)
 			return result, err
 		}
 
 		// check namespace is valid or not
 		err = l.validDefaultNs(ctx, antNsId)
 		if err != nil {
-			utils.LogError("Error validating default namespace:", err)
+			log.Error().Msgf("Error validating default namespace; %v", err)
 			return result, err
 		}
 
 		// get the ant default mci
 		antMci, err := l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, recommendVmConnName)
 		if err != nil {
-			utils.LogError("Error getting or creating default mci:", err)
+			log.Error().Msgf("Error getting or creating default mci; %v", err)
 			return result, err
 		}
 
 		// if server is not running state, try to resume and get mci information
 		retryCount := config.AppConfig.Load.Retry
 		for retryCount > 0 && antMci.StatusCount.CountRunning < 1 {
-			utils.LogInfof("Attempting to resume MCI, retry count: %d", retryCount)
+			log.Info().Msgf("Attempting to resume MCI, retry count: %d", retryCount)
 
 			err = l.tumblebugClient.ControlLifecycleWithContext(ctx, antNsId, antMci.Id, "resume")
 			if err != nil {
-				utils.LogError("Error resuming MCI:", err)
+				log.Error().Msgf("Error resuming MCI; %v", err)
 				return result, err
 			}
 			time.Sleep(defaultDelay)
 			antMci, err = l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, recommendVmConnName)
 			if err != nil {
-				utils.LogError("Error getting MCI after resume attempt:", err)
+				log.Error().Msgf("Error getting MCI after resume attempt; %v", err)
 				return result, err
 			}
 
@@ -152,19 +152,19 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		}
 
 		if antMci.StatusCount.CountRunning < 1 {
-			utils.LogError("No running VM on ant default MCI")
+			log.Error().Msg("No running VM on ant default MCI")
 			return result, errors.New("there is no running vm on ant default mci")
 		}
 
 		addAuthorizedKeyCommand, err := getAddAuthorizedKeyCommand(antPrivKeyName, antPubKeyName)
 		if err != nil {
-			utils.LogError("Error getting add authorized key command:", err)
+			log.Error().Msgf("Error getting add authorized key command; %v", err)
 			return result, err
 		}
 
 		installationCommand, err := utils.ReadToString(installScriptPath)
 		if err != nil {
-			utils.LogError("Error reading installation script:", err)
+			log.Error().Msgf("Error reading installation script; %v", err)
 			return result, err
 		}
 
@@ -174,11 +174,11 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 
 		_, err = l.tumblebugClient.CommandToMciWithContext(ctx, antNsId, antMci.Id, commandReq)
 		if err != nil {
-			utils.LogError("Error sending command to MCI:", err)
+			log.Error().Msgf("Error sending command to MCI; %v", err)
 			return result, err
 		}
 
-		utils.LogInfo("Commands sent to MCI successfully")
+		log.Info().Msg("Commands sent to MCI successfully")
 
 		marking := make(map[string]LoadGeneratorServer)
 		deleteChecker := make(map[uint]bool)
@@ -260,7 +260,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		if len(deleteList) > 0 {
 			err = l.loadRepo.DeleteLoadGeneratorServerTx(ctx, deleteList)
 			if err != nil {
-				utils.LogError("Error delete load generator list:", err)
+				log.Error().Msgf("Error delete load generator list; %s", err)
 				return result, err
 			}
 		}
@@ -273,11 +273,11 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 	loadGeneratorInstallInfo.Status = "installed"
 	err = l.loadRepo.UpdateLoadGeneratorInstallInfoTx(ctx, loadGeneratorInstallInfo)
 	if err != nil {
-		utils.LogError("Error updating LoadGeneratorInstallInfo after installed:", err)
+		log.Error().Msgf("Error updating LoadGeneratorInstallInfo after installed; %v", err)
 		return result, err
 	}
 
-	utils.LogInfo("LoadGeneratorInstallInfo updated successfully")
+	log.Info().Msg("LoadGeneratorInstallInfo updated successfully")
 
 	loadGeneratorServerResults := make([]LoadGeneratorServerResult, 0)
 	for _, l := range loadGeneratorInstallInfo.LoadGeneratorServers {
@@ -317,7 +317,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 	result.UpdatedAt = loadGeneratorInstallInfo.UpdatedAt
 	result.LoadGeneratorServers = loadGeneratorServerResults
 
-	utils.LogInfo("InstallLoadGenerator completed successfully")
+	log.Info().Msg("InstallLoadGenerator completed successfully")
 
 	return result, nil
 }
@@ -480,10 +480,10 @@ func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) 
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			utils.LogError("Cannot find valid load generator install info:", err)
+			log.Error().Msgf("Cannot find valid load generator install info; %v", err)
 			return errors.New("cannot find valid load generator install info")
 		}
-		utils.LogError("Error retrieving load generator install info:", err)
+		log.Error().Msgf("Error retrieving load generator install info; %v", err)
 		return err
 	}
 
@@ -496,14 +496,14 @@ func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) 
 			fmt.Sprintf("JMETER_VERSION=%s", config.AppConfig.Load.JMeter.Version),
 		})
 		if err != nil {
-			utils.LogErrorf("Error while uninstalling load generator: %s", err)
+			log.Error().Msgf("Error while uninstalling load generator; %s", err)
 			return fmt.Errorf("error while uninstalling load generator: %s", err)
 		}
 	case constant.Remote:
 
 		uninstallCommand, err := utils.ReadToString(uninstallScriptPath)
 		if err != nil {
-			utils.LogError("Error reading uninstall script:", err)
+			log.Error().Msgf("Error reading uninstall script; %v", err)
 			return err
 		}
 
@@ -514,10 +514,10 @@ func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) 
 		_, err = l.tumblebugClient.CommandToMciWithContext(ctx, antNsId, antMciId, commandReq)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
-				utils.LogError("VM is not in running state. Cannot connect to the VMs.")
+				log.Error().Msg("VM is not in running state. Cannot connect to the VMs.")
 				return errors.New("vm is not running state. cannot connect to the vms")
 			}
-			utils.LogError("Error sending uninstall command to MCI:", err)
+			log.Error().Msgf("Error sending uninstall command to MCI; %v", err)
 			return err
 		}
 
@@ -534,11 +534,11 @@ func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) 
 
 	err = l.loadRepo.UpdateLoadGeneratorInstallInfoTx(ctx, &loadGeneratorInstallInfo)
 	if err != nil {
-		utils.LogError("Error updating load generator install info:", err)
+		log.Error().Msgf("Error updating load generator install info; %v", err)
 		return err
 	}
 
-	utils.LogInfo("Successfully uninstalled load generator.")
+	log.Info().Msg("Successfully uninstalled load generator.")
 	return nil
 }
 
@@ -551,7 +551,7 @@ func (l *LoadService) GetAllLoadGeneratorInstallInfo(param GetAllLoadGeneratorIn
 	pagedResult, totalRows, err := l.loadRepo.GetPagingLoadGeneratorInstallInfosTx(ctx, param)
 
 	if err != nil {
-		utils.LogError("Error fetching paged load generator install infos:", err)
+		log.Error().Msgf("Error fetching paged load generator install infos; %v", err)
 		return result, err
 	}
 
@@ -600,7 +600,7 @@ func (l *LoadService) GetAllLoadGeneratorInstallInfo(param GetAllLoadGeneratorIn
 
 	result.LoadGeneratorInstallInfoResults = infos
 	result.TotalRows = totalRows
-	utils.LogInfof("Fetched %d load generator install info results.", len(infos))
+	log.Info().Msgf("Fetched %d load generator install info results. length: %d", len(infos))
 
 	return result, nil
 }

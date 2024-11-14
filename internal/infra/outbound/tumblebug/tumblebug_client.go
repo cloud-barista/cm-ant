@@ -7,12 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
 	"github.com/cloud-barista/cm-ant/internal/config"
-	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -58,7 +57,7 @@ func (t *TumblebugClient) withUrl(endpoint string) string {
 func (t *TumblebugClient) requestWithContext(ctx context.Context, method, url string, body []byte, header map[string]string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
 	if err != nil {
-		log.Printf("[ERROR] Failed to create request with context: %v", err)
+		log.Error().Msgf("failed to create request with context: %v", err)
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
@@ -67,17 +66,17 @@ func (t *TumblebugClient) requestWithContext(ctx context.Context, method, url st
 		req.Header.Add(k, v)
 	}
 
-	utils.LogInfof("Sending request to client with endpoint [%s - %s]\n", method, url)
+	log.Info().Msgf("Sending request to client with endpoint [%s - %s]", method, url)
 	resp, err := t.client.Do(req)
 	if err != nil {
-		log.Printf("[ERROR] Failed to send request: %v", err)
+		log.Error().Msgf("failed to send request: %v", err)
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusBadRequest {
 		rb, _ := io.ReadAll(resp.Body)
-		log.Printf("[ERROR] Unexpected status code: %d, response: %s", resp.StatusCode, string(rb))
+		log.Error().Msgf("unexpected status code: %d, response: %s", resp.StatusCode, string(rb))
 
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, ErrNotFound
@@ -92,11 +91,11 @@ func (t *TumblebugClient) requestWithContext(ctx context.Context, method, url st
 
 	rb, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("[ERROR] Failed to read response body: %v", err)
+		log.Error().Msgf("failed to read response body: %v", err)
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	utils.LogInfo("Request with context completed successfully.")
+	log.Info().Msg("Request with context completed successfully.")
 	return rb, nil
 }
 
@@ -110,7 +109,7 @@ func (t *TumblebugClient) ReadyzWithContext(ctx context.Context) error {
 	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
-		utils.LogError("error sending tumblebug readyz request:", err)
+		log.Error().Msgf("error sending tumblebug readyz request; %v", err)
 		return err
 	}
 
