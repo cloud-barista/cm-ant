@@ -54,6 +54,8 @@ func (server *AntServer) InitRouter() error {
 				// load test result
 				loadTestRouter.GET("/result", server.getLoadTestResult)
 				loadTestRouter.GET("/result/metrics", server.getLoadTestMetrics)
+				loadTestRouter.GET("/result/last", server.getLastLoadTestResult)
+				loadTestRouter.GET("/result/metrics/last", server.getLastLoadTestMetrics)
 			}
 		}
 	}

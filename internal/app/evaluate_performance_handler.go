@@ -703,3 +703,91 @@ func (s *AntServer) uninstallMonitoringAgent(c echo.Context) error {
 		affectedResults,
 	)
 }
+
+// getLastLoadTestResult handler function that retrieves a specific load test result.
+// @Id GetLastLoadTestResult
+// @Summary Get last load test result by ns, mci, vm
+// @Description Retrieve last load test result based on provided parameters.
+// @Tags [Load Test Result]
+// @Accept json
+// @Produce json
+// @Param nsId query string true "ns id"
+// @Param mciId query string true "mci id"
+// @Param vmId query string true "vm id"
+// @Param format query string false "Result format (normal or aggregate)"
+// @Success 200 {object} app.JsonResult{[normal]=app.AntResponse[[]load.ResultSummary],[aggregate]=app.AntResponse[[]load.LoadTestStatistics]} "Successfully retrieved load test metrics"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test result"
+// @Router /api/v1/load/tests/result/last [get]
+func (s *AntServer) getLastLoadTestResult(c echo.Context) error {
+	var req GetLastLoadTestResultReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
+	}
+
+	if strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.MciId) == "" || strings.TrimSpace(req.VmId) == "" {
+		return errorResponseJson(http.StatusBadRequest, "pass correct nsId / mciId / vmId")
+	}
+
+	if req.Format == "" {
+		req.Format = constant.Normal
+	} else if req.Format != constant.Normal && req.Format != constant.Aggregate {
+		req.Format = constant.Normal
+	}
+
+	arg := load.GetLastLoadTestResultParam{
+		NsId:   req.NsId,
+		MciId:  req.MciId,
+		VmId:   req.VmId,
+		Format: req.Format,
+	}
+
+	result, err := s.services.loadService.GetLastLoadTestResult(arg)
+
+	if err != nil {
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve load test result")
+	}
+
+	return successResponseJson(c, "Successfully retrieved load test result", result)
+}
+
+// getLastLoadTestMetrics handler function that retrieves metrics for a specific load test.
+// @Id GetLastLoadTestMetrics
+// @Summary Get last load test metrics by ns, mci, vm
+// @Description Retrieve last load test metrics based on provided parameters.
+// @Tags [Load Test Result]
+// @Accept json
+// @Produce json
+// @Param nsId query string true "ns id"
+// @Param mciId query string true "mci id"
+// @Param vmId query string true "vm id"
+// @Param format query string false "Result format (normal for the moment)"
+// @success 200 {object} app.AntResponse[[]load.MetricsSummary] "Successfully retrieved load test metrics"
+// @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
+// @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test metrics"
+// @Router /api/v1/load/tests/result/metrics/last [get]
+func (s *AntServer) getLastLoadTestMetrics(c echo.Context) error {
+	var req GetLastLoadTestResultReq
+	if err := c.Bind(&req); err != nil {
+		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
+	}
+
+	if strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.MciId) == "" || strings.TrimSpace(req.VmId) == "" {
+		return errorResponseJson(http.StatusBadRequest, "pass correct nsId / mciId / vmId")
+	}
+
+	arg := load.GetLastLoadTestResultParam{
+		NsId:   req.NsId,
+		MciId:  req.MciId,
+		VmId:   req.VmId,
+		Format: constant.Normal,
+	}
+
+	result, err := s.services.loadService.GetLastLoadTestMetrics(arg)
+
+	if err != nil {
+		return errorResponseJson(http.StatusInternalServerError, "Failed to retrieve load test metrics")
+	}
+
+	return successResponseJson(c, "Successfully retrieved load test metrics", result)
+}

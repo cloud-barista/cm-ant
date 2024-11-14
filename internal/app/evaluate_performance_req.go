@@ -90,3 +90,10 @@ type GetLoadTestResultReq struct {
 	LoadTestKey string                `query:"loadTestKey"`
 	Format      constant.ResultFormat `query:"format"`
 }
+
+type GetLastLoadTestResultReq struct {
+	NsId   string                `query:"nsId"`
+	MciId  string                `query:"mciId"`
+	VmId   string                `query:"vmId"`
+	Format constant.ResultFormat `query:"format"`
+}

@@ -1,9 +1,9 @@
 package load
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"sort"
 	"strconv"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/utils"
+	"github.com/rs/zerolog/log"
 )
 
 type metricsUnits struct {
@@ -133,6 +134,105 @@ func (l *LoadService) GetLoadTestMetrics(param GetLoadTestResultParam) ([]Metric
 	return metricsSummaries, nil
 }
 
+func (l *LoadService) GetLastLoadTestResult(param GetLastLoadTestResultParam) (interface{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	stateQueryParam := GetLoadTestExecutionStateParam{
+		NsId:  param.NsId,
+		MciId: param.MciId,
+		VmId:  param.VmId,
+	}
+	state, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, stateQueryParam)
+
+	if err != nil {
+		utils.LogErrorf("Error fetching load test execution state infos: %v", err)
+		return nil, err
+	}
+
+	loadTestKey := state.LoadTestKey
+	fileName := fmt.Sprintf("%s_result.csv", loadTestKey)
+	resultFolderPath := utils.JoinRootPathWith("/result/" + loadTestKey)
+	toFilePath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+	resultMap, err := appendResultRawData(toFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var resultSummaries []ResultSummary
+
+	for label, results := range resultMap {
+		resultSummaries = append(resultSummaries, ResultSummary{
+			Label:   label,
+			Results: results,
+		})
+	}
+
+	formattedDate, err := resultFormat(param.Format, resultSummaries)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return formattedDate, nil
+}
+
+func (l *LoadService) GetLastLoadTestMetrics(param GetLastLoadTestResultParam) ([]MetricsSummary, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	stateQueryParam := GetLoadTestExecutionStateParam{
+		NsId:  param.NsId,
+		MciId: param.MciId,
+		VmId:  param.VmId,
+	}
+
+	state, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, stateQueryParam)
+
+	if err != nil {
+		utils.LogErrorf("Error fetching load test execution state infos: %v", err)
+		return nil, err
+	}
+
+	loadTestKey := state.LoadTestKey
+
+	if !state.WithMetrics {
+		log.Error().Msgf("%s does not contain metrics collection", loadTestKey)
+		return nil, errors.New("metrics does not collected while performance evaluation")
+	}
+
+	metrics := []string{"cpu", "disk", "memory", "network"}
+	resultFolderPath := utils.JoinRootPathWith("/result/" + loadTestKey)
+
+	metricsMap := make(map[string][]*MetricsRawData)
+
+	for _, v := range metrics {
+
+		fileName := fmt.Sprintf("%s_%s_result.csv", loadTestKey, v)
+		toPath := fmt.Sprintf("%s/%s", resultFolderPath, fileName)
+
+		metricsMap, err = appendMetricsRawData(metricsMap, toPath)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
+	var metricsSummaries []MetricsSummary
+
+	for label, metrics := range metricsMap {
+		metricsSummaries = append(metricsSummaries, MetricsSummary{
+			Label:   label,
+			Metrics: metrics,
+		})
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return metricsSummaries, nil
+}
 func calculatePercentile(elapsedList []int, percentile float64) float64 {
 	index := int(math.Ceil(float64(len(elapsedList))*percentile)) - 1
 

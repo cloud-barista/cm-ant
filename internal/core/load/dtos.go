@@ -149,8 +149,8 @@ type LoadTestExecutionStateResult struct {
 	ExecutionStatus             constant.ExecutionStatus       `json:"executionStatus,omitempty"`
 	StartAt                     time.Time                      `json:"startAt,omitempty"`
 	FinishAt                    *time.Time                     `json:"finishAt,omitempty"`
-	ExpectedFinishAt            time.Time                     `json:"expectedFinishAt,omitempty"`
-	IconCode 					constant.IconCode			   `json:"iconCode"`
+	ExpectedFinishAt            time.Time                      `json:"expectedFinishAt,omitempty"`
+	IconCode                    constant.IconCode              `json:"iconCode"`
 	TotalExpectedExcutionSecond uint64                         `json:"totalExpectedExecutionSecond,omitempty"`
 	FailureMessage              string                         `json:"failureMessage,omitempty"`
 	CompileDuration             string                         `json:"compileDuration,omitempty"`
@@ -263,4 +263,11 @@ type LoadTestStatistics struct {
 type GetLoadTestResultParam struct {
 	LoadTestKey string
 	Format      constant.ResultFormat
+}
+
+type GetLastLoadTestResultParam struct {
+	NsId   string
+	MciId  string
+	VmId   string
+	Format constant.ResultFormat
 }
