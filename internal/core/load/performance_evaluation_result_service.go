@@ -81,10 +81,10 @@ func (l *LoadService) GetLoadTestResult(param GetLoadTestResultParam) (interface
 		return nil, err
 	}
 
-	var resultSummaries []ResultSummary
+	var resultSummaries []*ResultSummary
 
 	for label, results := range resultMap {
-		resultSummaries = append(resultSummaries, ResultSummary{
+		resultSummaries = append(resultSummaries, &ResultSummary{
 			Label:   label,
 			Results: results,
 		})
@@ -159,10 +159,10 @@ func (l *LoadService) GetLastLoadTestResult(param GetLastLoadTestResultParam) (i
 		return nil, err
 	}
 
-	var resultSummaries []ResultSummary
+	var resultSummaries []*ResultSummary
 
 	for label, results := range resultMap {
-		resultSummaries = append(resultSummaries, ResultSummary{
+		resultSummaries = append(resultSummaries, &ResultSummary{
 			Label:   label,
 			Results: results,
 		})
@@ -360,6 +360,71 @@ func appendResultRawData(filePath string) (map[string][]*ResultRawData, error) {
 	return resultMap, nil
 }
 
+func SampleDataByTimeInterval(data []*ResultRawData, intervalMs int) []*ResultRawData {
+	if len(data) == 0 {
+		return nil
+	}
+
+	sort.Slice(data, func(i, j int) bool {
+		return data[i].Timestamp.Before(data[j].Timestamp)
+	})
+
+	var sampledData []*ResultRawData
+	startTime := data[0].Timestamp
+	var currentInterval []*ResultRawData
+
+	for _, record := range data {
+		elapsedTime := record.Timestamp.Sub(startTime).Milliseconds()
+		if elapsedTime < int64(intervalMs) {
+			currentInterval = append(currentInterval, record)
+		} else {
+			if len(currentInterval) > 0 {
+				sampledData = append(sampledData, calculateRepresentative(currentInterval))
+			}
+			startTime = record.Timestamp
+			currentInterval = []*ResultRawData{record}
+		}
+	}
+
+	if len(currentInterval) > 0 {
+		sampledData = append(sampledData, calculateRepresentative(currentInterval))
+	}
+
+	return sampledData
+}
+
+func calculateRepresentative(data []*ResultRawData) *ResultRawData {
+	if len(data) == 0 {
+		return nil
+	}
+
+	var totalElapsed int
+	for _, record := range data {
+		totalElapsed += record.Elapsed
+	}
+	avgElapsed := totalElapsed / len(data)
+
+	// Find the record closest to the average elapsed time
+	var closestRecord *ResultRawData
+	minDiff := int(^uint(0) >> 1) // Max int value
+	for _, record := range data {
+		diff := abs(record.Elapsed - avgElapsed)
+		if diff < minDiff {
+			minDiff = diff
+			closestRecord = record
+		}
+	}
+
+	return closestRecord
+}
+
+func abs(a int) int {
+	if a < 0 {
+		return -a
+	}
+	return a
+}
+
 func appendMetricsRawData(mrds map[string][]*MetricsRawData, filePath string) (map[string][]*MetricsRawData, error) {
 	csvRows, err := utils.ReadCSV(filePath)
 	if err != nil || csvRows == nil {
@@ -420,15 +485,29 @@ func appendMetricsRawData(mrds map[string][]*MetricsRawData, filePath string) (m
 		}
 	}
 
+	for _, vals := range mrds {
+		if len(vals) > 0 {
+			sort.Slice(vals, func(i, j int) bool {
+				return vals[i].Timestamp.Before(vals[j].Timestamp)
+			})
+		}
+	}
+
 	return mrds, nil
 }
 
-func aggregate(resultRawDatas []ResultSummary) []*LoadTestStatistics {
+func aggregate(resultRawDatas []*ResultSummary) []*LoadTestStatistics {
 	var statistics []*LoadTestStatistics
 
 	for i := range resultRawDatas {
 
 		record := resultRawDatas[i]
+
+		if record == nil {
+			log.Warn().Msgf("record must not be nil; %d", i)
+			continue
+		}
+
 		var requestCount, totalElapsed, totalBytes, totalSentBytes, errorCount int
 		var elapsedList []int
 		if len(record.Results) < 1 {
@@ -500,7 +579,7 @@ func aggregate(resultRawDatas []ResultSummary) []*LoadTestStatistics {
 	return statistics
 }
 
-func resultFormat(format constant.ResultFormat, resultSummaries []ResultSummary) (any, error) {
+func resultFormat(format constant.ResultFormat, resultSummaries []*ResultSummary) (any, error) {
 	if resultSummaries == nil {
 		return nil, nil
 	}
@@ -508,6 +587,15 @@ func resultFormat(format constant.ResultFormat, resultSummaries []ResultSummary)
 	switch format {
 	case constant.Aggregate:
 		return aggregate(resultSummaries), nil
+	case constant.Normal:
+
+		for i := range resultSummaries {
+			rs := resultSummaries[i]
+			if len(rs.Results) > 0 {
+				rs.Results = SampleDataByTimeInterval(rs.Results, 100)
+			}
+		}
+
 	}
 
 	return resultSummaries, nil

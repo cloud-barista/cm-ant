@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/csv"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -59,21 +58,10 @@ func ReadCSV(filename string) (*[][]string, error) {
 	defer file.Close()
 
 	reader := csv.NewReader(file)
-
-	var parsedCsv [][]string
-	for {
-		line, err := reader.Read()
-
-		if err != nil {
-			if err == io.EOF {
-				return &parsedCsv, nil
-			}
-
-			log.Error().Msgf("failed to read csv file from path %s; %v", filename, err)
-			break
-		}
-
-		parsedCsv = append(parsedCsv, line)
+	parsedCsv, err := reader.ReadAll()
+	if err != nil {
+		log.Printf("Failed to read CSV file from path %s; %v", filename, err)
+		return nil, err
 	}
 
 	return &parsedCsv, nil
