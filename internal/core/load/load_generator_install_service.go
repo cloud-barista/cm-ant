@@ -600,7 +600,7 @@ func (l *LoadService) GetAllLoadGeneratorInstallInfo(param GetAllLoadGeneratorIn
 
 	result.LoadGeneratorInstallInfoResults = infos
 	result.TotalRows = totalRows
-	log.Info().Msgf("Fetched %d load generator install info results. length: %d", len(infos))
+	log.Info().Msgf("Fetched %d load generator install info results.", len(infos))
 
 	return result, nil
 }
