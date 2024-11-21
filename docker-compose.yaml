@@ -44,14 +44,14 @@ services:
       - cm-ant-net
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "cm-ant-user", "-d", "cm-ant-db" ]
-      interval: 30s
+      interval: 1m
       timeout: 5s
       retries: 5
       start_period: 10s
     restart: unless-stopped
 
   cb-tumblebug:
-    image: cloudbaristaorg/cb-tumblebug:0.9.21
+    image: cloudbaristaorg/cb-tumblebug:0.10.0
     container_name: cb-tumblebug
     platform: linux/amd64
     ports:
@@ -148,7 +148,7 @@ services:
     restart: unless-stopped
 
   cb-spider:
-    image: cloudbaristaorg/cb-spider:0.9.8
+    image: cloudbaristaorg/cb-spider:0.10.0
     container_name: cb-spider 
     platform: linux/amd64
     networks:
