@@ -59,8 +59,8 @@ These functionalities are integrated with other subsystems, namely `CB-Tumblebug
 - Container: Docker 25.0.0
 
 ### Subsystem Dependency
-- CB-Spider : v0.9.0 <- **cost explorer anycall handler not yet implemented version.**
-- CB-Tumblebug : v0.9.7
+- CB-Spider : v0.10.0
+- CB-Tumblebug : v0.10.0
 
 ---
 
@@ -108,13 +108,13 @@ Follow the guide for initializing CB-Tumblebug to configure multi-cloud informat
 ### Pre-Configuration for Performance Evaluation ⭐⭐
 To correctly use the performance evaluation features provided by CM-ANT, the following steps are required:
 
-- Register appropriate permissions for VM provisioning with the registered credentials. [TBD]
+- Register appropriate permissions for VM provisioning with the registered credentials.
 
 ### Pre-Configuration for Price and Cost Features ⭐⭐
 To correctly use the  price and cost features provided by CM-ANT, the following steps are required:
 
 - Enable AWS Cost Explorer and set up daily granularity resource-level data.
-- Register appropriate permissions for price and cost retrieval with the registered credentials. [TBD]
+- Register appropriate permissions for price and cost retrieval with the registered credentials.
 
 
 
@@ -137,7 +137,7 @@ To correctly use the  price and cost features provided by CM-ANT, the following 
 
 ## How to Use 🔍
 #### 👉 [CM-ANT Swagger API Doc](https://cloud-barista.github.io/api/?url=https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.yaml)
-[TBD]
+#### 👉 [Simple and Sample guide](https://github.com/cloud-barista/cm-ant/wiki/CM%E2%80%90ANT-Simple--&-Sample-API-Usage-guide)
 
 
 
