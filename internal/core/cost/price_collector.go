@@ -20,6 +20,11 @@ type PriceCollector interface {
 	FetchPriceInfos(context.Context, RecommendSpecParam) (EstimateCostInfos, error)
 }
 
+const (
+	productFamily    = "ComputeInstance"
+	ncpProductFamily = "Server"
+)
+
 var (
 	onDemandPricingPolicyMap = map[string]string{
 		"aws":     "OnDemand",
@@ -85,8 +90,13 @@ func (s *SpiderPriceCollector) FetchPriceInfos(ctx context.Context, param Recomm
 		ConnectionName: connectionName,
 		FilterList:     s.generateFilter(param),
 	}
+	pf := productFamily
 
-	result, err := s.sc.GetPriceInfoWithContext(ctx, param.RegionName, req)
+	if strings.Contains(strings.ToLower(param.ProviderName), "ncp") {
+		pf = ncpProductFamily
+	}
+
+	result, err := s.sc.GetPriceInfoWithContext(ctx, pf, param.RegionName, req)
 
 	if err != nil {
 
