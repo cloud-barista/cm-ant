@@ -10,15 +10,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	productFamily = "ComputeInstance"
-)
-
-func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, regionName string, body PriceInfoReq) (CloudPriceDataRes, error) {
+func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, pf, regionName string, body PriceInfoReq) (CloudPriceDataRes, error) {
 
 	var cloudPriceData CloudPriceDataRes
 
-	url := s.withUrl(fmt.Sprintf("/priceinfo/%s/%s", productFamily, regionName))
+	url := s.withUrl(fmt.Sprintf("/priceinfo/%s/%s", pf, regionName))
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
