@@ -123,6 +123,9 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 						possibleFetch = false
 					}
 				}
+			} else if strings.Contains(p.ProviderName, "ncp") {
+				log.Warn().Msgf("%s provider's cost is bypassing", p.ProviderName)
+				return
 			} else {
 				estimateCostInfos, err = c.costRepo.GetMatchingEstimateCostTx(ctx, p, param.TimeStandard, param.PricePolicy)
 			}
