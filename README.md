@@ -60,7 +60,7 @@ These functionalities are integrated with other subsystems, namely `CB-Tumblebug
 
 ### Subsystem Dependency
 - CB-Spider : v0.10.0
-- CB-Tumblebug : v0.10.0
+- CB-Tumblebug : v0.10.3
 
 ---
 
