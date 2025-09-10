@@ -6,6 +6,10 @@ type ProductfamilyRes struct {
 type CloudPriceDataRes struct {
 	Meta           MetaRes         `json:"meta"`
 	CloudPriceList []CloudPriceRes `json:"cloudPriceList"`
+	// Support v0.11.5 API response structure (PriceInfoResponse structure)
+	CloudName  string     `json:"CloudName,omitempty"`
+	RegionName string     `json:"RegionName,omitempty"`
+	PriceList  []PriceRes `json:"PriceList,omitempty"`
 }
 
 type MetaRes struct {
@@ -19,8 +23,9 @@ type CloudPriceRes struct {
 }
 
 type PriceRes struct {
-	ProductInfo ProductInfoRes `json:"productInfo"`
-	PriceInfo   PriceInfoRes   `json:"priceInfo"`
+	ProductInfo ProductInfoRes `json:"ProductInfo"`
+	PriceInfo   PriceInfoRes   `json:"PriceInfo"`
+	ZoneName    string         `json:"ZoneName,omitempty"`
 }
 
 type ProductInfoRes struct {
@@ -28,7 +33,7 @@ type ProductInfoRes struct {
 	RegionName string `json:"regionName"`
 	ZoneName   string `json:"zoneName"`
 
-	//--------- Compute Instance
+	//--------- Compute Instance (v0.10.0 structure)
 	InstanceType    string `json:"instanceType,omitempty"`
 	Vcpu            string `json:"vcpu,omitempty"`
 	Memory          string `json:"memory,omitempty"`
@@ -39,6 +44,12 @@ type ProductInfoRes struct {
 	PreInstalledSw  string `json:"preInstalledSw,omitempty"`
 	//--------- Compute Instance
 
+	//--------- v0.11.5 new structure (exact field names)
+	VMSpecInfo     *VMSpecInfoRes `json:"VMSpecInfo,omitempty"`
+	Description    string         `json:"Description,omitempty"`
+	CSPProductInfo interface{}    `json:"CSPProductInfo,omitempty"`
+	//--------- v0.11.5 new structure
+
 	//--------- Storage  // Data-Disk(AWS:EBS)
 	VolumeType          string `json:"volumeType,omitempty"`
 	StorageMedia        string `json:"storageMedia,omitempty"`
@@ -46,9 +57,19 @@ type ProductInfoRes struct {
 	MaxIOPSVolume       string `json:"maxIopsvolume,omitempty"`
 	MaxThroughputVolume string `json:"maxThroughputvolume,omitempty"`
 	//--------- Storage  // Data-Disk(AWS:EBS)
+}
 
-	Description    string      `json:"description"`
-	CSPProductInfo interface{} `json:"cspProductInfo"`
+type VMSpecInfoRes struct {
+	Region     string  `json:"Region"`
+	Name       string  `json:"Name"`
+	VCpu       VCpuRes `json:"VCpu"`
+	MemSizeMiB string  `json:"MemSizeMiB"`
+	DiskSizeGB string  `json:"DiskSizeGB"`
+}
+
+type VCpuRes struct {
+	Count    string `json:"Count"`
+	ClockGHz string `json:"ClockGHz"`
 }
 
 type PriceInfoRes struct {

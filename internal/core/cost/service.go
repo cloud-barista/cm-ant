@@ -60,6 +60,9 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
+	// Set TimeStandard to far past to include all data
+	param.TimeStandard = time.Now().AddDate(0, 0, -365).Truncate(24 * time.Hour) // Set to 1 year ago
+
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var results []EsimateCostSpecResults
@@ -234,11 +237,15 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 }
 
 func (c *CostService) GetEstimateCost(param GetEstimateCostParam) (EstimateCostInfoResults, error) {
+	log.Info().Msgf("=== GetEstimateCost START ===")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	param.TimeStandard = time.Now().AddDate(0, 0, -7).Truncate(24 * time.Hour)
+	// Set TimeStandard to far past to include all data
+	param.TimeStandard = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC) // Set to year 2000
 	param.PricePolicy = constant.OnDemand
+
+	log.Info().Msgf("GetEstimateCost called with TimeStandard: %s", param.TimeStandard)
 
 	var res EstimateCostInfoResults
 
