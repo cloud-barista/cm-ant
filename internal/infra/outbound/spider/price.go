@@ -14,9 +14,23 @@ func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, pf, regionNa
 
 	var cloudPriceData CloudPriceDataRes
 
-	url := s.withUrl(fmt.Sprintf("/priceinfo/%s/%s", pf, regionName))
+	// Change URL to match v0.11.5 API: /priceinfo/{productFamily}/{regionName} -> /priceinfo/vm/{regionName}
+	url := s.withUrl(fmt.Sprintf("/priceinfo/vm/%s", regionName))
 
-	marshalledBody, err := json.Marshal(body)
+	// Add productFamily to FilterList (create copy to avoid modifying original body)
+	requestBody := body
+	if pf != "" {
+		requestBody.FilterList = append(requestBody.FilterList, FilterReq{
+			Key:   "productFamily",
+			Value: pf,
+		})
+		log.Info().Msgf("Added productFamily to FilterList: %s", pf)
+	}
+
+	log.Info().Msgf("CB-Spider API URL: %s", url)
+	log.Info().Msgf("Request body: %+v", requestBody)
+
+	marshalledBody, err := json.Marshal(requestBody)
 	if err != nil {
 		log.Error().Msgf("marshalling body error; %v", err)
 		return cloudPriceData, err
@@ -36,6 +50,11 @@ func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, pf, regionNa
 		log.Error().Msgf("error unmarshaling response body; %v", err)
 		return cloudPriceData, fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
+
+	// Add logs for CB-Spider response debugging
+	log.Info().Msgf("CB-Spider response length: %d bytes", len(resBytes))
+	log.Info().Msgf("CB-Spider response: %s", string(resBytes))
+	log.Info().Msgf("Parsed CloudPriceList count: %d", len(cloudPriceData.CloudPriceList))
 
 	return cloudPriceData, nil
 }

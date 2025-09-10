@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
+	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type CostRepository struct {
@@ -42,15 +44,19 @@ func (r *CostRepository) GetMatchingEstimateCostInfosTx(ctx context.Context, par
 	var priceInfoList []*EstimateCostInfo
 	var totalRows int64
 
+	// Add debug logs
+	log.Info().Msgf("GetMatchingEstimateCostInfosTx - ProviderName: %s, RegionName: %s, InstanceType: %s, TimeStandard: %s",
+		param.ProviderName, param.RegionName, param.InstanceType, param.TimeStandard)
+
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		q := d.Model(&EstimateCostInfo{}).
 			Where(
-				"price_policy = ? AND updated_at >= ?",
-				param.PricePolicy, param.TimeStandard,
+				"price_policy = ?",
+				param.PricePolicy,
 			).
-			Order("calculated_monthly_price asc").
-			Limit(8)
+			Order("calculated_monthly_price asc")
 
+		// Add conditions one by one for testing
 		if param.ProviderName != "" {
 			q = q.Where("LOWER(provider_name) = ?", strings.ToLower(param.ProviderName))
 		}
@@ -63,21 +69,27 @@ func (r *CostRepository) GetMatchingEstimateCostInfosTx(ctx context.Context, par
 			q = q.Where("LOWER(instance_type) = ?", strings.ToLower(param.InstanceType))
 		}
 
-		if param.VCpu != "" {
-			q = q.Where("LOWER(v_cpu) = ?", strings.ToLower(param.VCpu))
-		}
+		// Exclude VCpu, Memory, OsType for now and test
+		// if param.VCpu != "" {
+		// 	q = q.Where("LOWER(v_cpu) = ?", strings.ToLower(param.VCpu))
+		// }
 
-		if param.Memory != "" {
-			q = q.Where("LOWER(memory) = ?", strings.ToLower(param.Memory))
-		}
+		// if param.Memory != "" {
+		// 	q = q.Where("LOWER(memory) = ?", strings.ToLower(param.Memory))
+		// }
 
-		if param.OsType != "" {
-			q = q.Where("LOWER(os_type) = ?", strings.ToLower(param.OsType))
-		}
+		// if param.OsType != "" {
+		// 	q = q.Where("LOWER(os_type) = ?", strings.ToLower(param.OsType))
+		// }
+
+		// Enable GORM logging for SQL query logging
+		q = q.Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Info)})
 
 		if err := q.Count(&totalRows).Error; err != nil {
 			return err
 		}
+
+		log.Info().Msgf("DB query result count: %d", totalRows)
 
 		offset := (param.Page - 1) * param.Size
 		q = q.Offset(offset).
@@ -86,6 +98,8 @@ func (r *CostRepository) GetMatchingEstimateCostInfosTx(ctx context.Context, par
 		if err := q.Find(&priceInfoList).Error; err != nil {
 			return err
 		}
+
+		log.Info().Msgf("Found %d price info records", len(priceInfoList))
 
 		return nil
 	})
@@ -163,7 +177,7 @@ func (r *CostRepository) BatchInsertAllEstimateCostResultTx(ctx context.Context,
 		for i := 0; i < len(created); i += batchSize {
 			end := i + batchSize
 			if end > len(created) {
-				end = len(created) // 데이터의 끝을 넘어가지 않도록 조정
+				end = len(created) // Adjust to not exceed the end of data
 			}
 
 			batch := created[i:end]
@@ -261,7 +275,6 @@ func (r *CostRepository) GetEstimateForecastCostInfosTx(ctx context.Context, par
 			query = query.Select("provider, resource_type, category, actual_resource_id, unit, DATE_TRUNC('month', start_date) AS date, SUM(cost) AS total_cost").
 				Group("provider, resource_type, category, actual_resource_id, unit, date")
 		}
-
 
 		if err := d.Table("(?) AS sub", query).Count(&totalRows).Error; err != nil {
 			return err

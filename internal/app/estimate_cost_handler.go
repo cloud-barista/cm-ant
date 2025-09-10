@@ -206,6 +206,7 @@ func (server *AntServer) getEstimateCost(c echo.Context) error {
 		OsType:       strings.TrimSpace(req.OsType),
 		Page:         req.Page,
 		Size:         req.Size,
+		// TimeStandard is set in GetEstimateCost function
 	}
 
 	r, err := server.services.costService.GetEstimateCost(arg)
