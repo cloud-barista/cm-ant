@@ -13,23 +13,23 @@ type CreateNamespaceReq struct {
 type MciDynamicReq struct {
 	Description     string              `json:"description"`
 	InstallMonAgent string              `json:"installMonAgent"`
-	Label           string              `json:"label"`
+	Label           map[string]string   `json:"label"` // v0.11.8: string -> map[string]string
 	Name            string              `json:"name"`
 	SystemLabel     string              `json:"systemLabel"`
-	VM              []VirtualMachineReq `json:"vm"`
+	SubGroups       []VirtualMachineReq `json:"subGroups"` // v0.11.8: VM -> SubGroups
 }
 
 type VirtualMachineReq struct {
-	CommonImage    string `json:"commonImage"`
-	CommonSpec     string `json:"commonSpec"`
-	ConnectionName string `json:"connectionName"`
-	Description    string `json:"description"`
-	Label          string `json:"label"`
-	Name           string `json:"name"`
-	RootDiskSize   string `json:"rootDiskSize"`
-	RootDiskType   string `json:"rootDiskType"`
-	SubGroupSize   string `json:"subGroupSize"`
-	VMUserPassword string `json:"vmUserPassword"`
+	ImageId        string            `json:"imageId"` // v0.11.8: commonImage -> imageId
+	SpecId         string            `json:"specId"`  // v0.11.8: commonSpec -> specId
+	ConnectionName string            `json:"connectionName"`
+	Description    string            `json:"description"`
+	Label          map[string]string `json:"label"` // v0.11.8: string -> map[string]string
+	Name           string            `json:"name"`
+	RootDiskSize   string            `json:"rootDiskSize"`
+	RootDiskType   string            `json:"rootDiskType"`
+	SubGroupSize   string            `json:"subGroupSize"`
+	VMUserPassword string            `json:"vmUserPassword"`
 }
 
 type SecurityGroupReq struct {
@@ -129,8 +129,8 @@ type CreateNsReq struct {
 }
 
 type DynamicVmReq struct {
-	CommonImage    string            `json:"commonImage"`
-	CommonSpec     string            `json:"commonSpec"`
+	ImageId        string            `json:"imageId"` // v0.11.8: commonImage -> imageId
+	SpecId         string            `json:"specId"`  // v0.11.8: commonSpec -> specId
 	ConnectionName string            `json:"connectionName"`
 	Description    string            `json:"description"`
 	Label          map[string]string `json:"label"`
@@ -147,5 +147,5 @@ type DynamicMciReq struct {
 	Label           map[string]string `json:"label"`
 	Name            string            `json:"name"`
 	SystemLabel     string            `json:"systemLabel"`
-	VM              []DynamicVmReq    `json:"vm"`
+	SubGroups       []DynamicVmReq    `json:"subGroups"` // v0.11.8: VM -> SubGroups
 }

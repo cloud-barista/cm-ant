@@ -22,9 +22,31 @@ load:
   jmeter:
     dir: "/opt/ant/jmeter"
     version: 5.6
+  image:
+    preferredOs: "ubuntu22.04"  # 선호하는 OS (사용 가능하지 않으면 다른 이미지로 대체)
+    fallbackOs: "ubuntu20.04"   # 대체 OS
+    # AWS 리전별 기본 이미지 목록 (CB-Tumblebug에 이미지가 등록되지 않은 경우 사용)
+    awsImages:
+      "ap-northeast-2": "ami-0c76973fbe0ee100c"  # Ubuntu 22.04 LTS
+      "ap-southeast-1": "ami-0c76973fbe0ee100c"  # Ubuntu 22.04 LTS
+      "us-east-1": "ami-0c76973fbe0ee100c"       # Ubuntu 22.04 LTS
+      "us-west-2": "ami-0c76973fbe0ee100c"       # Ubuntu 22.04 LTS
+  spec:
+    # VM 스펙 요구사항 (Load Generator용)
+    # minVcpu: 2        # 최소 vCPU
+    # maxVcpu: 8        # 최대 vCPU (기존 8에서 2로 변경)
+    # minMemory: 4      # 최소 메모리 (GB)
+    # maxMemory: 8      # 최대 메모리 (GB) (기존 8에서 4로 변경)
+    minVcpu: 1        # 최소 vCPU
+    maxVcpu: 2        # 최대 vCPU (기존 8에서 2로 변경)
+    minMemory: 1      # 최소 메모리 (GB)
+    maxMemory: 4      # 최대 메모리 (GB) (기존 8에서 4로 변경)
+    provider: "aws"   # 클라우드 프로바이더
+    # 아키텍처 제한: x86_64 (ARM64와 호환되지 않는 AMI 사용)
+    architecture: "x86_64"  # x86_64 아키텍처 강제 사용
 
 log:
-  level: info
+  level: debug
 
 database:
   driver: "postgres"

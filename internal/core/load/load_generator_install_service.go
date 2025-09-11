@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/config"
@@ -34,7 +35,6 @@ const (
 	antPrivKeyName = "id_rsa_ant"
 
 	defaultDelay = 20 * time.Second
-	imageOs      = "ubuntu22.04"
 )
 
 // InstallLoadGenerator installs the load generator either locally or remotely.
@@ -110,12 +110,17 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		}
 		antVmCommonSpec := recommendVm[0].Name
 		recommendVmConnName := recommendVm[0].ConnectionName
-		antVmCommonImage, err := utils.ReplaceAtIndex(antVmCommonSpec, imageOs, "+", 2)
 
+		// CB-Tumblebug에서 사용 가능한 이미지 동적 조회
+		antVmCommonImage, err := l.getAvailableImage(ctx, recommendVmConnName)
 		if err != nil {
-			log.Error().Msgf("Error replacing VM spec index; %v", err)
+			log.Error().Msgf("Failed to get available image; %v", err)
 			return result, err
 		}
+
+		// 디버깅: MCI 생성에 사용될 값들 로그 출력
+		log.Info().Msgf("MCI creation parameters - CommonSpec: '%s', CommonImage: '%s', ConnectionName: '%s'",
+			antVmCommonSpec, antVmCommonImage, recommendVmConnName)
 
 		// check namespace is valid or not
 		err = l.validDefaultNs(ctx, antNsId)
@@ -335,10 +340,10 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 				Label:           map[string]string{antLabelKey: antMciLabel},
 				Name:            antMciId,
 				SystemLabel:     "",
-				VM: []tumblebug.DynamicVmReq{
+				SubGroups: []tumblebug.DynamicVmReq{ // v0.11.8: VM -> SubGroups
 					{
-						CommonImage:    antVmCommonImage,
-						CommonSpec:     antVmCommonSpec,
+						ImageId:        antVmCommonImage,
+						SpecId:         antVmCommonSpec,
 						ConnectionName: antVmConnectionName,
 						Description:    antVmDescription,
 						Label:          map[string]string{antLabelKey: antVmLabel},
@@ -360,8 +365,8 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 		}
 	} else if antMci.Vm != nil && len(antMci.Vm) == 0 {
 		dynamicVmArg := tumblebug.DynamicVmReq{
-			CommonImage:    antVmCommonImage,
-			CommonSpec:     antVmCommonSpec,
+			ImageId:        antVmCommonImage,
+			SpecId:         antVmCommonSpec,
 			ConnectionName: antVmConnectionName,
 			Description:    antVmDescription,
 			Label:          map[string]string{antLabelKey: antVmLabel},
@@ -382,18 +387,21 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 }
 
 // getRecommendVm retrieves recommendVm to specify the location of provisioning.
-func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string) (tumblebug.RecommendVmResList, error) {
+func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string) (tumblebug.SpecInfoList, error) {
+	// config.yaml에서 스펙 요구사항 동적 로드
+	specConfig := config.AppConfig.Load.Spec
+
 	recommendVmArg := tumblebug.RecommendVmReq{
 		Filter: tumblebug.Filter{
 			Policy: []tumblebug.FilterPolicy{
 				{
 					Condition: []tumblebug.Condition{
 						{
-							Operand:  "2",
+							Operand:  fmt.Sprintf("%d", specConfig.MinVcpu),
 							Operator: ">=",
 						},
 						{
-							Operand:  "8",
+							Operand:  fmt.Sprintf("%d", specConfig.MaxVcpu),
 							Operator: "<=",
 						},
 					},
@@ -402,11 +410,11 @@ func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string) 
 				{
 					Condition: []tumblebug.Condition{
 						{
-							Operand:  "4",
+							Operand:  fmt.Sprintf("%d", specConfig.MinMemory),
 							Operator: ">=",
 						},
 						{
-							Operand:  "8",
+							Operand:  fmt.Sprintf("%d", specConfig.MaxMemory),
 							Operator: "<=",
 						},
 					},
@@ -415,10 +423,18 @@ func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string) 
 				{
 					Condition: []tumblebug.Condition{
 						{
-							Operand: "aws",
+							Operand: specConfig.Provider,
 						},
 					},
 					Metric: "providerName",
+				},
+				{
+					Condition: []tumblebug.Condition{
+						{
+							Operand: specConfig.Architecture,
+						},
+					},
+					Metric: "architecture",
 				},
 			},
 		},
@@ -438,6 +454,10 @@ func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string) 
 		},
 	}
 
+	// 디버깅: 스펙 요구사항 로그 출력
+	log.Info().Msgf("VM spec requirements - vCPU: %d-%d, Memory: %d-%d GB, Provider: %s, Architecture: %s",
+		specConfig.MinVcpu, specConfig.MaxVcpu, specConfig.MinMemory, specConfig.MaxMemory, specConfig.Provider, specConfig.Architecture)
+
 	recommendRes, err := l.tumblebugClient.GetRecommendVmWithContext(ctx, recommendVmArg)
 
 	if err != nil {
@@ -448,7 +468,89 @@ func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string) 
 		return nil, errors.New("there is no recommended vm list")
 	}
 
+	// 디버깅: 추천된 VM 정보 로그 출력
+	log.Info().Msgf("Recommended VM count: %d", len(recommendRes))
+	if len(recommendRes) > 0 {
+		log.Info().Msgf("First recommended VM - ID: %s, Name: %s, CspSpecName: %s, ProviderName: %s, RegionName: %s",
+			recommendRes[0].Id, recommendRes[0].Name, recommendRes[0].CspSpecName, recommendRes[0].ProviderName, recommendRes[0].RegionName)
+	}
+
 	return recommendRes, nil
+}
+
+// getAvailableImage retrieves an available image for the specified connection
+func (l *LoadService) getAvailableImage(ctx context.Context, connectionName string) (string, error) {
+	// CB-Tumblebug에서 사용 가능한 이미지 목록 조회 시도
+	images, err := l.tumblebugClient.GetAvailableImagesWithContext(ctx, connectionName)
+	if err != nil {
+		log.Warn().Msgf("Failed to get available images from CB-Tumblebug; %v", err)
+	} else {
+		log.Info().Msgf("Found %d available images for connection: %s", len(images), connectionName)
+
+		// 선호하는 OS 찾기
+		preferredOs := config.AppConfig.Load.Image.PreferredOs
+		fallbackOs := config.AppConfig.Load.Image.FallbackOs
+
+		// 선호하는 OS로 이미지 찾기
+		for _, image := range images {
+			if strings.Contains(strings.ToLower(image.Name), strings.ToLower(preferredOs)) {
+				log.Info().Msgf("Found preferred image: %s (ID: %s)", image.Name, image.Id)
+				return image.Name, nil
+			}
+		}
+
+		// 대체 OS로 이미지 찾기
+		for _, image := range images {
+			if strings.Contains(strings.ToLower(image.Name), strings.ToLower(fallbackOs)) {
+				log.Info().Msgf("Found fallback image: %s (ID: %s)", image.Name, image.Id)
+				return image.Name, nil
+			}
+		}
+
+		// Ubuntu 계열 이미지 찾기
+		for _, image := range images {
+			if strings.Contains(strings.ToLower(image.Name), "ubuntu") {
+				log.Info().Msgf("Found Ubuntu image: %s (ID: %s)", image.Name, image.Id)
+				return image.Name, nil
+			}
+		}
+
+		// 첫 번째 이미지 사용
+		if len(images) > 0 {
+			log.Info().Msgf("Using first available image: %s (ID: %s)", images[0].Name, images[0].Id)
+			return images[0].Name, nil
+		}
+	}
+
+	// CB-Tumblebug에 이미지가 없는 경우, config.yaml의 기본 이미지 사용
+	log.Info().Msgf("No images found in CB-Tumblebug, using configured default images for connection: %s", connectionName)
+
+	// 연결명에서 리전 추출 (예: "aws-ap-northeast-2" -> "ap-northeast-2")
+	region := l.extractRegionFromConnection(connectionName)
+	if region == "" {
+		return "", fmt.Errorf("cannot extract region from connection name: %s", connectionName)
+	}
+
+	// AWS 이미지 목록에서 해당 리전의 이미지 찾기
+	awsImages := config.AppConfig.Load.Image.AwsImages
+	if imageId, exists := awsImages[region]; exists {
+		log.Info().Msgf("Using configured AWS image for region %s: %s", region, imageId)
+		return imageId, nil
+	}
+
+	// 기본 이미지 사용
+	defaultImage := "ami-0c76973fbe0ee100c" // Ubuntu 22.04 LTS
+	log.Info().Msgf("Using default AWS image for region %s: %s", region, defaultImage)
+	return defaultImage, nil
+}
+
+// extractRegionFromConnection extracts region from connection name
+func (l *LoadService) extractRegionFromConnection(connectionName string) string {
+	// "aws-ap-northeast-2" -> "ap-northeast-2"
+	if strings.HasPrefix(connectionName, "aws-") {
+		return strings.TrimPrefix(connectionName, "aws-")
+	}
+	return ""
 }
 
 // validDefaultNs checks if the default namespace exists, and creates it if not.
