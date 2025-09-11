@@ -35,6 +35,29 @@ func (t *TumblebugClient) GetMciWithContext(ctx context.Context, nsId, mciId str
 	return mciObject, nil
 }
 
+// GetAvailableImagesWithContext retrieves available images for a specific connection
+func (t *TumblebugClient) GetAvailableImagesWithContext(ctx context.Context, connectionName string) ([]ImageInfo, error) {
+	var response struct {
+		Image []ImageInfo `json:"image"`
+	}
+
+	url := t.withUrl(fmt.Sprintf("/ns/%s/resources/image?connectionName=%s", "system", connectionName))
+	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
+
+	if err != nil {
+		log.Error().Msgf("error sending get available images request; %v", err)
+		return response.Image, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	err = json.Unmarshal(resBytes, &response)
+	if err != nil {
+		log.Error().Msgf("error unmarshaling response body; %v", err)
+		return response.Image, fmt.Errorf("failed to unmarshal response body: %w", err)
+	}
+
+	return response.Image, nil
+}
+
 func (t *TumblebugClient) CommandToMciWithContext(ctx context.Context, nsId, mciId string, body SendCommandReq) (string, error) {
 
 	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/mci/%s", nsId, mciId))
@@ -100,9 +123,10 @@ func (t *TumblebugClient) GetNsWithContext(ctx context.Context, nsId string) (Ge
 	return nsRes, nil
 }
 
-func (t *TumblebugClient) GetRecommendVmWithContext(ctx context.Context, body RecommendVmReq) (RecommendVmResList, error) {
-	var res RecommendVmResList
-	url := t.withUrl("/mciRecommendVm")
+func (t *TumblebugClient) GetRecommendVmWithContext(ctx context.Context, body RecommendVmReq) (SpecInfoList, error) {
+	var res SpecInfoList
+	// CB-Tumblebug v0.11.9에서 엔드포인트가 변경됨: /mciRecommendVm -> /recommendSpec
+	url := t.withUrl("/recommendSpec")
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {

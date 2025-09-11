@@ -45,6 +45,19 @@ type AntConfig struct {
 			Dir     string `yaml:"dir"`
 			Version string `yaml:"version"`
 		} `yaml:"jmeter"`
+		Image struct {
+			PreferredOs string            `yaml:"preferredOs"`
+			FallbackOs  string            `yaml:"fallbackOs"`
+			AwsImages   map[string]string `yaml:"awsImages"`
+		} `yaml:"image"`
+		Spec struct {
+			MinVcpu      int    `yaml:"minVcpu"`
+			MaxVcpu      int    `yaml:"maxVcpu"`
+			MinMemory    int    `yaml:"minMemory"`
+			MaxMemory    int    `yaml:"maxMemory"`
+			Provider     string `yaml:"provider"`
+			Architecture string `yaml:"architecture"`
+		} `yaml:"spec"`
 	} `yaml:"load"`
 	Log struct {
 		Level string `yaml:"level"`
