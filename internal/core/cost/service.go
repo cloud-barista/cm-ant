@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/config"
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/rs/zerolog/log"
 )
@@ -60,8 +61,8 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	// Set TimeStandard to far past to include all data
-	param.TimeStandard = time.Now().AddDate(0, 0, -365).Truncate(24 * time.Hour) // Set to 1 year ago
+	// Use UpdateInterval to get recent data (same as handler logic)
+	param.TimeStandard = time.Now().Add(-config.AppConfig.Cost.Estimation.UpdateInterval)
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -148,13 +149,20 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 				}
 
 				if len(resList) > 0 {
-					log.Info().Msgf("Inserting fetched estimate cost info results for spec: %+v", p)
+					log.Info().Msgf("Upserting fetched estimate cost info results for spec: %+v", p)
 
-					err = c.costRepo.BatchInsertAllEstimateCostResultTx(ctx, resList)
-					if err != nil {
-						fail("Error batch inserting estimate cost info spec: %v; %s", fmt.Errorf("error batch inserting results for %+v: %w", p, err), p)
-						return
+					var updatedCount int64
+					var insertedCount int64
+					for _, costInfo := range resList {
+						u, i, err := c.costRepo.UpsertEstimateCostInfo(ctx, *costInfo)
+						if err != nil {
+							fail("Error upserting estimate cost info spec: %v; %s", fmt.Errorf("error upserting results for %+v: %w", p, err), p)
+							return
+						}
+						updatedCount += u
+						insertedCount += i
 					}
+					log.Info().Msgf("Upserted estimate cost info for spec %+v: updated=%d, inserted=%d", p, updatedCount, insertedCount)
 				}
 				estimateCostInfos = resList
 			}
@@ -241,15 +249,15 @@ func (c *CostService) GetEstimateCost(param GetEstimateCostParam) (EstimateCostI
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	// Set TimeStandard to far past to include all data
-	param.TimeStandard = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC) // Set to year 2000
+	// Use UpdateInterval to get recent data (same as POST API)
+	param.TimeStandard = time.Now().Add(-config.AppConfig.Cost.Estimation.UpdateInterval)
 	param.PricePolicy = constant.OnDemand
 
 	log.Info().Msgf("GetEstimateCost called with TimeStandard: %s", param.TimeStandard)
 
 	var res EstimateCostInfoResults
 
-	estimateCostInfos, totalCount, err := c.costRepo.GetMatchingEstimateCostInfosTx(ctx, param)
+	estimateCostInfos, _, err := c.costRepo.GetMatchingEstimateCostInfosTx(ctx, param)
 	if err != nil {
 		return res, err
 	}
@@ -257,7 +265,34 @@ func (c *CostService) GetEstimateCost(param GetEstimateCostParam) (EstimateCostI
 	priceInfoList := make([]EstimateCostInfoResult, 0)
 
 	if len(estimateCostInfos) > 0 {
+		log.Info().Msgf("Before filtering: %d records", len(estimateCostInfos))
+
+		// 중복 데이터 필터링: 동일한 provider, region, instance_type, price_policy에 대해 가장 최신 데이터만 유지
+		uniqueData := make(map[string]*EstimateCostInfo)
 		for _, v := range estimateCostInfos {
+			if v == nil {
+				continue
+			}
+			key := fmt.Sprintf("%s_%s_%s_%s",
+				strings.ToLower(v.ProviderName),
+				strings.ToLower(v.RegionName),
+				strings.ToLower(v.InstanceType),
+				v.PricePolicy)
+
+			log.Info().Msgf("Processing record ID=%d, key=%s, lastUpdatedAt=%s, imageName=%s", v.ID, key, v.LastUpdatedAt, v.ImageName)
+
+			if existing, exists := uniqueData[key]; !exists || v.LastUpdatedAt.After(existing.LastUpdatedAt) {
+				uniqueData[key] = v
+				log.Info().Msgf("Added/Updated record for key: %s", key)
+			} else {
+				log.Info().Msgf("Skipped older record for key: %s", key)
+			}
+		}
+
+		log.Info().Msgf("After filtering: %d unique records", len(uniqueData))
+
+		// 필터링된 데이터를 결과에 추가
+		for _, v := range uniqueData {
 			result := EstimateCostInfoResult{
 				ID:                     v.ID,
 				ProviderName:           v.ProviderName,
@@ -275,13 +310,14 @@ func (c *CostService) GetEstimateCost(param GetEstimateCostParam) (EstimateCostI
 				Price:                  v.Price,
 				CalculatedMonthlyPrice: v.CalculatedMonthlyPrice,
 				PriceDescription:       v.PriceDescription,
-				LastUpdatedAt:          v.UpdatedAt,
+				LastUpdatedAt:          v.LastUpdatedAt,
+				ImageName:              v.ImageName,
 			}
 			priceInfoList = append(priceInfoList, result)
 		}
 
 		res.EstimateCostInfoResult = priceInfoList
-		res.ResultCount = int64(totalCount)
+		res.ResultCount = int64(len(priceInfoList))
 
 		return res, nil
 	}
