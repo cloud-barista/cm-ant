@@ -114,6 +114,7 @@ type EstimateCostInfoResult struct {
 	CalculatedMonthlyPrice float64                `json:"calculatedMonthlyPrice,omitempty"`
 	PriceDescription       string                 `json:"priceDescription,omitempty"`
 	LastUpdatedAt          time.Time              `json:"lastUpdatedAt,omitempty"`
+	ImageName              string                 `json:"imageName"`
 }
 
 type UpdateEstimateForecastCostParam struct {

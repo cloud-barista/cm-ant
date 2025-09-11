@@ -51,10 +51,10 @@ func (r *CostRepository) GetMatchingEstimateCostInfosTx(ctx context.Context, par
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		q := d.Model(&EstimateCostInfo{}).
 			Where(
-				"price_policy = ?",
-				param.PricePolicy,
+				"price_policy = ? AND last_updated_at >= ?",
+				param.PricePolicy, param.TimeStandard,
 			).
-			Order("calculated_monthly_price asc")
+			Order("last_updated_at DESC, calculated_monthly_price asc")
 
 		// Add conditions one by one for testing
 		if param.ProviderName != "" {
@@ -190,6 +190,62 @@ func (r *CostRepository) BatchInsertAllEstimateCostResultTx(ctx context.Context,
 
 	return err
 
+}
+
+func (r *CostRepository) UpsertEstimateCostInfo(ctx context.Context, costInfo EstimateCostInfo) (int64, int64, error) {
+	var updateCount = int64(0)
+	var insertCount = int64(0)
+	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
+		var existing EstimateCostInfo
+		err := d.
+			Where(&EstimateCostInfo{
+				ProviderName: costInfo.ProviderName,
+				RegionName:   costInfo.RegionName,
+				InstanceType: costInfo.InstanceType,
+				PricePolicy:  costInfo.PricePolicy,
+			}).First(&existing).Error
+
+		if err != nil && err != gorm.ErrRecordNotFound {
+			return err
+		}
+
+		if err == gorm.ErrRecordNotFound {
+			if err := d.Create(&costInfo).Error; err != nil {
+				return err
+			}
+			insertCount++
+		} else {
+			// 기존 데이터 업데이트
+			updates := map[string]interface{}{
+				"v_cpu":                    costInfo.VCpu,
+				"memory":                   costInfo.Memory,
+				"memory_unit":              costInfo.MemoryUnit,
+				"original_memory":          costInfo.OriginalMemory,
+				"storage":                  costInfo.Storage,
+				"os_type":                  costInfo.OsType,
+				"product_description":      costInfo.ProductDescription,
+				"original_price_policy":    costInfo.OriginalPricePolicy,
+				"price":                    costInfo.Price,
+				"currency":                 costInfo.Currency,
+				"unit":                     costInfo.Unit,
+				"original_unit":            costInfo.OriginalUnit,
+				"original_currency":        costInfo.OriginalCurrency,
+				"calculated_monthly_price": costInfo.CalculatedMonthlyPrice,
+				"price_description":        costInfo.PriceDescription,
+				"last_updated_at":          costInfo.LastUpdatedAt,
+				"image_name":               costInfo.ImageName,
+			}
+
+			if err := d.Model(&existing).Updates(updates).Error; err != nil {
+				return err
+			}
+			updateCount++
+		}
+
+		return nil
+	})
+
+	return updateCount, insertCount, err
 }
 
 func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo EstimateForecastCostInfo) (int64, int64, error) {
