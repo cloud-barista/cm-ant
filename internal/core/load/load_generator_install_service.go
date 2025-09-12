@@ -334,6 +334,9 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 	antMci, err = l.tumblebugClient.GetMciWithContext(ctx, antNsId, antMciId)
 	if err != nil {
 		if errors.Is(err, tumblebug.ErrNotFound) {
+			// CB-Tumblebug will automatically create SSH key, VNet, Security Group, etc.
+			log.Info().Msg("MCI not found, creating new MCI with dynamic resource provisioning")
+
 			dynamicMciArg := tumblebug.DynamicMciReq{
 				Description:     antMciDescription,
 				InstallMonAgent: antInstallMonAgent,
@@ -352,6 +355,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 						RootDiskType:   antVmRootDiskType,
 						SubGroupSize:   antVmSubGroupSize,
 						VMUserPassword: antVmUserPassword,
+						// SSH key, VNet, Security Group will be auto-created by CB-Tumblebug
 					},
 				},
 			}
@@ -364,6 +368,9 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 			return antMci, err
 		}
 	} else if antMci.Vm != nil && len(antMci.Vm) == 0 {
+		// CB-Tumblebug will automatically create SSH key, VNet, Security Group, etc.
+		log.Info().Msg("MCI exists but no VMs, adding VM with dynamic resource provisioning")
+
 		dynamicVmArg := tumblebug.DynamicVmReq{
 			ImageId:        antVmCommonImage,
 			SpecId:         antVmCommonSpec,
@@ -375,6 +382,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 			RootDiskType:   antVmRootDiskType,
 			SubGroupSize:   antVmSubGroupSize,
 			VMUserPassword: antVmUserPassword,
+			// SSH key, VNet, Security Group will be auto-created by CB-Tumblebug
 		}
 
 		antMci, err = l.tumblebugClient.DynamicVmWithContext(ctx, antNsId, antMciId, dynamicVmArg)

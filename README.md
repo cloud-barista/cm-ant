@@ -59,8 +59,8 @@ These functionalities are integrated with other subsystems, namely `CB-Tumblebug
 - Container: Docker 25.0.0
 
 ### Subsystem Dependency
-- CB-Spider : v0.10.0
-- CB-Tumblebug : v0.10.3
+- CB-Spider : v0.11.5
+- CB-Tumblebug : v0.11.9
 
 ---
 

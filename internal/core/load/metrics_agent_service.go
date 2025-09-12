@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/config"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/rs/zerolog/log"
@@ -15,7 +16,11 @@ import (
 // InstallMonitoringAgent installs a monitoring agent on specified VMs or all VM on mci.
 func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationParams) ([]MonitoringAgentInstallationResult, error) {
 	log.Info().Msg("Starting installation of monitoring agent...")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.MonitoringAgentInstall)
+	if err != nil {
+		timeout = 5 * time.Minute // 기본값
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	var res []MonitoringAgentInstallationResult
 
@@ -51,7 +56,11 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 		if mapSet != nil && !utils.Contains(mapSet, vm.Id) {
 			continue
 		}
-		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		commandTimeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.CommandExecution)
+		if err != nil {
+			commandTimeout = 5 * time.Minute // 기본값
+		}
+		ctx, cancel := context.WithTimeout(ctx, commandTimeout)
 		defer cancel()
 		m := MonitoringAgentInfo{
 			Username:  username,
@@ -81,7 +90,7 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				m.Status = "timeout"
-				log.Error().Msgf("Timeout of context. Already 15 seconds has been passed. vm id; %s", vm.Id)
+				log.Error().Msgf("Timeout of context. Already %s has been passed. vm id; %s", commandTimeout, vm.Id)
 			} else {
 				m.Status = "failed"
 				log.Error().Msgf("Error occurred during command execution; %v", err)
@@ -126,7 +135,11 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 func (l *LoadService) GetAllMonitoringAgentInfos(param GetAllMonitoringAgentInfosParam) (GetAllMonitoringAgentInfoResult, error) {
 	var res GetAllMonitoringAgentInfoResult
 	var monitoringAgentInfos []MonitoringAgentInstallationResult
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.CommandExecution)
+	if err != nil {
+		timeout = 1 * time.Minute // 기본값
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	log.Info().Msgf("GetAllMonitoringAgentInfos called with param: %+v", param)
@@ -188,7 +201,11 @@ func (l *LoadService) UninstallMonitoringAgent(param MonitoringAgentInstallation
 
 	var errorCollection []error
 	for _, monitoringAgentInfo := range result {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.UninstallAgent)
+		if err != nil {
+			timeout = 2 * time.Minute // 기본값
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
 		commandReq := tumblebug.SendCommandReq{
