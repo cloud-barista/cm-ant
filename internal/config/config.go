@@ -40,7 +40,12 @@ type AntConfig struct {
 		} `yaml:"estimation"`
 	} `yaml:"cost"`
 	Load struct {
-		Retry  int `yaml:"retry"`
+		Retry   int `yaml:"retry"`
+		Timeout struct {
+			MonitoringAgentInstall string `yaml:"monitoringAgentInstall"`
+			CommandExecution       string `yaml:"commandExecution"`
+			UninstallAgent         string `yaml:"uninstallAgent"`
+		} `yaml:"timeout"`
 		JMeter struct {
 			Dir     string `yaml:"dir"`
 			Version string `yaml:"version"`

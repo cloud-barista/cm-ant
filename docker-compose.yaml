@@ -51,7 +51,7 @@ services:
     restart: unless-stopped
 
   cb-tumblebug:
-    image: cloudbaristaorg/cb-tumblebug:0.10.3
+    image: cloudbaristaorg/cb-tumblebug:0.11.9
     container_name: cb-tumblebug
     platform: linux/amd64
     ports:

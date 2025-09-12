@@ -5,6 +5,12 @@ type SendCommandReq struct {
 	UserName string   `json:"userName"`
 }
 
+// MciCmdReq is struct for remote command (updated for latest cb-tumblebug)
+type MciCmdReq struct {
+	UserName string   `json:"userName" example:"cb-user" default:""`
+	Command  []string `json:"command" validate:"required" example:"client_ip=$(echo $SSH_CLIENT | awk '{print $1}'); echo SSH client IP is: $client_ip"`
+}
+
 type CreateNamespaceReq struct {
 	Description string `json:"description"`
 	Name        string `json:"name"`
@@ -139,6 +145,7 @@ type DynamicVmReq struct {
 	RootDiskType   string            `json:"rootDiskType"`
 	SubGroupSize   string            `json:"subGroupSize"`
 	VMUserPassword string            `json:"vmUserPassword"`
+	SshKeyId       string            `json:"sshKeyId,omitempty"` // SSH key for VM access
 }
 
 type DynamicMciReq struct {
@@ -148,4 +155,24 @@ type DynamicMciReq struct {
 	Name            string            `json:"name"`
 	SystemLabel     string            `json:"systemLabel"`
 	SubGroups       []DynamicVmReq    `json:"subGroups"` // v0.11.8: VM -> SubGroups
+}
+
+// SSH Key related structures
+type SshKeyReq struct {
+	Name           string `json:"name" validate:"required"`
+	ConnectionName string `json:"connectionName" validate:"required"`
+	Description    string `json:"description"`
+}
+
+type SshKeyInfo struct {
+	ResourceType     string `json:"resourceType"`
+	Id               string `json:"id"`
+	Uid              string `json:"uid,omitempty"`
+	Name             string `json:"name"`
+	ConnectionName   string `json:"connectionName,omitempty"`
+	Description      string `json:"description,omitempty"`
+	Username         string `json:"username,omitempty"`
+	VerifiedUsername string `json:"verifiedUsername,omitempty"`
+	PublicKey        string `json:"publicKey,omitempty"`
+	PrivateKey       string `json:"privateKey,omitempty"`
 }

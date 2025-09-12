@@ -19,6 +19,10 @@ cost:
 
 load:
   retry: 2
+  timeout:
+    monitoringAgentInstall: "5m"
+    commandExecution: "5m"
+    uninstallAgent: "2m"
   jmeter:
     dir: "/opt/ant/jmeter"
     version: 5.6

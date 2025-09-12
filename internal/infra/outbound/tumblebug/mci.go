@@ -58,11 +58,63 @@ func (t *TumblebugClient) GetAvailableImagesWithContext(ctx context.Context, con
 	return response.Image, nil
 }
 
+// CreateSshKeyWithContext creates an SSH key in CB-Tumblebug
+func (t *TumblebugClient) CreateSshKeyWithContext(ctx context.Context, nsId string, sshKeyReq SshKeyReq) (SshKeyInfo, error) {
+	var sshKeyInfo SshKeyInfo
+
+	url := t.withUrl(fmt.Sprintf("/ns/%s/resources/sshKey", nsId))
+	marshalledBody, err := json.Marshal(sshKeyReq)
+	if err != nil {
+		log.Error().Msgf("error marshaling ssh key request body; %v", err)
+		return sshKeyInfo, err
+	}
+
+	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
+	if err != nil {
+		log.Error().Msgf("error sending create ssh key request; %v", err)
+		return sshKeyInfo, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	err = json.Unmarshal(resBytes, &sshKeyInfo)
+	if err != nil {
+		log.Error().Msgf("error unmarshaling ssh key response body; %v", err)
+		return sshKeyInfo, fmt.Errorf("failed to unmarshal response body: %w", err)
+	}
+
+	return sshKeyInfo, nil
+}
+
+// GetSshKeyWithContext retrieves an SSH key from CB-Tumblebug
+func (t *TumblebugClient) GetSshKeyWithContext(ctx context.Context, nsId, sshKeyId string) (SshKeyInfo, error) {
+	var sshKeyInfo SshKeyInfo
+
+	url := t.withUrl(fmt.Sprintf("/ns/%s/resources/sshKey/%s", nsId, sshKeyId))
+	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		log.Error().Msgf("error sending get ssh key request; %v", err)
+		return sshKeyInfo, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	err = json.Unmarshal(resBytes, &sshKeyInfo)
+	if err != nil {
+		log.Error().Msgf("error unmarshaling ssh key response body; %v", err)
+		return sshKeyInfo, fmt.Errorf("failed to unmarshal response body: %w", err)
+	}
+
+	return sshKeyInfo, nil
+}
+
 func (t *TumblebugClient) CommandToMciWithContext(ctx context.Context, nsId, mciId string, body SendCommandReq) (string, error) {
 
 	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/mci/%s", nsId, mciId))
 
-	marshalledBody, err := json.Marshal(body)
+	// Convert SendCommandReq to MciCmdReq for latest cb-tumblebug compatibility
+	mciCmdReq := MciCmdReq{
+		UserName: body.UserName,
+		Command:  body.Command,
+	}
+
+	marshalledBody, err := json.Marshal(mciCmdReq)
 	if err != nil {
 		log.Error().Msgf("error marshaling request body; %v", err)
 		return "", err
@@ -75,16 +127,37 @@ func (t *TumblebugClient) CommandToMciWithContext(ctx context.Context, nsId, mci
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
 
-	ret := string(resBytes)
+	// Parse the response to extract error information if any
+	var result MciSshCmdResultForAPI
+	if err := json.Unmarshal(resBytes, &result); err != nil {
+		log.Error().Msgf("error unmarshaling response body; %v", err)
+		// Return the raw response if parsing fails
+		return string(resBytes), nil
+	}
 
-	return ret, nil
+	// Check if there are any errors in the results
+	for _, res := range result.Results {
+		if res.Error != "" {
+			log.Error().Msgf("command execution error for VM %s: %s", res.VmId, res.Error)
+			return "", fmt.Errorf("command execution failed for VM %s: %s", res.VmId, res.Error)
+		}
+	}
+
+	// Return the marshaled response for backward compatibility
+	return string(resBytes), nil
 }
 
 func (t *TumblebugClient) CommandToVmWithContext(ctx context.Context, nsId, mciId, vmId string, body SendCommandReq) (string, error) {
 
 	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/mci/%s?vmId=%s", nsId, mciId, vmId))
 
-	marshalledBody, err := json.Marshal(body)
+	// Convert SendCommandReq to MciCmdReq for latest cb-tumblebug compatibility
+	mciCmdReq := MciCmdReq{
+		UserName: body.UserName,
+		Command:  body.Command,
+	}
+
+	marshalledBody, err := json.Marshal(mciCmdReq)
 	if err != nil {
 		log.Error().Msgf("error marshaling request body; %v", err)
 		return "", err
@@ -97,9 +170,24 @@ func (t *TumblebugClient) CommandToVmWithContext(ctx context.Context, nsId, mciI
 		return "", fmt.Errorf("failed to send request: %w", err)
 	}
 
-	ret := string(resBytes)
+	// Parse the response to extract error information if any
+	var result MciSshCmdResultForAPI
+	if err := json.Unmarshal(resBytes, &result); err != nil {
+		log.Error().Msgf("error unmarshaling response body; %v", err)
+		// Return the raw response if parsing fails
+		return string(resBytes), nil
+	}
 
-	return ret, nil
+	// Check if there are any errors in the results
+	for _, res := range result.Results {
+		if res.Error != "" {
+			log.Error().Msgf("command execution error for VM %s: %s", res.VmId, res.Error)
+			return "", fmt.Errorf("command execution failed for VM %s: %s", res.VmId, res.Error)
+		}
+	}
+
+	// Return the marshaled response for backward compatibility
+	return string(resBytes), nil
 }
 
 func (t *TumblebugClient) GetNsWithContext(ctx context.Context, nsId string) (GetNsRes, error) {
