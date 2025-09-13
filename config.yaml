@@ -57,8 +57,8 @@ load:
     # maxVcpu: 8        # 최대 vCPU (기존 8에서 2로 변경)
     # minMemory: 4      # 최소 메모리 (GB)
     # maxMemory: 8      # 최대 메모리 (GB) (기존 8에서 4로 변경)
-    minVcpu: 1        # 최소 vCPU
-    maxVcpu: 2        # 최대 vCPU (기존 8에서 2로 변경)
+    minVcpu: 2        # 최소 vCPU
+    maxVcpu: 4        # 최대 vCPU (기존 8에서 2로 변경)
     minMemory: 1      # 최소 메모리 (GB)
     maxMemory: 4      # 최대 메모리 (GB) (기존 8에서 4로 변경)
     provider: "aws"   # 클라우드 프로바이더
