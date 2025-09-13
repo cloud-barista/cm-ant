@@ -176,3 +176,23 @@ type SshKeyInfo struct {
 	PublicKey        string `json:"publicKey,omitempty"`
 	PrivateKey       string `json:"privateKey,omitempty"`
 }
+
+// CB-Tumblebug v0.11.8+ 스마트 매칭 구조체
+type SearchImageRequest struct {
+	MatchedSpecId          string   `json:"matchedSpecId,omitempty"`
+	ProviderName           string   `json:"providerName"`
+	RegionName             string   `json:"regionName"`
+	OSType                 string   `json:"osType"`
+	OSArchitecture         string   `json:"osArchitecture"`
+	IsGPUImage             *bool    `json:"isGPUImage,omitempty"`
+	IsKubernetesImage      *bool    `json:"isKubernetesImage,omitempty"`
+	IsRegisteredByAsset    *bool    `json:"isRegisteredByAsset,omitempty"`
+	IncludeDeprecatedImage *bool    `json:"includeDeprecatedImage,omitempty"`
+	MaxResults             int      `json:"maxResults,omitempty"`
+	DetailSearchKeys       []string `json:"detailSearchKeys,omitempty"`
+}
+
+type SearchImageResponse struct {
+	ImageCount int         `json:"imageCount"`
+	ImageList  []ImageInfo `json:"imageList"`
+}

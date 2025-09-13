@@ -10,11 +10,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloud-barista/cm-ant/internal/config"
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/cloud-barista/cm-ant/internal/utils"
 	"github.com/rs/zerolog/log"
 )
+
+// getResourceNames returns resource names from config
+func getResourceNames() (nsId, mciId, vmName, sshKeyBase string) {
+	nsId = config.AppConfig.Load.DefaultResourceName.Namespace
+	mciId = config.AppConfig.Load.DefaultResourceName.Mci
+	vmName = config.AppConfig.Load.DefaultResourceName.Vm
+	sshKeyBase = config.AppConfig.Load.DefaultResourceName.SshKey
+	return
+}
 
 // RunLoadTest initiates the load test and performs necessary initializations.
 // Generates a load test key, installs the load generator or retrieves existing installation information,
@@ -423,7 +433,8 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 		}
 
 		compileDuration = utils.DurationString(start)
-		_, err = l.tumblebugClient.CommandToMciWithContext(context.Background(), antNsId, antMciId, commandReq)
+		nsId, mciId, _, _ := getResourceNames()
+		_, err = l.tumblebugClient.CommandToMciWithContext(context.Background(), nsId, mciId, commandReq)
 		if err != nil {
 			return compileDuration, executionDuration, err
 		}
@@ -434,7 +445,7 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 			Command: []string{jmeterTestCommand},
 		}
 
-		stdout, err := l.tumblebugClient.CommandToMciWithContext(context.Background(), antNsId, antMciId, commandReq)
+		stdout, err := l.tumblebugClient.CommandToMciWithContext(context.Background(), nsId, mciId, commandReq)
 		if err != nil {
 			return compileDuration, executionDuration, err
 		}
@@ -554,7 +565,8 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 		commandReq := tumblebug.SendCommandReq{
 			Command: []string{killCmd},
 		}
-		_, err := l.tumblebugClient.CommandToMciWithContext(ctx, antNsId, antMciId, commandReq)
+		nsId, mciId, _, _ := getResourceNames()
+		_, err := l.tumblebugClient.CommandToMciWithContext(ctx, nsId, mciId, commandReq)
 
 		if err != nil {
 			return err
