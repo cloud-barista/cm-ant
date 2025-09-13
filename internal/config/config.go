@@ -46,14 +46,22 @@ type AntConfig struct {
 			CommandExecution       string `yaml:"commandExecution"`
 			UninstallAgent         string `yaml:"uninstallAgent"`
 		} `yaml:"timeout"`
+		DefaultResourceName struct {
+			Namespace string `yaml:"namespace"`
+			Mci       string `yaml:"mci"`
+			Vm        string `yaml:"vm"`
+			SshKey    string `yaml:"sshKey"`
+		} `yaml:"defaultResourceName"`
 		JMeter struct {
 			Dir     string `yaml:"dir"`
 			Version string `yaml:"version"`
 		} `yaml:"jmeter"`
 		Image struct {
-			PreferredOs string            `yaml:"preferredOs"`
-			FallbackOs  string            `yaml:"fallbackOs"`
-			AwsImages   map[string]string `yaml:"awsImages"`
+			UseSmartMatching bool                `yaml:"useSmartMatching"`
+			PreferredOs      string              `yaml:"preferredOs"`
+			FallbackOs       string              `yaml:"fallbackOs"`
+			OsKeywords       map[string][]string `yaml:"osKeywords"`
+			AwsImages        map[string]string   `yaml:"awsImages"`
 		} `yaml:"image"`
 		Spec struct {
 			MinVcpu      int    `yaml:"minVcpu"`

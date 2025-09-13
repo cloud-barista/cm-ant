@@ -20,21 +20,37 @@ cost:
 load:
   retry: 2
   timeout:
-    monitoringAgentInstall: "5m"
-    commandExecution: "5m"
-    uninstallAgent: "2m"
+    monitoringAgentInstall: "7m"
+    commandExecution: "50m"
+    uninstallAgent: "7m"
+  # 부하 발생 환경 구축에 사용할 리소스 이름 설정
+  defaultResourceName:
+    namespace: "ant-default-ns"     # 네임스페이스 이름
+    mci: "ant-default-mci"         # MCI 이름
+    vm: "ant-default-vm"           # VM 이름
+    sshKey: "ant-default-shared"   # SSH 키 이름 (접미사는 자동 추가)
   jmeter:
     dir: "/opt/ant/jmeter"
     version: 5.6
   image:
-    preferredOs: "ubuntu22.04"  # 선호하는 OS (사용 가능하지 않으면 다른 이미지로 대체)
-    fallbackOs: "ubuntu20.04"   # 대체 OS
-    # AWS 리전별 기본 이미지 목록 (CB-Tumblebug에 이미지가 등록되지 않은 경우 사용)
+    # CB-Tumblebug v0.11.8+ 스마트 매칭 기능 사용
+    useSmartMatching: true
+    
+    preferredOs: "ubuntu 22.04"  # 선호하는 OS (스마트 매칭용)
+    fallbackOs: "ubuntu 20.04"   # 대체 OS (스마트 매칭용)
+    
+    # OS별 검색 키워드 (스마트 매칭용)
+    osKeywords:
+      ubuntu: ["ubuntu", "canonical"]
+      centos: ["centos", "rhel"]
+      amazon: ["amazon", "amzn"]
+    
+    # AWS 리전별 기본 이미지 목록 (스마트 매칭 실패 시 폴백용)
     awsImages:
-      "ap-northeast-2": "ami-0c76973fbe0ee100c"  # Ubuntu 22.04 LTS
-      "ap-southeast-1": "ami-0c76973fbe0ee100c"  # Ubuntu 22.04 LTS
-      "us-east-1": "ami-0c76973fbe0ee100c"       # Ubuntu 22.04 LTS
-      "us-west-2": "ami-0c76973fbe0ee100c"       # Ubuntu 22.04 LTS
+      "ap-northeast-2": "ami-0f37ba4f1a9f199d1"  # Ubuntu 22.04 LTS (최신)
+      "ap-southeast-1": "ami-0f37ba4f1a9f199d1"  # Ubuntu 22.04 LTS
+      "us-east-1": "ami-0f37ba4f1a9f199d1"       # Ubuntu 22.04 LTS
+      "us-west-2": "ami-0f37ba4f1a9f199d1"       # Ubuntu 22.04 LTS
   spec:
     # VM 스펙 요구사항 (Load Generator용)
     # minVcpu: 2        # 최소 vCPU

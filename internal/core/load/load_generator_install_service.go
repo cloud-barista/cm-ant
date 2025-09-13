@@ -16,16 +16,13 @@ import (
 )
 
 const (
-	antNsId            = "ant-default-ns"
 	antMciDescription  = "Default MCI for Cloud Migration Verification"
 	antInstallMonAgent = "no"
-	antLabelKey        = "ant-default-label"
+	antLabelKey        = "ant-test-label"
 	antMciLabel        = "DynamicMci,AntDefault"
-	antMciId           = "ant-default-mci"
 
 	antVmDescription  = "Default VM for Cloud Migration Verification"
 	antVmLabel        = "DynamicVm,AntDefault"
-	antVmName         = "ant-default-vm"
 	antVmRootDiskSize = "default"
 	antVmRootDiskType = "default"
 	antVmSubGroupSize = "1"
@@ -123,7 +120,8 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 			antVmCommonSpec, antVmCommonImage, recommendVmConnName)
 
 		// check namespace is valid or not
-		err = l.validDefaultNs(ctx, antNsId)
+		nsId, _, _, _ := getResourceNames()
+		err = l.validDefaultNs(ctx, nsId)
 		if err != nil {
 			log.Error().Msgf("Error validating default namespace; %v", err)
 			return result, err
@@ -141,7 +139,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		for retryCount > 0 && antMci.StatusCount.CountRunning < 1 {
 			log.Info().Msgf("Attempting to resume MCI, retry count: %d", retryCount)
 
-			err = l.tumblebugClient.ControlLifecycleWithContext(ctx, antNsId, antMci.Id, "resume")
+			err = l.tumblebugClient.ControlLifecycleWithContext(ctx, nsId, antMci.Id, "resume")
 			if err != nil {
 				log.Error().Msgf("Error resuming MCI; %v", err)
 				return result, err
@@ -177,7 +175,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 			Command: []string{installationCommand, addAuthorizedKeyCommand},
 		}
 
-		_, err = l.tumblebugClient.CommandToMciWithContext(ctx, antNsId, antMci.Id, commandReq)
+		_, err = l.tumblebugClient.CommandToMciWithContext(ctx, nsId, antMci.Id, commandReq)
 		if err != nil {
 			log.Error().Msgf("Error sending command to MCI; %v", err)
 			return result, err
@@ -331,7 +329,8 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, antVmCommonImage, antVmConnectionName string) (tumblebug.MciRes, error) {
 	var antMci tumblebug.MciRes
 	var err error
-	antMci, err = l.tumblebugClient.GetMciWithContext(ctx, antNsId, antMciId)
+	nsId, mciId, vmName, _ := getResourceNames()
+	antMci, err = l.tumblebugClient.GetMciWithContext(ctx, nsId, mciId)
 	if err != nil {
 		if errors.Is(err, tumblebug.ErrNotFound) {
 			// CB-Tumblebug will automatically create SSH key, VNet, Security Group, etc.
@@ -341,7 +340,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 				Description:     antMciDescription,
 				InstallMonAgent: antInstallMonAgent,
 				Label:           map[string]string{antLabelKey: antMciLabel},
-				Name:            antMciId,
+				Name:            mciId,
 				SystemLabel:     "",
 				SubGroups: []tumblebug.DynamicVmReq{ // v0.11.8: VM -> SubGroups
 					{
@@ -350,7 +349,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 						ConnectionName: antVmConnectionName,
 						Description:    antVmDescription,
 						Label:          map[string]string{antLabelKey: antVmLabel},
-						Name:           antVmName,
+						Name:           vmName,
 						RootDiskSize:   antVmRootDiskSize,
 						RootDiskType:   antVmRootDiskType,
 						SubGroupSize:   antVmSubGroupSize,
@@ -359,7 +358,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 					},
 				},
 			}
-			antMci, err = l.tumblebugClient.DynamicMciWithContext(ctx, antNsId, dynamicMciArg)
+			antMci, err = l.tumblebugClient.DynamicMciWithContext(ctx, nsId, dynamicMciArg)
 			time.Sleep(defaultDelay)
 			if err != nil {
 				return antMci, err
@@ -377,7 +376,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 			ConnectionName: antVmConnectionName,
 			Description:    antVmDescription,
 			Label:          map[string]string{antLabelKey: antVmLabel},
-			Name:           antVmName,
+			Name:           vmName,
 			RootDiskSize:   antVmRootDiskSize,
 			RootDiskType:   antVmRootDiskType,
 			SubGroupSize:   antVmSubGroupSize,
@@ -385,7 +384,7 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 			// SSH key, VNet, Security Group will be auto-created by CB-Tumblebug
 		}
 
-		antMci, err = l.tumblebugClient.DynamicVmWithContext(ctx, antNsId, antMciId, dynamicVmArg)
+		antMci, err = l.tumblebugClient.DynamicVmWithContext(ctx, nsId, mciId, dynamicVmArg)
 		time.Sleep(defaultDelay)
 		if err != nil {
 			return antMci, err
@@ -488,6 +487,90 @@ func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string) 
 
 // getAvailableImage retrieves an available image for the specified connection
 func (l *LoadService) getAvailableImage(ctx context.Context, connectionName string) (string, error) {
+	// 스마트 매칭 기능이 활성화된 경우 우선 사용
+	if config.AppConfig.Load.Image.UseSmartMatching {
+		imageId, err := l.getAvailableImageWithSmartMatching(ctx, connectionName)
+		if err == nil {
+			return imageId, nil
+		}
+		log.Warn().Msgf("Smart matching failed, falling back to traditional method: %v", err)
+	}
+
+	// 기존 방식으로 폴백
+	return l.getAvailableImageTraditional(ctx, connectionName)
+}
+
+// getAvailableImageWithSmartMatching uses CB-Tumblebug v0.11.8+ smart matching
+func (l *LoadService) getAvailableImageWithSmartMatching(ctx context.Context, connectionName string) (string, error) {
+	// 연결명에서 프로바이더와 리전 추출 (예: "aws-ap-northeast-2" -> "aws", "ap-northeast-2")
+	provider, region := l.extractProviderAndRegionFromConnection(connectionName)
+	if provider == "" || region == "" {
+		return "", fmt.Errorf("cannot extract provider and region from connection name: %s", connectionName)
+	}
+
+	imageConfig := config.AppConfig.Load.Image
+	specConfig := config.AppConfig.Load.Spec
+
+	// 1. 선호하는 OS로 스마트 매칭 시도
+	searchReq := tumblebug.SearchImageRequest{
+		ProviderName:           provider,
+		RegionName:             region,
+		OSType:                 imageConfig.PreferredOs,
+		OSArchitecture:         specConfig.Architecture,
+		IsRegisteredByAsset:    &[]bool{true}[0],
+		IncludeDeprecatedImage: &[]bool{false}[0],
+		MaxResults:             5,
+	}
+
+	log.Info().Msgf("Searching images with smart matching: provider=%s, region=%s, osType=%s, osArchitecture=%s",
+		searchReq.ProviderName, searchReq.RegionName, searchReq.OSType, searchReq.OSArchitecture)
+
+	images, err := l.tumblebugClient.SearchImagesWithContext(ctx, "system", searchReq)
+	if err != nil {
+		return "", fmt.Errorf("smart matching failed for preferred OS: %w", err)
+	}
+
+	if len(images) > 0 {
+		log.Info().Msgf("Smart matching found %d images for preferred OS '%s', using: %s (ID: %s)",
+			len(images), imageConfig.PreferredOs, images[0].Name, images[0].Id)
+		return images[0].Name, nil
+	}
+
+	// 2. 대체 OS로 스마트 매칭 시도
+	searchReq.OSType = imageConfig.FallbackOs
+	log.Info().Msgf("No images found for preferred OS, trying fallback OS: %s", imageConfig.FallbackOs)
+
+	images, err = l.tumblebugClient.SearchImagesWithContext(ctx, "system", searchReq)
+	if err != nil {
+		return "", fmt.Errorf("smart matching failed for fallback OS: %w", err)
+	}
+
+	if len(images) > 0 {
+		log.Info().Msgf("Smart matching found %d images for fallback OS '%s', using: %s (ID: %s)",
+			len(images), imageConfig.FallbackOs, images[0].Name, images[0].Id)
+		return images[0].Name, nil
+	}
+
+	// 3. Ubuntu 계열로 스마트 매칭 시도
+	searchReq.OSType = "ubuntu"
+	log.Info().Msgf("No images found for fallback OS, trying Ubuntu family")
+
+	images, err = l.tumblebugClient.SearchImagesWithContext(ctx, "system", searchReq)
+	if err != nil {
+		return "", fmt.Errorf("smart matching failed for Ubuntu family: %w", err)
+	}
+
+	if len(images) > 0 {
+		log.Info().Msgf("Smart matching found %d Ubuntu images, using: %s (ID: %s)",
+			len(images), images[0].Name, images[0].Id)
+		return images[0].Name, nil
+	}
+
+	return "", fmt.Errorf("no images found with smart matching for connection: %s", connectionName)
+}
+
+// getAvailableImageTraditional uses the traditional image selection method
+func (l *LoadService) getAvailableImageTraditional(ctx context.Context, connectionName string) (string, error) {
 	// CB-Tumblebug에서 사용 가능한 이미지 목록 조회 시도
 	images, err := l.tumblebugClient.GetAvailableImagesWithContext(ctx, connectionName)
 	if err != nil {
@@ -547,9 +630,21 @@ func (l *LoadService) getAvailableImage(ctx context.Context, connectionName stri
 	}
 
 	// 기본 이미지 사용
-	defaultImage := "ami-0c76973fbe0ee100c" // Ubuntu 22.04 LTS
+	defaultImage := "ami-0f37ba4f1a9f199d1" // Ubuntu 22.04 LTS (최신)
 	log.Info().Msgf("Using default AWS image for region %s: %s", region, defaultImage)
 	return defaultImage, nil
+}
+
+// extractProviderAndRegionFromConnection extracts provider and region from connection name
+func (l *LoadService) extractProviderAndRegionFromConnection(connectionName string) (string, string) {
+	// "aws-ap-northeast-2" -> "aws", "ap-northeast-2"
+	parts := strings.Split(connectionName, "-")
+	if len(parts) >= 2 {
+		provider := parts[0]
+		region := strings.Join(parts[1:], "-")
+		return provider, region
+	}
+	return "", ""
 }
 
 // extractRegionFromConnection extracts region from connection name
@@ -562,12 +657,12 @@ func (l *LoadService) extractRegionFromConnection(connectionName string) string 
 }
 
 // validDefaultNs checks if the default namespace exists, and creates it if not.
-func (l *LoadService) validDefaultNs(ctx context.Context, antNsId string) error {
-	_, err := l.tumblebugClient.GetNsWithContext(ctx, antNsId)
+func (l *LoadService) validDefaultNs(ctx context.Context, nsId string) error {
+	_, err := l.tumblebugClient.GetNsWithContext(ctx, nsId)
 	if err != nil && errors.Is(err, tumblebug.ErrNotFound) {
 
 		arg := tumblebug.CreateNsReq{
-			Name:        antNsId,
+			Name:        nsId,
 			Description: "cm-ant default ns for validating migration",
 		}
 
@@ -621,7 +716,8 @@ func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) 
 			Command: []string{uninstallCommand},
 		}
 
-		_, err = l.tumblebugClient.CommandToMciWithContext(ctx, antNsId, antMciId, commandReq)
+		nsId, mciId, _, _ := getResourceNames()
+		_, err = l.tumblebugClient.CommandToMciWithContext(ctx, nsId, mciId, commandReq)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				log.Error().Msg("VM is not in running state. Cannot connect to the VMs.")
@@ -631,7 +727,7 @@ func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) 
 			return err
 		}
 
-		// err = l.tumblebugClient.ControlLifecycleWithContext(ctx, antNsId, antMciId, "suspend")
+		// err = l.tumblebugClient.ControlLifecycleWithContext(ctx, nsId, mciId, "suspend")
 		// if err != nil {
 		// 	return err
 		// }

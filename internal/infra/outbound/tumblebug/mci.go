@@ -58,6 +58,35 @@ func (t *TumblebugClient) GetAvailableImagesWithContext(ctx context.Context, con
 	return response.Image, nil
 }
 
+// SearchImagesWithContext searches images using CB-Tumblebug v0.11.8+ smart matching
+func (t *TumblebugClient) SearchImagesWithContext(ctx context.Context, nsId string, req SearchImageRequest) ([]ImageInfo, error) {
+	var response SearchImageResponse
+
+	url := t.withUrl(fmt.Sprintf("/ns/%s/resources/searchImage", nsId))
+	marshalledBody, err := json.Marshal(req)
+	if err != nil {
+		log.Error().Msgf("error marshaling search image request body; %v", err)
+		return response.ImageList, err
+	}
+
+	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
+	if err != nil {
+		log.Error().Msgf("error sending search image request; %v", err)
+		return response.ImageList, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	err = json.Unmarshal(resBytes, &response)
+	if err != nil {
+		log.Error().Msgf("error unmarshaling search image response body; %v", err)
+		return response.ImageList, fmt.Errorf("failed to unmarshal response body: %w", err)
+	}
+
+	log.Info().Msgf("SearchImages found %d images for criteria: provider=%s, region=%s, osType=%s, osArchitecture=%s",
+		response.ImageCount, req.ProviderName, req.RegionName, req.OSType, req.OSArchitecture)
+
+	return response.ImageList, nil
+}
+
 // CreateSshKeyWithContext creates an SSH key in CB-Tumblebug
 func (t *TumblebugClient) CreateSshKeyWithContext(ctx context.Context, nsId string, sshKeyReq SshKeyReq) (SshKeyInfo, error) {
 	var sshKeyInfo SshKeyInfo
