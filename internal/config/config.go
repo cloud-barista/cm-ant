@@ -57,18 +57,18 @@ type AntConfig struct {
 			Version string `yaml:"version"`
 		} `yaml:"jmeter"`
 		Image struct {
-			UseSmartMatching bool                `yaml:"useSmartMatching"`
-			PreferredOs      string              `yaml:"preferredOs"`
-			FallbackOs       string              `yaml:"fallbackOs"`
-			OsKeywords       map[string][]string `yaml:"osKeywords"`
-			AwsImages        map[string]string   `yaml:"awsImages"`
+			UseSmartMatching bool                         `yaml:"useSmartMatching"`
+			PreferredOs      string                       `yaml:"preferredOs"`
+			FallbackOs       string                       `yaml:"fallbackOs"`
+			OsKeywords       map[string][]string          `yaml:"osKeywords"`
+			FallbackImages   map[string]map[string]string `yaml:"fallbackImages"`
 		} `yaml:"image"`
 		Spec struct {
-			MinVcpu      int    `yaml:"minVcpu"`
-			MaxVcpu      int    `yaml:"maxVcpu"`
-			MinMemory    int    `yaml:"minMemory"`
-			MaxMemory    int    `yaml:"maxMemory"`
-			Provider     string `yaml:"provider"`
+			MinVcpu   int `yaml:"minVcpu"`
+			MaxVcpu   int `yaml:"maxVcpu"`
+			MinMemory int `yaml:"minMemory"`
+			MaxMemory int `yaml:"maxMemory"`
+			// Provider 제거 - 동적으로 기존 VM의 CSP 정보에서 추출
 			Architecture string `yaml:"architecture"`
 		} `yaml:"spec"`
 	} `yaml:"load"`

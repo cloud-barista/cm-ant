@@ -2,6 +2,7 @@ package load
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -38,8 +39,18 @@ const (
 // Currently remote request is executing via cb-tumblebug.
 func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (LoadGeneratorInstallInfoResult, error) {
 	log.Info().Msg("Starting InstallLoadGenerator")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+
+	// config.yaml의 commandExecution 타임아웃 설정 사용
+	timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.CommandExecution)
+	if err != nil {
+		log.Warn().Msgf("Failed to parse commandExecution timeout, using default 5 minutes: %v", err)
+		timeout = 5 * time.Minute
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	log.Info().Msgf("Using command execution timeout: %v", timeout)
 
 	var result LoadGeneratorInstallInfoResult
 
@@ -51,7 +62,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		Status:          "starting",
 	}
 
-	err := l.loadRepo.GetOrInsertLoadGeneratorInstallInfoTx(ctx, loadGeneratorInstallInfo)
+	err = l.loadRepo.GetOrInsertLoadGeneratorInstallInfoTx(ctx, loadGeneratorInstallInfo)
 	if err != nil {
 		log.Error().Msgf("Failed to insert LoadGeneratorInstallInfo; %v", err)
 		return result, err
@@ -99,17 +110,45 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		log.Info().Msg("Local installation of JMeter completed successfully")
 	case constant.Remote:
 		log.Info().Msg("Starting remote installation of JMeter")
-		// get the spec and image information
-		recommendVm, err := l.getRecommendVm(ctx, param.Coordinates)
+
+		// ✅ 1. 기존 VM의 CSP 정보 조회
+		var existingProvider, existingRegion, existingConnectionName string
+
+		if param.NsId != "" && param.MciId != "" && param.VmId != "" {
+			log.Info().Msgf("Getting CSP information from existing VM: nsId=%s, mciId=%s, vmId=%s",
+				param.NsId, param.MciId, param.VmId)
+
+			vmInfo, err := l.tumblebugClient.GetVmWithContext(ctx, param.NsId, param.MciId, param.VmId)
+			if err != nil {
+				log.Error().Msgf("Failed to get VM info; %v", err)
+				return result, fmt.Errorf("failed to get VM info: %w", err)
+			}
+
+			existingProvider = vmInfo.ConnectionConfig.ProviderName
+			existingRegion = vmInfo.ConnectionConfig.RegionDetail.RegionName
+			existingConnectionName = vmInfo.ConnectionName
+
+			log.Info().Msgf("Extracted CSP information - Provider: %s, Region: %s, ConnectionName: %s",
+				existingProvider, existingRegion, existingConnectionName)
+		} else {
+			// 폴백: 기존 방식 사용 (하위 호환성)
+			log.Warn().Msg("VM information not provided, using fallback method with default provider")
+			existingProvider = "aws"          // 기본값
+			existingRegion = "ap-northeast-2" // 기본값
+			existingConnectionName = fmt.Sprintf("%s-%s", existingProvider, existingRegion)
+		}
+
+		// ✅ 2. 동일한 CSP로 VM 추천 요청
+		recommendVm, err := l.getRecommendVm(ctx, []string{existingRegion}, existingProvider)
 		if err != nil {
-			log.Error().Msgf("Failed to get recommended VM; %v", err)
+			log.Error().Msgf("Failed to get recommended VM for provider %s; %v", existingProvider, err)
 			return result, err
 		}
-		antVmCommonSpec := recommendVm[0].Name
-		recommendVmConnName := recommendVm[0].ConnectionName
 
-		// CB-Tumblebug에서 사용 가능한 이미지 동적 조회
-		antVmCommonImage, err := l.getAvailableImage(ctx, recommendVmConnName)
+		antVmCommonSpec := recommendVm[0].Name
+
+		// ✅ 기존 VM의 리전과 연결명을 사용하여 이미지 조회 (동일한 리전에 설치)
+		antVmCommonImage, err := l.getAvailableImage(ctx, existingConnectionName)
 		if err != nil {
 			log.Error().Msgf("Failed to get available image; %v", err)
 			return result, err
@@ -117,7 +156,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 
 		// 디버깅: MCI 생성에 사용될 값들 로그 출력
 		log.Info().Msgf("MCI creation parameters - CommonSpec: '%s', CommonImage: '%s', ConnectionName: '%s'",
-			antVmCommonSpec, antVmCommonImage, recommendVmConnName)
+			antVmCommonSpec, antVmCommonImage, existingConnectionName)
 
 		// check namespace is valid or not
 		nsId, _, _, _ := getResourceNames()
@@ -128,7 +167,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		}
 
 		// get the ant default mci
-		antMci, err := l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, recommendVmConnName)
+		antMci, err := l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, existingConnectionName)
 		if err != nil {
 			log.Error().Msgf("Error getting or creating default mci; %v", err)
 			return result, err
@@ -145,7 +184,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 				return result, err
 			}
 			time.Sleep(defaultDelay)
-			antMci, err = l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, recommendVmConnName)
+			antMci, err = l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, existingConnectionName)
 			if err != nil {
 				log.Error().Msgf("Error getting MCI after resume attempt; %v", err)
 				return result, err
@@ -394,66 +433,77 @@ func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, ant
 }
 
 // getRecommendVm retrieves recommendVm to specify the location of provisioning.
-func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string) (tumblebug.SpecInfoList, error) {
+func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string, provider string) (tumblebug.SpecInfoList, error) {
 	// config.yaml에서 스펙 요구사항 동적 로드
 	specConfig := config.AppConfig.Load.Spec
 
 	recommendVmArg := tumblebug.RecommendVmReq{
-		Filter: tumblebug.Filter{
-			Policy: []tumblebug.FilterPolicy{
+		Filter: tumblebug.FilterInfo{
+			Policy: []tumblebug.FilterCondition{
 				{
-					Condition: []tumblebug.Condition{
-						{
-							Operand:  fmt.Sprintf("%d", specConfig.MinVcpu),
-							Operator: ">=",
-						},
-						{
-							Operand:  fmt.Sprintf("%d", specConfig.MaxVcpu),
-							Operator: "<=",
-						},
-					},
 					Metric: "vCPU",
-				},
-				{
-					Condition: []tumblebug.Condition{
+					Condition: []tumblebug.Operation{
 						{
-							Operand:  fmt.Sprintf("%d", specConfig.MinMemory),
 							Operator: ">=",
+							Operand:  fmt.Sprintf("%d", specConfig.MinVcpu),
 						},
 						{
-							Operand:  fmt.Sprintf("%d", specConfig.MaxMemory),
 							Operator: "<=",
+							Operand:  fmt.Sprintf("%d", specConfig.MaxVcpu),
 						},
 					},
+				},
+				{
 					Metric: "memoryGiB",
-				},
-				{
-					Condition: []tumblebug.Condition{
+					Condition: []tumblebug.Operation{
 						{
-							Operand: specConfig.Provider,
+							Operator: ">=",
+							Operand:  fmt.Sprintf("%d", specConfig.MinMemory),
+						},
+						{
+							Operator: "<=",
+							Operand:  fmt.Sprintf("%d", specConfig.MaxMemory),
 						},
 					},
+				},
+				{
 					Metric: "providerName",
-				},
-				{
-					Condition: []tumblebug.Condition{
+					Condition: []tumblebug.Operation{
 						{
-							Operand: specConfig.Architecture,
+							Operator: "==",
+							Operand:  provider, // ✅ 동적으로 추출한 CSP 사용
 						},
 					},
+				},
+				{
+					Metric: "regionName",
+					Condition: []tumblebug.Operation{
+						{
+							Operator: "==",
+							Operand:  coordinates[0], // ✅ 리전명 사용
+						},
+					},
+				},
+				{
 					Metric: "architecture",
+					Condition: []tumblebug.Operation{
+						{
+							Operator: "==",
+							Operand:  specConfig.Architecture,
+						},
+					},
 				},
 			},
 		},
 		Limit: "1",
-		Priority: tumblebug.Priority{
-			Policy: []tumblebug.Policy{
+		Priority: tumblebug.PriorityInfo{
+			Policy: []tumblebug.PriorityCondition{
 				{
-					Metric: "location",
+					Metric: "costPerHour",
 					Parameter: []tumblebug.Parameter{
 						{
-							Key: "coordinateClose",
-							Val: coordinates,
+							Key: "order",
+							Val: []string{"asc"},
 						},
 					},
 				},
@@ -462,8 +512,15 @@ func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string) 
 	}
 
 	// 디버깅: 스펙 요구사항 로그 출력
-	log.Info().Msgf("VM spec requirements - vCPU: %d-%d, Memory: %d-%d GB, Provider: %s, Architecture: %s",
-		specConfig.MinVcpu, specConfig.MaxVcpu, specConfig.MinMemory, specConfig.MaxMemory, specConfig.Provider, specConfig.Architecture)
+	log.Info().Msgf("VM spec requirements - vCPU: %d-%d, Memory: %d-%d GB, Provider: %s, Region: %s, Architecture: %s",
+		specConfig.MinVcpu, specConfig.MaxVcpu, specConfig.MinMemory, specConfig.MaxMemory, provider, coordinates[0], specConfig.Architecture)
+
+	// 디버깅: CB-Tumblebug API 요청 정보를 curl 형태로 출력
+	requestBody, _ := json.MarshalIndent(recommendVmArg, "", "  ")
+	log.Info().Msgf("CB-Tumblebug recommendSpec API request (curl format):")
+	log.Info().Msgf("curl -X POST http://localhost:1323/tumblebug/recommendSpec \\")
+	log.Info().Msgf("  -H 'Content-Type: application/json' \\")
+	log.Info().Msgf("  -d '%s'", string(requestBody))
 
 	recommendRes, err := l.tumblebugClient.GetRecommendVmWithContext(ctx, recommendVmArg)
 
@@ -613,47 +670,46 @@ func (l *LoadService) getAvailableImageTraditional(ctx context.Context, connecti
 		}
 	}
 
-	// CB-Tumblebug에 이미지가 없는 경우, config.yaml의 기본 이미지 사용
-	log.Info().Msgf("No images found in CB-Tumblebug, using configured default images for connection: %s", connectionName)
+	// CB-Tumblebug에 이미지가 없는 경우, config.yaml의 폴백 이미지 사용
+	log.Info().Msgf("No images found in CB-Tumblebug, using configured fallback images for connection: %s", connectionName)
 
-	// 연결명에서 리전 추출 (예: "aws-ap-northeast-2" -> "ap-northeast-2")
-	region := l.extractRegionFromConnection(connectionName)
-	if region == "" {
-		return "", fmt.Errorf("cannot extract region from connection name: %s", connectionName)
+	// 연결명에서 CSP와 리전 추출 (예: "aws-ap-northeast-2" -> "aws", "ap-northeast-2")
+	provider, region := l.extractProviderAndRegionFromConnection(connectionName)
+	if provider == "" || region == "" {
+		return "", fmt.Errorf("cannot extract provider and region from connection name: %s", connectionName)
 	}
 
-	// AWS 이미지 목록에서 해당 리전의 이미지 찾기
-	awsImages := config.AppConfig.Load.Image.AwsImages
-	if imageId, exists := awsImages[region]; exists {
-		log.Info().Msgf("Using configured AWS image for region %s: %s", region, imageId)
-		return imageId, nil
+	// 폴백 이미지 목록에서 해당 CSP와 리전의 이미지 찾기
+	fallbackImages := config.AppConfig.Load.Image.FallbackImages
+	if providerImages, exists := fallbackImages[provider]; exists {
+		if imageId, exists := providerImages[region]; exists {
+			log.Info().Msgf("Using configured fallback image for provider %s, region %s: %s", provider, region, imageId)
+			return imageId, nil
+		}
 	}
 
 	// 기본 이미지 사용
 	defaultImage := "ami-0f37ba4f1a9f199d1" // Ubuntu 22.04 LTS (최신)
-	log.Info().Msgf("Using default AWS image for region %s: %s", region, defaultImage)
+	log.Info().Msgf("Using default image for provider %s, region %s: %s", provider, region, defaultImage)
 	return defaultImage, nil
 }
 
 // extractProviderAndRegionFromConnection extracts provider and region from connection name
 func (l *LoadService) extractProviderAndRegionFromConnection(connectionName string) (string, string) {
 	// "aws-ap-northeast-2" -> "aws", "ap-northeast-2"
-	parts := strings.Split(connectionName, "-")
-	if len(parts) >= 2 {
-		provider := parts[0]
-		region := strings.Join(parts[1:], "-")
-		return provider, region
-	}
-	return "", ""
-}
+	// "azure-koreacentral" -> "azure", "koreacentral"
+	// "gcp-asia-northeast3" -> "gcp", "asia-northeast3"
+	// "ncp-KR" -> "ncp", "KR"
 
-// extractRegionFromConnection extracts region from connection name
-func (l *LoadService) extractRegionFromConnection(connectionName string) string {
-	// "aws-ap-northeast-2" -> "ap-northeast-2"
-	if strings.HasPrefix(connectionName, "aws-") {
-		return strings.TrimPrefix(connectionName, "aws-")
+	parts := strings.Split(connectionName, "-")
+	if len(parts) < 2 {
+		return "", ""
 	}
-	return ""
+
+	provider := parts[0]
+	region := strings.Join(parts[1:], "-")
+
+	return provider, region
 }
 
 // validDefaultNs checks if the default namespace exists, and creates it if not.
