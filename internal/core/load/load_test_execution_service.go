@@ -100,7 +100,13 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 	if param.LoadGeneratorInstallInfoId == uint(0) {
 		log.Info().Msgf("No LoadGeneratorInstallInfoId provided, installing load generator...")
 
-		result, err := l.InstallLoadGenerator(param.InstallLoadGenerator)
+		// ✅ VM 정보를 부하 발생기 설치 파라미터에 추가
+		installParam := param.InstallLoadGenerator
+		installParam.NsId = param.NsId
+		installParam.MciId = param.MciId
+		installParam.VmId = param.VmId
+
+		result, err := l.InstallLoadGenerator(installParam)
 		if err != nil {
 			failed(fmt.Sprintf("Error installing load generator: %v", err), err)
 			return

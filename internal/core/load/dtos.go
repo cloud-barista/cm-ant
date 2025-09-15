@@ -43,6 +43,10 @@ type GetAllMonitoringAgentInfoResult struct {
 type InstallLoadGeneratorParam struct {
 	InstallLocation constant.InstallLocation `json:"installLocation,omitempty"`
 	Coordinates     []string                 `json:"coordinate"`
+	// VM 정보 추가 (CSP 매칭용)
+	NsId  string `json:"nsId,omitempty"`
+	MciId string `json:"mciId,omitempty"`
+	VmId  string `json:"vmId,omitempty"`
 }
 
 type LoadGeneratorServerResult struct {

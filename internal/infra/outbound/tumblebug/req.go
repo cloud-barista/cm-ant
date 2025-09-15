@@ -103,10 +103,41 @@ type VmReq struct {
 }
 
 type RecommendVmReq struct {
-	Filter   Filter   `json:"filter"`
-	Limit    string   `json:"limit"`
-	Priority Priority `json:"priority"`
+	Filter   FilterInfo   `json:"filter"`
+	Limit    string       `json:"limit"`
+	Priority PriorityInfo `json:"priority"`
 }
+
+// CB-Tumblebug v0.11.9+ 구조체들
+type FilterInfo struct {
+	Policy []FilterCondition `json:"policy"`
+}
+
+type FilterCondition struct {
+	Metric    string      `json:"metric"`
+	Condition []Operation `json:"condition"`
+}
+
+type Operation struct {
+	Operator string `json:"operator"` // >=, <=, ==
+	Operand  string `json:"operand"`
+}
+
+type PriorityInfo struct {
+	Policy []PriorityCondition `json:"policy"`
+}
+
+type PriorityCondition struct {
+	Metric    string      `json:"metric"`
+	Parameter []Parameter `json:"parameter"`
+}
+
+type Parameter struct {
+	Key string   `json:"key"`
+	Val []string `json:"val"`
+}
+
+// 하위 호환성을 위한 기존 구조체들 (deprecated)
 type Condition struct {
 	Operand  string `json:"operand"`
 	Operator string `json:"operator"`
@@ -117,10 +148,6 @@ type FilterPolicy struct {
 }
 type Filter struct {
 	Policy []FilterPolicy `json:"policy"`
-}
-type Parameter struct {
-	Key string   `json:"key"`
-	Val []string `json:"val"`
 }
 type Policy struct {
 	Metric    string      `json:"metric"`

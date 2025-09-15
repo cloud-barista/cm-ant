@@ -35,6 +35,32 @@ func (t *TumblebugClient) GetMciWithContext(ctx context.Context, nsId, mciId str
 	return mciObject, nil
 }
 
+// GetVmWithContext retrieves specific VM information
+func (t *TumblebugClient) GetVmWithContext(ctx context.Context, nsId, mciId, vmId string) (VmInfo, error) {
+	var vmObject VmInfo
+
+	url := t.withUrl(fmt.Sprintf("/ns/%s/mci/%s/vm/%s", nsId, mciId, vmId))
+	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
+
+	if err != nil {
+		log.Error().Msgf("error sending get vm request; %v", err)
+
+		if errors.Is(err, ErrInternalServerError) {
+			return vmObject, ErrNotFound
+		}
+		return vmObject, fmt.Errorf("failed to send request: %w", err)
+	}
+
+	err = json.Unmarshal(resBytes, &vmObject)
+
+	if err != nil {
+		log.Error().Msgf("error unmarshaling response body; %v", err)
+		return vmObject, fmt.Errorf("failed to unmarshal response body: %w", err)
+	}
+
+	return vmObject, nil
+}
+
 // GetAvailableImagesWithContext retrieves available images for a specific connection
 func (t *TumblebugClient) GetAvailableImagesWithContext(ctx context.Context, connectionName string) ([]ImageInfo, error) {
 	var response struct {
