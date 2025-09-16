@@ -960,7 +960,7 @@ info:
   contact: {}
   description: CM-ANT REST API swagger document.
   title: CM-ANT REST API
-  version: 0.2.2
+  version: 0.3.4
 paths:
   /api/v1/cost/estimate:
     get:

@@ -4,7 +4,7 @@
         "description": "CM-ANT REST API swagger document.",
         "title": "CM-ANT REST API",
         "contact": {},
-        "version": "0.2.2"
+        "version": "0.3.4"
     },
     "basePath": "/ant",
     "paths": {
