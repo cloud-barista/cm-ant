@@ -130,3 +130,13 @@ type LoadTestExecutionHttpInfo struct {
 
 	LoadTestExecutionInfoId uint
 }
+
+type LoadTestScenarioCatalog struct {
+	gorm.Model
+	Name         string `gorm:"not null;index:idx_scenario_catalog_name"`
+	Description  string
+	VirtualUsers string `gorm:"not null"`
+	Duration     string `gorm:"not null"`
+	RampUpTime   string `gorm:"not null"`
+	RampUpSteps  string `gorm:"not null"`
+}

@@ -275,3 +275,45 @@ type GetLastLoadTestResultParam struct {
 	VmId   string
 	Format constant.ResultFormat
 }
+
+// LoadTestScenarioCatalog DTOs
+type CreateLoadTestScenarioCatalogReq struct {
+	Name         string `json:"name" binding:"required" example:"Basic Load Test Scenario"`
+	Description  string `json:"description" example:"Basic load test scenario catalog template"`
+	VirtualUsers string `json:"virtualUsers" binding:"required" example:"10"`
+	Duration     string `json:"duration" binding:"required" example:"300"`
+	RampUpTime   string `json:"rampUpTime" binding:"required" example:"60"`
+	RampUpSteps  string `json:"rampUpSteps" binding:"required" example:"5"`
+}
+
+type UpdateLoadTestScenarioCatalogReq struct {
+	Name         string `json:"name" example:"Updated Load Test Scenario"`
+	Description  string `json:"description" example:"Updated load test scenario catalog template"`
+	VirtualUsers string `json:"virtualUsers" example:"20"`
+	Duration     string `json:"duration" example:"600"`
+	RampUpTime   string `json:"rampUpTime" example:"120"`
+	RampUpSteps  string `json:"rampUpSteps" example:"10"`
+}
+
+type LoadTestScenarioCatalogResult struct {
+	ID           uint      `json:"id"`
+	Name         string    `json:"name"`
+	Description  string    `json:"description"`
+	VirtualUsers string    `json:"virtualUsers"`
+	Duration     string    `json:"duration"`
+	RampUpTime   string    `json:"rampUpTime"`
+	RampUpSteps  string    `json:"rampUpSteps"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+type GetAllLoadTestScenarioCatalogsParam struct {
+	Page int    `json:"page" example:"1"`
+	Size int    `json:"size" example:"10"`
+	Name string `json:"name,omitempty" example:"Basic"`
+}
+
+type GetAllLoadTestScenarioCatalogsResult struct {
+	LoadTestScenarioCatalogs []LoadTestScenarioCatalogResult `json:"loadTestScenarioCatalogs"`
+	TotalRow                 int64                           `json:"totalRow"`
+}

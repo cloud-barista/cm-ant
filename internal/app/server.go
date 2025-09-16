@@ -57,7 +57,7 @@ func NewAntServer() (*AntServer, error) {
 	tumblebugClient := tumblebug.NewTumblebugClient(client)
 	spiderClient := spider.NewSpiderClient(client)
 	repos := initializeRepositories(conn)
-	services := initializeServices(repos, tumblebugClient, spiderClient)
+	services := initializeServices(repos, tumblebugClient, spiderClient, conn)
 
 	return &AntServer{
 		e:        e,
@@ -87,8 +87,8 @@ func initializeRepositories(conn *gorm.DB) *antRepositories {
 }
 
 // initializeServices initializes the services with the given repositories and various client.
-func initializeServices(repos *antRepositories, tbClient *tumblebug.TumblebugClient, sClient *spider.SpiderClient) *antServices {
-	loadServ := load.NewLoadService(repos.loadRepo, tbClient)
+func initializeServices(repos *antRepositories, tbClient *tumblebug.TumblebugClient, sClient *spider.SpiderClient, db *gorm.DB) *antServices {
+	loadServ := load.NewLoadService(repos.loadRepo, tbClient, db)
 
 	cc := cost.NewAwsCostExplorerSpiderCostCollector(sClient, tbClient)
 	pc := cost.NewSpiderPriceCollector(sClient)

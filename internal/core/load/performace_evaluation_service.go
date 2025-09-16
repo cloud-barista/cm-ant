@@ -7,19 +7,22 @@ import (
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
 	"github.com/rs/zerolog/log"
+	"gorm.io/gorm"
 )
 
 // LoadService represents a service for managing load operations.
 type LoadService struct {
 	loadRepo        *LoadRepository
 	tumblebugClient *tumblebug.TumblebugClient
+	db              *gorm.DB
 }
 
 // NewLoadService creates a new instance of LoadService.
-func NewLoadService(loadRepo *LoadRepository, client *tumblebug.TumblebugClient) *LoadService {
+func NewLoadService(loadRepo *LoadRepository, client *tumblebug.TumblebugClient, db *gorm.DB) *LoadService {
 	return &LoadService{
 		loadRepo:        loadRepo,
 		tumblebugClient: client,
+		db:              db,
 	}
 }
 

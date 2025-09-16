@@ -671,6 +671,265 @@
                 }
             }
         },
+        "/api/v1/load/templates/test-scenario-catalogs": {
+            "get": {
+                "description": "Retrieve a list of all load test scenario catalogs with pagination support.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Scenario Catalog Management]"
+                ],
+                "summary": "Get All Load Test Scenario Catalogs",
+                "operationId": "GetAllLoadTestScenarioCatalogs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number for pagination (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items per page (default 10, max 100)",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by catalog name",
+                        "name": "name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test scenario catalogs",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_GetAllLoadTestScenarioCatalogsResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test scenario catalogs",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Create a new load test scenario catalog template with the provided configuration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Scenario Catalog Management]"
+                ],
+                "summary": "Create Load Test Scenario Catalog",
+                "operationId": "CreateLoadTestScenarioCatalog",
+                "parameters": [
+                    {
+                        "description": "Load Test Scenario Catalog Creation Request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/load.CreateLoadTestScenarioCatalogReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully created load test scenario catalog",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_LoadTestScenarioCatalogResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to create load test scenario catalog",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/load/templates/test-scenario-catalogs/{id}": {
+            "get": {
+                "description": "Retrieve a specific load test scenario catalog by ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Scenario Catalog Management]"
+                ],
+                "summary": "Get Load Test Scenario Catalog",
+                "operationId": "GetLoadTestScenarioCatalog",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Load Test Scenario Catalog ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved load test scenario catalog",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_LoadTestScenarioCatalogResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "404": {
+                        "description": "Load test scenario catalog not found",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to retrieve load test scenario catalog",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update an existing load test scenario catalog with the provided configuration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Scenario Catalog Management]"
+                ],
+                "summary": "Update Load Test Scenario Catalog",
+                "operationId": "UpdateLoadTestScenarioCatalog",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Load Test Scenario Catalog ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Load Test Scenario Catalog Update Request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/load.UpdateLoadTestScenarioCatalogReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully updated load test scenario catalog",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-load_LoadTestScenarioCatalogResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "404": {
+                        "description": "Load test scenario catalog not found",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to update load test scenario catalog",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Delete a load test scenario catalog by ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "[Load Test Scenario Catalog Management]"
+                ],
+                "summary": "Delete Load Test Scenario Catalog",
+                "operationId": "DeleteLoadTestScenarioCatalog",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Load Test Scenario Catalog ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully deleted load test scenario catalog",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "404": {
+                        "description": "Load test scenario catalog not found",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to delete load test scenario catalog",
+                        "schema": {
+                            "$ref": "#/definitions/app.AntResponse-string"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/load/tests/infos": {
             "get": {
                 "description": "Retrieve a list of all load test execution information with pagination support.",
@@ -1516,6 +1775,23 @@
                 }
             }
         },
+        "app.AntResponse-load_GetAllLoadTestScenarioCatalogsResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/load.GetAllLoadTestScenarioCatalogsResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
         "app.AntResponse-load_GetAllMonitoringAgentInfoResult": {
             "type": "object",
             "properties": {
@@ -1578,6 +1854,23 @@
                 },
                 "result": {
                     "$ref": "#/definitions/load.LoadTestExecutionStateResult"
+                },
+                "successMessage": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.AntResponse-load_LoadTestScenarioCatalogResult": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "errorMessage": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/load.LoadTestScenarioCatalogResult"
                 },
                 "successMessage": {
                     "type": "string"
@@ -1988,6 +2281,9 @@
                 "id": {
                     "type": "integer"
                 },
+                "imageName": {
+                    "type": "string"
+                },
                 "instanceType": {
                     "type": "string"
                 },
@@ -2158,6 +2454,42 @@
                 }
             }
         },
+        "load.CreateLoadTestScenarioCatalogReq": {
+            "type": "object",
+            "required": [
+                "duration",
+                "name",
+                "rampUpSteps",
+                "rampUpTime",
+                "virtualUsers"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Basic load test scenario catalog template"
+                },
+                "duration": {
+                    "type": "string",
+                    "example": "300"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Basic Load Test Scenario"
+                },
+                "rampUpSteps": {
+                    "type": "string",
+                    "example": "5"
+                },
+                "rampUpTime": {
+                    "type": "string",
+                    "example": "60"
+                },
+                "virtualUsers": {
+                    "type": "string",
+                    "example": "10"
+                }
+            }
+        },
         "load.GetAllLoadGeneratorInstallInfoResult": {
             "type": "object",
             "properties": {
@@ -2193,6 +2525,20 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/load.LoadTestExecutionStateResult"
+                    }
+                },
+                "totalRow": {
+                    "type": "integer"
+                }
+            }
+        },
+        "load.GetAllLoadTestScenarioCatalogsResult": {
+            "type": "object",
+            "properties": {
+                "loadTestScenarioCatalogs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.LoadTestScenarioCatalogResult"
                     }
                 },
                 "totalRow": {
@@ -2443,6 +2789,38 @@
                 }
             }
         },
+        "load.LoadTestScenarioCatalogResult": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rampUpSteps": {
+                    "type": "string"
+                },
+                "rampUpTime": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "virtualUsers": {
+                    "type": "string"
+                }
+            }
+        },
         "load.LoadTestStatistics": {
             "type": "object",
             "properties": {
@@ -2603,6 +2981,35 @@
                     "items": {
                         "$ref": "#/definitions/load.ResultRawData"
                     }
+                }
+            }
+        },
+        "load.UpdateLoadTestScenarioCatalogReq": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Updated load test scenario catalog template"
+                },
+                "duration": {
+                    "type": "string",
+                    "example": "600"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Updated Load Test Scenario"
+                },
+                "rampUpSteps": {
+                    "type": "string",
+                    "example": "10"
+                },
+                "rampUpTime": {
+                    "type": "string",
+                    "example": "120"
+                },
+                "virtualUsers": {
+                    "type": "string",
+                    "example": "20"
                 }
             }
         }
