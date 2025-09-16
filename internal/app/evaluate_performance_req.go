@@ -97,3 +97,9 @@ type GetLastLoadTestResultReq struct {
 	VmId   string                `query:"vmId"`
 	Format constant.ResultFormat `query:"format"`
 }
+
+type GetAllLoadTestScenarioCatalogsReq struct {
+	Page int    `query:"page"`
+	Size int    `query:"size"`
+	Name string `query:"name"`
+}

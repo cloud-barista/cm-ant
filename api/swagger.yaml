@@ -127,6 +127,17 @@ definitions:
       successMessage:
         type: string
     type: object
+  app.AntResponse-load_GetAllLoadTestScenarioCatalogsResult:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        $ref: '#/definitions/load.GetAllLoadTestScenarioCatalogsResult'
+      successMessage:
+        type: string
+    type: object
   app.AntResponse-load_GetAllMonitoringAgentInfoResult:
     properties:
       code:
@@ -168,6 +179,17 @@ definitions:
         type: string
       result:
         $ref: '#/definitions/load.LoadTestExecutionStateResult'
+      successMessage:
+        type: string
+    type: object
+  app.AntResponse-load_LoadTestScenarioCatalogResult:
+    properties:
+      code:
+        type: integer
+      errorMessage:
+        type: string
+      result:
+        $ref: '#/definitions/load.LoadTestScenarioCatalogResult'
       successMessage:
         type: string
     type: object
@@ -448,6 +470,8 @@ definitions:
         $ref: '#/definitions/constant.PriceCurrency'
       id:
         type: integer
+      imageName:
+        type: string
       instanceType:
         type: string
       lastUpdatedAt:
@@ -559,6 +583,33 @@ definitions:
       updatedDataCount:
         type: integer
     type: object
+  load.CreateLoadTestScenarioCatalogReq:
+    properties:
+      description:
+        example: Basic load test scenario catalog template
+        type: string
+      duration:
+        example: "300"
+        type: string
+      name:
+        example: Basic Load Test Scenario
+        type: string
+      rampUpSteps:
+        example: "5"
+        type: string
+      rampUpTime:
+        example: "60"
+        type: string
+      virtualUsers:
+        example: "10"
+        type: string
+    required:
+    - duration
+    - name
+    - rampUpSteps
+    - rampUpTime
+    - virtualUsers
+    type: object
   load.GetAllLoadGeneratorInstallInfoResult:
     properties:
       loadGeneratorInstallInfoResults:
@@ -582,6 +633,15 @@ definitions:
       loadTestExecutionStates:
         items:
           $ref: '#/definitions/load.LoadTestExecutionStateResult'
+        type: array
+      totalRow:
+        type: integer
+    type: object
+  load.GetAllLoadTestScenarioCatalogsResult:
+    properties:
+      loadTestScenarioCatalogs:
+        items:
+          $ref: '#/definitions/load.LoadTestScenarioCatalogResult'
         type: array
       totalRow:
         type: integer
@@ -746,6 +806,27 @@ definitions:
       updatedAt:
         type: string
     type: object
+  load.LoadTestScenarioCatalogResult:
+    properties:
+      createdAt:
+        type: string
+      description:
+        type: string
+      duration:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      rampUpSteps:
+        type: string
+      rampUpTime:
+        type: string
+      updatedAt:
+        type: string
+      virtualUsers:
+        type: string
+    type: object
   load.LoadTestStatistics:
     properties:
       average:
@@ -853,6 +934,27 @@ definitions:
         items:
           $ref: '#/definitions/load.ResultRawData'
         type: array
+    type: object
+  load.UpdateLoadTestScenarioCatalogReq:
+    properties:
+      description:
+        example: Updated load test scenario catalog template
+        type: string
+      duration:
+        example: "600"
+        type: string
+      name:
+        example: Updated Load Test Scenario
+        type: string
+      rampUpSteps:
+        example: "10"
+        type: string
+      rampUpTime:
+        example: "120"
+        type: string
+      virtualUsers:
+        example: "20"
+        type: string
     type: object
 info:
   contact: {}
@@ -1317,6 +1419,182 @@ paths:
       summary: Uninstall Monitoring Agents
       tags:
       - '[Monitoring Agent Management]'
+  /api/v1/load/templates/test-scenario-catalogs:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all load test scenario catalogs with pagination
+        support.
+      operationId: GetAllLoadTestScenarioCatalogs
+      parameters:
+      - description: Page number for pagination (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Number of items per page (default 10, max 100)
+        in: query
+        name: size
+        type: integer
+      - description: Filter by catalog name
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved load test scenario catalogs
+          schema:
+            $ref: '#/definitions/app.AntResponse-load_GetAllLoadTestScenarioCatalogsResult'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve load test scenario catalogs
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get All Load Test Scenario Catalogs
+      tags:
+      - '[Load Test Scenario Catalog Management]'
+    post:
+      consumes:
+      - application/json
+      description: Create a new load test scenario catalog template with the provided
+        configuration.
+      operationId: CreateLoadTestScenarioCatalog
+      parameters:
+      - description: Load Test Scenario Catalog Creation Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/load.CreateLoadTestScenarioCatalogReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully created load test scenario catalog
+          schema:
+            $ref: '#/definitions/app.AntResponse-load_LoadTestScenarioCatalogResult'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to create load test scenario catalog
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Create Load Test Scenario Catalog
+      tags:
+      - '[Load Test Scenario Catalog Management]'
+  /api/v1/load/templates/test-scenario-catalogs/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a load test scenario catalog by ID.
+      operationId: DeleteLoadTestScenarioCatalog
+      parameters:
+      - description: Load Test Scenario Catalog ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully deleted load test scenario catalog
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "404":
+          description: Load test scenario catalog not found
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to delete load test scenario catalog
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Delete Load Test Scenario Catalog
+      tags:
+      - '[Load Test Scenario Catalog Management]'
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific load test scenario catalog by ID.
+      operationId: GetLoadTestScenarioCatalog
+      parameters:
+      - description: Load Test Scenario Catalog ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved load test scenario catalog
+          schema:
+            $ref: '#/definitions/app.AntResponse-load_LoadTestScenarioCatalogResult'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "404":
+          description: Load test scenario catalog not found
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to retrieve load test scenario catalog
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Get Load Test Scenario Catalog
+      tags:
+      - '[Load Test Scenario Catalog Management]'
+    put:
+      consumes:
+      - application/json
+      description: Update an existing load test scenario catalog with the provided
+        configuration.
+      operationId: UpdateLoadTestScenarioCatalog
+      parameters:
+      - description: Load Test Scenario Catalog ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Load Test Scenario Catalog Update Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/load.UpdateLoadTestScenarioCatalogReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully updated load test scenario catalog
+          schema:
+            $ref: '#/definitions/app.AntResponse-load_LoadTestScenarioCatalogResult'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "404":
+          description: Load test scenario catalog not found
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+        "500":
+          description: Failed to update load test scenario catalog
+          schema:
+            $ref: '#/definitions/app.AntResponse-string'
+      summary: Update Load Test Scenario Catalog
+      tags:
+      - '[Load Test Scenario Catalog Management]'
   /api/v1/load/tests/infos:
     get:
       consumes:

@@ -20,9 +20,8 @@ import (
 type zerologGormLogger struct{}
 
 func (z zerologGormLogger) Printf(format string, v ...interface{}) {
-    log.Printf((fmt.Sprintf(format, v...)))
+	log.Printf((fmt.Sprintf(format, v...)))
 }
-
 
 func migrateDB(defaultDb *gorm.DB) error {
 	err := defaultDb.AutoMigrate(
@@ -32,6 +31,7 @@ func migrateDB(defaultDb *gorm.DB) error {
 		&load.LoadTestExecutionInfo{},
 		&load.LoadTestExecutionHttpInfo{},
 		&load.LoadTestExecutionState{},
+		&load.LoadTestScenarioCatalog{},
 
 		&cost.EstimateCostInfo{},
 		&cost.EstimateForecastCostInfo{},

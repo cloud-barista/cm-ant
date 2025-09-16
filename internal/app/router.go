@@ -57,6 +57,19 @@ func (server *AntServer) InitRouter() error {
 				loadTestRouter.GET("/result/last", server.getLastLoadTestResult)
 				loadTestRouter.GET("/result/metrics/last", server.getLastLoadTestMetrics)
 			}
+
+			// load test scenario catalog templates
+			templatesRouter := loadRouter.Group("/templates")
+			{
+				scenarioCatalogsRouter := templatesRouter.Group("/test-scenario-catalogs")
+				{
+					scenarioCatalogsRouter.POST("", server.createLoadTestScenarioCatalog)
+					scenarioCatalogsRouter.GET("", server.getAllLoadTestScenarioCatalogs)
+					scenarioCatalogsRouter.GET("/:id", server.getLoadTestScenarioCatalog)
+					scenarioCatalogsRouter.PUT("/:id", server.updateLoadTestScenarioCatalog)
+					scenarioCatalogsRouter.DELETE("/:id", server.deleteLoadTestScenarioCatalog)
+				}
+			}
 		}
 	}
 
