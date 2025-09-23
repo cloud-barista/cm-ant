@@ -36,8 +36,18 @@ load:
     # CB-Tumblebug v0.11.8+ 스마트 매칭 기능 사용
     useSmartMatching: true
     
+    # 안정성을 위한 하드코딩된 이미지만 사용 (프로덕션 환경 권장)
+    useFallbackImagesOnly: false     # true: fallbackImages만 사용, false: 스마트 검색 사용
+    
     preferredOs: "ubuntu 22.04"  # 선호하는 OS (스마트 매칭용)
     fallbackOs: "ubuntu 20.04"   # 대체 OS (스마트 매칭용)
+    
+    # 이미지 검색 옵션 (useFallbackImagesOnly: false일 때만 사용)
+    searchOptions:
+      isRegisteredByAsset: false      # Asset 등록 이미지만 검색 여부 (false: 모든 이미지)
+      includeDeprecatedImage: false   # Deprecated 이미지 포함 여부
+      includeBasicImageOnly: true     # Basic 이미지만 검색 (Ubuntu 지원)
+      maxResults: 50                  # 최대 검색 결과 수 (충분한 선택지 확보)
     
     # OS별 검색 키워드 (스마트 매칭용)
     osKeywords:
@@ -48,10 +58,11 @@ load:
     # 멀티 CSP 지원을 위한 폴백 이미지 설정 (스마트 매칭 실패 시 사용)
     fallbackImages:
       aws:
-        "ap-northeast-2": "ami-0f37ba4f1a9f199d1"  # Ubuntu 22.04 LTS (최신)
-        "ap-southeast-1": "ami-0f37ba4f1a9f199d1"  # Ubuntu 22.04 LTS
-        "us-east-1": "ami-0f37ba4f1a9f199d1"       # Ubuntu 22.04 LTS
-        "us-west-2": "ami-0f37ba4f1a9f199d1"       # Ubuntu 22.04 LTS
+        "ap-northeast-1": "ami-0c3fd0f5d33134a76"  # Ubuntu 22.04 LTS (Tokyo)
+        "ap-northeast-2": "ami-0f37ba4f1a9f199d1"  # Ubuntu 22.04 LTS (Seoul)
+        "ap-southeast-1": "ami-0f37ba4f1a9f199d1"  # Ubuntu 22.04 LTS (Singapore)
+        "us-east-1": "ami-0f37ba4f1a9f199d1"       # Ubuntu 22.04 LTS (US East)
+        "us-west-2": "ami-0f37ba4f1a9f199d1"       # Ubuntu 22.04 LTS (US West)
       azure:
         "koreacentral": "Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest"
         "eastus": "Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest"
