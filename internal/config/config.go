@@ -57,11 +57,13 @@ type AntConfig struct {
 			Version string `yaml:"version"`
 		} `yaml:"jmeter"`
 		Image struct {
-			UseSmartMatching bool                         `yaml:"useSmartMatching"`
-			PreferredOs      string                       `yaml:"preferredOs"`
-			FallbackOs       string                       `yaml:"fallbackOs"`
-			OsKeywords       map[string][]string          `yaml:"osKeywords"`
-			FallbackImages   map[string]map[string]string `yaml:"fallbackImages"`
+			UseSmartMatching      bool                         `yaml:"useSmartMatching"`
+			UseFallbackImagesOnly bool                         `yaml:"useFallbackImagesOnly"`
+			PreferredOs           string                       `yaml:"preferredOs"`
+			FallbackOs            string                       `yaml:"fallbackOs"`
+			SearchOptions         ImageSearchOptions           `yaml:"searchOptions"`
+			OsKeywords            map[string][]string          `yaml:"osKeywords"`
+			FallbackImages        map[string]map[string]string `yaml:"fallbackImages"`
 		} `yaml:"image"`
 		Spec struct {
 			MinVcpu   int `yaml:"minVcpu"`
@@ -83,6 +85,14 @@ type AntConfig struct {
 		Password string `yaml:"password"`
 		Name     string `yaml:"name"`
 	} `yaml:"database"`
+}
+
+// ImageSearchOptions defines image search configuration options
+type ImageSearchOptions struct {
+	IsRegisteredByAsset    bool `yaml:"isRegisteredByAsset"`
+	IncludeDeprecatedImage bool `yaml:"includeDeprecatedImage"`
+	IncludeBasicImageOnly  bool `yaml:"includeBasicImageOnly"`
+	MaxResults             int  `yaml:"maxResults"`
 }
 
 func InitConfig() error {

@@ -544,8 +544,16 @@ func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string, 
 
 // getAvailableImage retrieves an available image for the specified connection
 func (l *LoadService) getAvailableImage(ctx context.Context, connectionName string) (string, error) {
-	// 스마트 매칭 기능이 활성화된 경우 우선 사용
-	if config.AppConfig.Load.Image.UseSmartMatching {
+	imageConfig := config.AppConfig.Load.Image
+
+	// 1. useFallbackImagesOnly가 true인 경우, 하드코딩된 이미지만 사용
+	if imageConfig.UseFallbackImagesOnly {
+		log.Info().Msg("Using fallback images only mode - skipping image search")
+		return l.getFallbackImage(connectionName)
+	}
+
+	// 2. 스마트 매칭 기능이 활성화된 경우 우선 사용
+	if imageConfig.UseSmartMatching {
 		imageId, err := l.getAvailableImageWithSmartMatching(ctx, connectionName)
 		if err == nil {
 			return imageId, nil
@@ -553,7 +561,7 @@ func (l *LoadService) getAvailableImage(ctx context.Context, connectionName stri
 		log.Warn().Msgf("Smart matching failed, falling back to traditional method: %v", err)
 	}
 
-	// 기존 방식으로 폴백
+	// 3. 기존 방식으로 폴백
 	return l.getAvailableImageTraditional(ctx, connectionName)
 }
 
@@ -567,63 +575,174 @@ func (l *LoadService) getAvailableImageWithSmartMatching(ctx context.Context, co
 
 	imageConfig := config.AppConfig.Load.Image
 	specConfig := config.AppConfig.Load.Spec
+	searchOptions := imageConfig.SearchOptions
 
-	// 1. 선호하는 OS로 스마트 매칭 시도
+	// 1. matchedSpecId를 사용한 스마트 매칭 시도 (권장 방법)
+	matchedSpecId := fmt.Sprintf("%s+%s+t3.small", provider, region) // 기본 스펙 사용
+	log.Info().Msgf("Trying matchedSpecId approach: %s", matchedSpecId)
+
 	searchReq := tumblebug.SearchImageRequest{
-		ProviderName:           provider,
-		RegionName:             region,
+		MatchedSpecId:          matchedSpecId,
 		OSType:                 imageConfig.PreferredOs,
-		OSArchitecture:         specConfig.Architecture,
-		IsRegisteredByAsset:    &[]bool{true}[0],
-		IncludeDeprecatedImage: &[]bool{false}[0],
-		MaxResults:             5,
+		IncludeBasicImageOnly:  &searchOptions.IncludeBasicImageOnly,
+		IsRegisteredByAsset:    &searchOptions.IsRegisteredByAsset,
+		IncludeDeprecatedImage: &searchOptions.IncludeDeprecatedImage,
+		MaxResults:             searchOptions.MaxResults,
 	}
-
-	log.Info().Msgf("Searching images with smart matching: provider=%s, region=%s, osType=%s, osArchitecture=%s",
-		searchReq.ProviderName, searchReq.RegionName, searchReq.OSType, searchReq.OSArchitecture)
 
 	images, err := l.tumblebugClient.SearchImagesWithContext(ctx, "system", searchReq)
 	if err != nil {
-		return "", fmt.Errorf("smart matching failed for preferred OS: %w", err)
-	}
-
-	if len(images) > 0 {
-		log.Info().Msgf("Smart matching found %d images for preferred OS '%s', using: %s (ID: %s)",
+		log.Warn().Msgf("matchedSpecId approach failed: %v", err)
+	} else if len(images) > 0 {
+		log.Info().Msgf("matchedSpecId found %d images for '%s', using: %s (ID: %s)",
 			len(images), imageConfig.PreferredOs, images[0].Name, images[0].Id)
 		return images[0].Name, nil
 	}
 
-	// 2. 대체 OS로 스마트 매칭 시도
-	searchReq.OSType = imageConfig.FallbackOs
-	log.Info().Msgf("No images found for preferred OS, trying fallback OS: %s", imageConfig.FallbackOs)
+	// 2. 기본 방법으로 선호하는 OS 검색 (includeBasicImageOnly=true)
+	log.Info().Msgf("Trying basic image search for preferred OS: %s", imageConfig.PreferredOs)
+	searchReq = tumblebug.SearchImageRequest{
+		ProviderName:           provider,
+		RegionName:             region,
+		OSType:                 imageConfig.PreferredOs,
+		OSArchitecture:         specConfig.Architecture,
+		IncludeBasicImageOnly:  &[]bool{true}[0],
+		IsRegisteredByAsset:    &searchOptions.IsRegisteredByAsset,
+		IncludeDeprecatedImage: &searchOptions.IncludeDeprecatedImage,
+		MaxResults:             searchOptions.MaxResults,
+	}
 
 	images, err = l.tumblebugClient.SearchImagesWithContext(ctx, "system", searchReq)
 	if err != nil {
-		return "", fmt.Errorf("smart matching failed for fallback OS: %w", err)
+		log.Warn().Msgf("Basic image search failed for preferred OS: %v", err)
+	} else if len(images) > 0 {
+		log.Info().Msgf("Basic image search found %d images for preferred OS '%s', using: %s (ID: %s)",
+			len(images), imageConfig.PreferredOs, images[0].Name, images[0].Id)
+		return images[0].Name, nil
 	}
 
-	if len(images) > 0 {
-		log.Info().Msgf("Smart matching found %d images for fallback OS '%s', using: %s (ID: %s)",
+	// 3. includeBasicImageOnly=false로 모든 이미지 검색
+	log.Info().Msgf("Trying all images search for preferred OS: %s", imageConfig.PreferredOs)
+	searchReq.IncludeBasicImageOnly = &[]bool{false}[0]
+
+	images, err = l.tumblebugClient.SearchImagesWithContext(ctx, "system", searchReq)
+	if err != nil {
+		log.Warn().Msgf("All images search failed for preferred OS: %v", err)
+	} else if len(images) > 0 {
+		// 최적의 이미지 선택 로직
+		selectedImage := l.selectBestImage(images, imageConfig.PreferredOs)
+		log.Info().Msgf("Selected best image for preferred OS '%s': %s (ID: %s, isBasic: %v)",
+			imageConfig.PreferredOs, selectedImage.Name, selectedImage.Id, selectedImage.IsBasicImage)
+		return selectedImage.Name, nil
+	}
+
+	// 4. 대체 OS로 시도
+	log.Info().Msgf("Trying fallback OS: %s", imageConfig.FallbackOs)
+	searchReq.OSType = imageConfig.FallbackOs
+	searchReq.IncludeBasicImageOnly = &[]bool{true}[0]
+
+	images, err = l.tumblebugClient.SearchImagesWithContext(ctx, "system", searchReq)
+	if err != nil {
+		log.Warn().Msgf("Basic image search failed for fallback OS: %v", err)
+	} else if len(images) > 0 {
+		log.Info().Msgf("Found %d images for fallback OS '%s', using: %s (ID: %s)",
 			len(images), imageConfig.FallbackOs, images[0].Name, images[0].Id)
 		return images[0].Name, nil
 	}
 
-	// 3. Ubuntu 계열로 스마트 매칭 시도
-	searchReq.OSType = "ubuntu"
-	log.Info().Msgf("No images found for fallback OS, trying Ubuntu family")
-
-	images, err = l.tumblebugClient.SearchImagesWithContext(ctx, "system", searchReq)
-	if err != nil {
-		return "", fmt.Errorf("smart matching failed for Ubuntu family: %w", err)
-	}
-
-	if len(images) > 0 {
-		log.Info().Msgf("Smart matching found %d Ubuntu images, using: %s (ID: %s)",
-			len(images), images[0].Name, images[0].Id)
-		return images[0].Name, nil
-	}
-
 	return "", fmt.Errorf("no images found with smart matching for connection: %s", connectionName)
+}
+
+// getFallbackImage returns a hardcoded image from config.yaml fallbackImages
+func (l *LoadService) getFallbackImage(connectionName string) (string, error) {
+	// 연결명에서 프로바이더와 리전 추출 (예: "aws-ap-northeast-2" -> "aws", "ap-northeast-2")
+	provider, region := l.extractProviderAndRegionFromConnection(connectionName)
+	if provider == "" || region == "" {
+		return "", fmt.Errorf("cannot extract provider and region from connection name: %s", connectionName)
+	}
+
+	imageConfig := config.AppConfig.Load.Image
+	fallbackImages := imageConfig.FallbackImages
+
+	// 프로바이더별 이미지 확인
+	if providerImages, exists := fallbackImages[provider]; exists {
+		// 리전별 이미지 확인
+		if imageId, exists := providerImages[region]; exists {
+			log.Info().Msgf("Using fallback image for %s-%s: %s", provider, region, imageId)
+			return imageId, nil
+		}
+		log.Warn().Msgf("No fallback image found for region %s in provider %s", region, provider)
+	} else {
+		log.Warn().Msgf("No fallback images configured for provider %s", provider)
+	}
+
+	// 프로바이더별 기본 이미지 찾기 (첫 번째 리전의 이미지 사용)
+	if providerImages, exists := fallbackImages[provider]; exists {
+		for regionKey, imageId := range providerImages {
+			log.Info().Msgf("Using fallback image from different region %s for %s-%s: %s",
+				regionKey, provider, region, imageId)
+			return imageId, nil
+		}
+	}
+
+	return "", fmt.Errorf("no fallback images available for connection: %s", connectionName)
+}
+
+// selectBestImage selects the most appropriate image from the search results
+func (l *LoadService) selectBestImage(images []tumblebug.ImageInfo, preferredOS string) tumblebug.ImageInfo {
+	// 우선순위별로 이미지 분류
+	var basicImages []tumblebug.ImageInfo
+	var serverImages []tumblebug.ImageInfo
+	var otherImages []tumblebug.ImageInfo
+
+	for _, img := range images {
+		// isBasicImage=true인 이미지 우선
+		if img.IsBasicImage {
+			basicImages = append(basicImages, img)
+		} else if strings.Contains(strings.ToLower(img.Name), "server") ||
+			strings.Contains(strings.ToLower(img.Name), "jammy") {
+			// server 또는 jammy가 포함된 이미지
+			serverImages = append(serverImages, img)
+		} else {
+			// 기타 이미지
+			otherImages = append(otherImages, img)
+		}
+	}
+
+	// 1순위: isBasicImage=true인 이미지
+	if len(basicImages) > 0 {
+		log.Info().Msgf("Found %d basic images, selecting first one", len(basicImages))
+		return basicImages[0]
+	}
+
+	// 2순위: server/jammy 이미지 (daily, pro 제외)
+	for _, img := range serverImages {
+		// daily, pro, minimal, fips, k8s, deep-learning 등 제외
+		if !strings.Contains(strings.ToLower(img.Name), "daily") &&
+			!strings.Contains(strings.ToLower(img.Name), "pro") &&
+			!strings.Contains(strings.ToLower(img.Name), "minimal") &&
+			!strings.Contains(strings.ToLower(img.Name), "fips") &&
+			!strings.Contains(strings.ToLower(img.Name), "k8s") &&
+			!strings.Contains(strings.ToLower(img.Name), "kubernetes") &&
+			!strings.Contains(strings.ToLower(img.Name), "container") &&
+			!strings.Contains(strings.ToLower(img.Name), "deep") &&
+			!strings.Contains(strings.ToLower(img.Name), "learning") &&
+			!strings.Contains(strings.ToLower(img.Name), "neuron") &&
+			!strings.Contains(strings.ToLower(img.Name), "parallelcluster") &&
+			!strings.Contains(strings.ToLower(img.Name), "sql") {
+			log.Info().Msgf("Found suitable server image: %s", img.Name)
+			return img
+		}
+	}
+
+	// 3순위: 첫 번째 이미지 (폴백)
+	if len(images) > 0 {
+		log.Warn().Msgf("No optimal image found, using first available: %s", images[0].Name)
+		return images[0]
+	}
+
+	// 이론적으로는 도달하지 않음
+	return tumblebug.ImageInfo{}
 }
 
 // getAvailableImageTraditional uses the traditional image selection method

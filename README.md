@@ -39,6 +39,59 @@ This feature provides:
 
 These functionalities are integrated with other subsystems, namely `CB-Tumblebug` and `CB-Spider`, to function properly. Therefore, for CM-ANT to operate correctly, the related subsystems must be running on the same environment.
 
+### OS Image Search Configuration
+CM-ANT uses CB-Tumblebug's smart image search API to dynamically find appropriate OS images for load testing VM instances. The system supports two modes for image selection:
+
+#### Smart Image Search (Default)
+- **Purpose**: Automatically discovers the best available images for your target CSP and region
+- **Features**: 
+  - Uses `matchedSpecId` for precise VM spec matching
+  - Prioritizes basic images (`isBasicImage: true`)
+  - Filters out specialized images (daily, pro, minimal, k8s, deep-learning, etc.)
+  - Supports multiple search strategies with fallback options
+
+#### Fallback Images Only (Production Mode)
+- **Purpose**: Uses only pre-configured, tested images for maximum stability
+- **Use Case**: Production environments where predictable behavior is critical
+- **Configuration**: Set `useFallbackImagesOnly: true` in `config.yaml`
+
+#### Configuration Example
+```yaml
+load:
+  image:
+    # Smart search mode (development/testing)
+    useFallbackImagesOnly: false
+    useSmartMatching: true
+    preferredOs: "ubuntu 22.04"
+    fallbackOs: "ubuntu 20.04"
+    
+    # Production mode (stability first)
+    # useFallbackImagesOnly: true
+    # useSmartMatching: false
+    
+    searchOptions:
+      isRegisteredByAsset: false
+      includeDeprecatedImage: false
+      includeBasicImageOnly: true
+      maxResults: 50
+    
+    # Pre-configured images for each CSP/region
+    fallbackImages:
+      aws:
+        "ap-northeast-1": "ami-0c3fd0f5d33134a76"  # Tokyo
+        "ap-northeast-2": "ami-0f37ba4f1a9f199d1"  # Seoul
+        "us-east-1": "ami-0f37ba4f1a9f199d1"       # US East
+      azure:
+        "koreacentral": "Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest"
+      gcp:
+        "asia-northeast3": "ubuntu-2204-jammy-v20231213"
+```
+
+#### Troubleshooting Image Issues
+If you encounter image-related errors:
+1. **Switch to fallback mode**: Set `useFallbackImagesOnly: true` for stability
+2. **Update fallback images**: Add valid image IDs for your target CSP/region
+
 
 ---
 

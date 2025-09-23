@@ -215,6 +215,7 @@ type SearchImageRequest struct {
 	IsKubernetesImage      *bool    `json:"isKubernetesImage,omitempty"`
 	IsRegisteredByAsset    *bool    `json:"isRegisteredByAsset,omitempty"`
 	IncludeDeprecatedImage *bool    `json:"includeDeprecatedImage,omitempty"`
+	IncludeBasicImageOnly  *bool    `json:"includeBasicImageOnly,omitempty"`
 	MaxResults             int      `json:"maxResults,omitempty"`
 	DetailSearchKeys       []string `json:"detailSearchKeys,omitempty"`
 }
