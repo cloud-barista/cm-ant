@@ -18,7 +18,7 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 	log.Info().Msg("Starting installation of monitoring agent...")
 	timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.MonitoringAgentInstall)
 	if err != nil {
-		timeout = 5 * time.Minute // 기본값
+		timeout = 7 * time.Minute // 기본값
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -58,7 +58,7 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 		}
 		commandTimeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.CommandExecution)
 		if err != nil {
-			commandTimeout = 5 * time.Minute // 기본값
+			commandTimeout = 50 * time.Minute // 기본값
 		}
 		ctx, cancel := context.WithTimeout(ctx, commandTimeout)
 		defer cancel()
@@ -203,7 +203,7 @@ func (l *LoadService) UninstallMonitoringAgent(param MonitoringAgentInstallation
 	for _, monitoringAgentInfo := range result {
 		timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.UninstallAgent)
 		if err != nil {
-			timeout = 2 * time.Minute // 기본값
+			timeout = 7 * time.Minute // 기본값
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()

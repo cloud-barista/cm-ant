@@ -30,7 +30,12 @@ func getResourceNames() (nsId, mciId, vmName, sshKeyBase string) {
 // Generates a load test key, installs the load generator or retrieves existing installation information,
 // saves the load test execution state, and then asynchronously runs the load test.
 func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.CommandExecution)
+	if err != nil {
+		log.Warn().Msgf("Failed to parse commandExecution timeout, using default 50 minutes: %v", err)
+		timeout = 50 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()
