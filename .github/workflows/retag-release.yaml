@@ -1,0 +1,127 @@
+# This workflow allows manual retagging of existing releases
+# It deletes the existing tag from Docker Hub and recreates it with the latest commit
+name: Retag Release
+
+on:
+  # Manual workflow dispatch with input parameters
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name to retag (e.g., v0.4.0)'
+        required: true
+        type: string
+      confirm_deletion:
+        description: 'Confirm deletion of existing tag (type "DELETE" to confirm)'
+        required: true
+        type: string
+
+env:
+  DOCKER_REGISTRY_NAME: cloudbaristaorg
+  IMAGE_NAME: ${{ github.event.repository.name }}
+
+jobs:
+  retag-release:
+    name: Retag Release
+    runs-on: ubuntu-22.04
+    
+    # Only allow if confirmation is provided
+    if: github.event.inputs.confirm_deletion == 'DELETE'
+    
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper tagging
+
+      - name: Validate tag format
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          if [[ ! $TAG_NAME =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Tag name must follow semver format (e.g., v0.4.0)"
+            exit 1
+          fi
+          echo "Validating tag: $TAG_NAME"
+
+      - name: Delete existing tag from Docker Hub
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          echo "Deleting existing tag: $TAG_NAME"
+          
+          # Delete the tag from Docker Hub
+          curl -X DELETE \
+            -u ${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }} \
+            "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" \
+            -H "Accept: application/json"
+          
+          echo "Tag $TAG_NAME deleted from Docker Hub"
+
+      - name: Wait for tag deletion
+        run: |
+          echo "Waiting 30 seconds for Docker Hub to process deletion..."
+          sleep 30
+
+      - name: Extract metadata for new tag
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{env.DOCKER_REGISTRY_NAME}}/${{env.IMAGE_NAME}}
+          tags: |
+            type=raw,value=${{ github.event.inputs.tag_name }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and publish retagged image
+        id: docker_build
+        uses: docker/build-push-action@v6
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: ./
+          file: ./Dockerfile
+          target: prod
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Verify new tag
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          echo "Verifying new tag: $TAG_NAME"
+          
+          # Wait a bit for Docker Hub to process
+          sleep 10
+          
+          # Check if tag exists
+          curl -s "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" | jq '.name'
+          
+          echo "New tag $TAG_NAME successfully created with digest: ${{ steps.docker_build.outputs.digest }}"
+
+      - name: Summary
+        run: |
+          echo "## Retag Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ github.event.inputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **New Digest**: ${{ steps.docker_build.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ Successfully retagged" >> $GITHUB_STEP_SUMMARY
