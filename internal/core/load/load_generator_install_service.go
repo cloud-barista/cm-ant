@@ -807,10 +807,8 @@ func (l *LoadService) getAvailableImageTraditional(ctx context.Context, connecti
 		}
 	}
 
-	// 기본 이미지 사용
-	defaultImage := "ami-0f37ba4f1a9f199d1" // Ubuntu 22.04 LTS (최신)
-	log.Info().Msgf("Using default image for provider %s, region %s: %s", provider, region, defaultImage)
-	return defaultImage, nil
+	// 폴백 이미지도 없는 경우 에러 반환
+	return "", fmt.Errorf("no available image found for provider %s, region %s. Please check CB-Tumblebug image availability or configure fallback images in config.yaml", provider, region)
 }
 
 // extractProviderAndRegionFromConnection extracts provider and region from connection name
