@@ -1,17 +1,17 @@
-# This workflow forces a rebuild of a specific tag without deleting the existing one
-# Useful when you want to ensure the latest code is built with an existing tag
-name: Force Rebuild Tag
+# This workflow moves a Git tag to current HEAD commit and rebuilds Docker image
+# WARNING: This changes the Git tag position and may break existing references
+name: Move Tag to Latest Commit
 
 on:
   # Manual workflow dispatch with input parameters
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name to rebuild (e.g., v0.4.0)'
+        description: 'Tag name to move to latest commit (e.g., v0.4.0)'
         required: true
         type: string
-      force_rebuild:
-        description: 'Force rebuild (type "REBUILD" to confirm)'
+      confirm_move:
+        description: '⚠️ WARNING: This will move the Git tag to current HEAD and rebuild Docker image. Type "MOVE_TAG" to confirm'
         required: true
         type: string
 
@@ -20,18 +20,19 @@ env:
   IMAGE_NAME: ${{ github.event.repository.name }}
 
 jobs:
-  force-rebuild:
-    name: Force Rebuild Tag
+  move-tag-to-latest:
+    name: Move Tag to Latest Commit
     runs-on: ubuntu-22.04
     
     # Only allow if confirmation is provided
-    if: github.event.inputs.force_rebuild == 'REBUILD'
+    if: github.event.inputs.confirm_move == 'MOVE_TAG'
     
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate tag format
         run: |
@@ -42,7 +43,51 @@ jobs:
           fi
           echo "Validating tag: $TAG_NAME"
 
-      - name: Extract metadata for tag
+      - name: Delete existing Git tag
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          echo "Deleting existing Git tag: $TAG_NAME"
+          
+          # Delete local tag if exists
+          git tag -d $TAG_NAME 2>/dev/null || echo "Local tag $TAG_NAME not found"
+          
+          # Delete remote tag if exists
+          git push origin :refs/tags/$TAG_NAME 2>/dev/null || echo "Remote tag $TAG_NAME not found"
+          
+          echo "Git tag $TAG_NAME deleted"
+
+      - name: Delete existing Docker Hub tag
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          echo "Deleting existing Docker Hub tag: $TAG_NAME"
+          
+          # Delete the tag from Docker Hub
+          curl -X DELETE \
+            -u ${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }} \
+            "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" \
+            -H "Accept: application/json" 2>/dev/null || echo "Docker Hub tag $TAG_NAME not found"
+          
+          echo "Docker Hub tag $TAG_NAME deleted"
+
+      - name: Wait for cleanup
+        run: |
+          echo "Waiting 30 seconds for cleanup to complete..."
+          sleep 30
+
+      - name: Create new Git tag at current HEAD
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          echo "Creating new Git tag: $TAG_NAME at HEAD (${{ github.sha }})"
+          
+          # Create new tag at current HEAD
+          git tag $TAG_NAME
+          
+          # Push new tag to remote
+          git push origin $TAG_NAME
+          
+          echo "New Git tag $TAG_NAME created at HEAD"
+
+      - name: Extract metadata for new tag
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -100,8 +145,9 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Force Rebuild Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Move Tag to Latest Commit Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Tag**: ${{ github.event.inputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **New Digest**: ${{ steps.docker_build.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ✅ Successfully rebuilt" >> $GITHUB_STEP_SUMMARY
+          echo "- **New Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ Successfully moved tag to latest commit" >> $GITHUB_STEP_SUMMARY
+          echo "- **⚠️ Warning**: Git tag position has been changed!" >> $GITHUB_STEP_SUMMARY

@@ -1,17 +1,17 @@
-# This workflow allows manual retagging of existing releases
-# It deletes the existing tag from Docker Hub and recreates it with the latest commit
-name: Retag Release
+# This workflow rebuilds Docker image for existing Git tag without changing tag position
+# It deletes the existing Docker image and rebuilds it with the same Git tag position
+name: Rebuild Docker Image
 
 on:
   # Manual workflow dispatch with input parameters
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name to retag (e.g., v0.4.0)'
+        description: 'Tag name to rebuild Docker image (e.g., v0.4.0)'
         required: true
         type: string
-      confirm_deletion:
-        description: 'Confirm deletion of existing tag (type "DELETE" to confirm)'
+      confirm_rebuild:
+        description: 'Confirm Docker image rebuild (type "REBUILD" to confirm)'
         required: true
         type: string
 
@@ -20,12 +20,12 @@ env:
   IMAGE_NAME: ${{ github.event.repository.name }}
 
 jobs:
-  retag-release:
-    name: Retag Release
+  rebuild-docker-image:
+    name: Rebuild Docker Image
     runs-on: ubuntu-22.04
     
     # Only allow if confirmation is provided
-    if: github.event.inputs.confirm_deletion == 'DELETE'
+    if: github.event.inputs.confirm_rebuild == 'REBUILD'
     
     steps:
       - name: Checkout source code
@@ -42,18 +42,18 @@ jobs:
           fi
           echo "Validating tag: $TAG_NAME"
 
-      - name: Delete existing tag from Docker Hub
+      - name: Delete existing Docker image from Docker Hub
         run: |
           TAG_NAME="${{ github.event.inputs.tag_name }}"
-          echo "Deleting existing tag: $TAG_NAME"
+          echo "Deleting existing Docker image for tag: $TAG_NAME"
           
-          # Delete the tag from Docker Hub
+          # Delete the Docker image from Docker Hub (Git tag position remains unchanged)
           curl -X DELETE \
             -u ${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }} \
             "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" \
             -H "Accept: application/json"
           
-          echo "Tag $TAG_NAME deleted from Docker Hub"
+          echo "Docker image for tag $TAG_NAME deleted from Docker Hub"
 
       - name: Wait for tag deletion
         run: |
@@ -91,7 +91,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and publish retagged image
+      - name: Build and publish rebuilt image
         id: docker_build
         uses: docker/build-push-action@v6
         with:
@@ -105,23 +105,23 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
-      - name: Verify new tag
+      - name: Verify rebuilt image
         run: |
           TAG_NAME="${{ github.event.inputs.tag_name }}"
-          echo "Verifying new tag: $TAG_NAME"
+          echo "Verifying rebuilt Docker image for tag: $TAG_NAME"
           
           # Wait a bit for Docker Hub to process
           sleep 10
           
-          # Check if tag exists
+          # Check if image exists
           curl -s "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" | jq '.name'
           
-          echo "New tag $TAG_NAME successfully created with digest: ${{ steps.docker_build.outputs.digest }}"
+          echo "Docker image for tag $TAG_NAME successfully rebuilt with digest: ${{ steps.docker_build.outputs.digest }}"
 
       - name: Summary
         run: |
-          echo "## Retag Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Docker Image Rebuild Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Tag**: ${{ github.event.inputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **New Digest**: ${{ steps.docker_build.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ✅ Successfully retagged" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Tag Position**: Unchanged (same commit)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ Successfully rebuilt Docker image" >> $GITHUB_STEP_SUMMARY
