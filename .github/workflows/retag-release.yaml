@@ -87,15 +87,16 @@ jobs:
           echo "Waiting 30 seconds for Docker Hub to process deletion..."
           sleep 30
 
-      - name: Extract metadata for new tag
+      - name: Generate Docker tags
         id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{env.DOCKER_REGISTRY_NAME}}/${{env.IMAGE_NAME}}
-          tags: |
-            type=semver,enable=true,pattern={{version}}
-          flavor: |
-            latest=false
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          # Remove 'v' prefix from tag name
+          DOCKER_TAG=${TAG_NAME#v}
+          echo "Git tag: $TAG_NAME"
+          echo "Docker tag: $DOCKER_TAG"
+          echo "tags=${{env.DOCKER_REGISTRY_NAME}}/${{env.IMAGE_NAME}}:$DOCKER_TAG" >> $GITHUB_OUTPUT
+          echo "labels=" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
