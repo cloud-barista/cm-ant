@@ -10,6 +10,14 @@ on:
         description: 'Tag name to move to latest commit (e.g., v0.4.0)'
         required: true
         type: string
+      delete_existing_docker_image:
+        description: 'Delete existing Docker Hub image before rebuilding?'
+        required: true
+        type: choice
+        default: 'yes'
+        options:
+          - 'yes'
+          - 'no'
       confirm_move:
         description: '⚠️ WARNING: This will move the Git tag to current HEAD and rebuild Docker image. Type "MOVE_TAG" to confirm'
         required: true
@@ -56,20 +64,38 @@ jobs:
           
           echo "Git tag $TAG_NAME deleted"
 
-      - name: Delete existing Docker Hub tag
+      - name: Delete existing Docker Hub tag (conditional)
+        if: github.event.inputs.delete_existing_docker_image == 'yes'
         run: |
           TAG_NAME="${{ github.event.inputs.tag_name }}"
           echo "Deleting existing Docker Hub tag: $TAG_NAME"
           
           # Delete the tag from Docker Hub
-          curl -X DELETE \
-            -u ${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }} \
-            "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" \
-            -H "Accept: application/json" 2>/dev/null || echo "Docker Hub tag $TAG_NAME not found"
+          # Try with Personal Access Token first, fallback to password
+          if [ -n "${{ secrets.DOCKER_PAT }}" ]; then
+            echo "Using Personal Access Token for deletion"
+            curl -X DELETE \
+              -H "Authorization: Bearer ${{ secrets.DOCKER_PAT }}" \
+              "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" \
+              -H "Accept: application/json" 2>/dev/null || echo "Docker Hub tag $TAG_NAME not found"
+          else
+            echo "Using username/password for deletion"
+            curl -X DELETE \
+              -u ${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }} \
+              "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" \
+              -H "Accept: application/json" 2>/dev/null || echo "Docker Hub tag $TAG_NAME not found"
+          fi
           
           echo "Docker Hub tag $TAG_NAME deleted"
 
-      - name: Wait for cleanup
+      - name: Skip Docker Hub deletion
+        if: github.event.inputs.delete_existing_docker_image == 'no'
+        run: |
+          echo "Skipping Docker Hub image deletion as requested by user"
+          echo "⚠️ Note: This may result in multiple digests for the same tag"
+
+      - name: Wait for cleanup (conditional)
+        if: github.event.inputs.delete_existing_docker_image == 'yes'
         run: |
           echo "Waiting 30 seconds for cleanup to complete..."
           sleep 30
@@ -149,5 +175,9 @@ jobs:
           echo "- **Tag**: ${{ github.event.inputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **New Digest**: ${{ steps.docker_build.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
           echo "- **New Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Docker Image Deletion**: ${{ github.event.inputs.delete_existing_docker_image }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ✅ Successfully moved tag to latest commit" >> $GITHUB_STEP_SUMMARY
           echo "- **⚠️ Warning**: Git tag position has been changed!" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.delete_existing_docker_image }}" = "no" ]; then
+            echo "- **⚠️ Note**: Multiple digests may exist for the same tag" >> $GITHUB_STEP_SUMMARY
+          fi

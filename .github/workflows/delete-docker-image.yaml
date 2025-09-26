@@ -83,11 +83,22 @@ jobs:
           echo "🗑️ Deleting Docker image: ${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:$TAG_NAME"
           
           # Delete the Docker image from Docker Hub
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X DELETE \
-            -u ${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }} \
-            "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" \
-            -H "Accept: application/json")
+          # Try with Personal Access Token first, fallback to password
+          if [ -n "${{ secrets.DOCKER_PAT }}" ]; then
+            echo "Using Personal Access Token for deletion"
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X DELETE \
+              -H "Authorization: Bearer ${{ secrets.DOCKER_PAT }}" \
+              "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" \
+              -H "Accept: application/json")
+          else
+            echo "Using username/password for deletion"
+            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X DELETE \
+              -u ${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }} \
+              "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" \
+              -H "Accept: application/json")
+          fi
           
           if [ "$RESPONSE" = "204" ]; then
             echo "✅ Docker image deleted successfully"
