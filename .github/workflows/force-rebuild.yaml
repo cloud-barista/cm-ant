@@ -120,6 +120,8 @@ jobs:
           images: ${{env.DOCKER_REGISTRY_NAME}}/${{env.IMAGE_NAME}}
           tags: |
             type=semver,enable=true,pattern={{version}}
+          flavor: |
+            latest=false
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
