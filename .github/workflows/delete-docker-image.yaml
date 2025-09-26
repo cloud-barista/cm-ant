@@ -1,0 +1,138 @@
+# This workflow deletes a specific Docker image tag from Docker Hub.
+# This is useful for cleaning up old images or resolving tag conflicts.
+name: Delete Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Docker tag name to delete (e.g., 0.4.0, v0.4.0)'
+        required: true
+        type: string
+      confirm_delete:
+        description: '⚠️ WARNING: This will permanently delete the Docker image. Type "DELETE" to confirm'
+        required: true
+        type: string
+
+env:
+  DOCKER_REGISTRY_NAME: cloudbaristaorg
+  IMAGE_NAME: ${{ github.event.repository.name }}
+
+jobs:
+  delete-docker-image:
+    name: Delete Docker Image
+    runs-on: ubuntu-22.04
+    if: github.event.inputs.confirm_delete == 'DELETE'
+    
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate tag name
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          if [[ -z "$TAG_NAME" ]]; then
+            echo "❌ Error: Tag name cannot be empty"
+            exit 1
+          fi
+          
+          # Check if tag name contains only valid characters
+          if [[ ! "$TAG_NAME" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+            echo "❌ Error: Tag name contains invalid characters. Only alphanumeric, dots, underscores, and hyphens are allowed."
+            exit 1
+          fi
+          
+          echo "✅ Tag name validation passed: $TAG_NAME"
+
+      - name: Check if Docker image exists
+        id: check_image
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          
+          echo "🔍 Checking if Docker image exists: ${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:$TAG_NAME"
+          
+          # Check if the image exists on Docker Hub
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/")
+          
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ Docker image exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+            
+            # Get image details
+            IMAGE_INFO=$(curl -s "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/")
+            echo "📋 Image details:"
+            echo "$IMAGE_INFO" | jq '{name: .name, last_updated: .last_updated, digest: .images[0].digest}'
+          elif [ "$RESPONSE" = "404" ]; then
+            echo "❌ Docker image not found"
+            echo "exists=false" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "❌ Error checking Docker image. HTTP status: $RESPONSE"
+            exit 1
+          fi
+
+      - name: Delete Docker image from Docker Hub
+        if: steps.check_image.outputs.exists == 'true'
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          
+          echo "🗑️ Deleting Docker image: ${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}:$TAG_NAME"
+          
+          # Delete the Docker image from Docker Hub
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X DELETE \
+            -u ${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_PASSWORD }} \
+            "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/" \
+            -H "Accept: application/json")
+          
+          if [ "$RESPONSE" = "204" ]; then
+            echo "✅ Docker image deleted successfully"
+          elif [ "$RESPONSE" = "404" ]; then
+            echo "⚠️ Docker image was already deleted or does not exist"
+          else
+            echo "❌ Error deleting Docker image. HTTP status: $RESPONSE"
+            exit 1
+          fi
+
+      - name: Wait for deletion to propagate
+        if: steps.check_image.outputs.exists == 'true'
+        run: |
+          echo "⏳ Waiting 30 seconds for Docker Hub to process deletion..."
+          sleep 30
+
+      - name: Verify deletion
+        if: steps.check_image.outputs.exists == 'true'
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          
+          echo "🔍 Verifying deletion..."
+          
+          # Check if the image still exists
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://hub.docker.com/v2/repositories/${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}/tags/$TAG_NAME/")
+          
+          if [ "$RESPONSE" = "404" ]; then
+            echo "✅ Verification successful: Docker image has been deleted"
+          else
+            echo "⚠️ Warning: Docker image may still exist. HTTP status: $RESPONSE"
+            echo "This might be due to Docker Hub caching. The deletion should propagate within a few minutes."
+          fi
+
+      - name: Summary
+        run: |
+          TAG_NAME="${{ github.event.inputs.tag_name }}"
+          echo ""
+          echo "📋 Delete Docker Image Summary"
+          echo "================================"
+          echo "Tag: $TAG_NAME"
+          echo "Repository: ${{ env.DOCKER_REGISTRY_NAME }}/${{ env.IMAGE_NAME }}"
+          echo "Status: ✅ Successfully deleted"
+          echo ""
+          echo "💡 Next steps:"
+          echo "- The tag '$TAG_NAME' is now available for reuse"
+          echo "- You can now run 'Rebuild Docker Image' or 'Move Tag to Latest Commit' workflows"
+          echo "- Docker Hub may take a few minutes to fully propagate the deletion"

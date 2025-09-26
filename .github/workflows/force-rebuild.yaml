@@ -93,7 +93,7 @@ jobs:
         with:
           images: ${{env.DOCKER_REGISTRY_NAME}}/${{env.IMAGE_NAME}}
           tags: |
-            type=raw,value=${{ github.event.inputs.tag_name }}
+            type=semver,enable=true,pattern={{version}}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
