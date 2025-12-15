@@ -10,3 +10,8 @@ container-volume
 ./bin/**
 
 config.yaml
+
+# SSH keys (test artifacts)
+id_rsa
+id_rsa.pub
+*.pem

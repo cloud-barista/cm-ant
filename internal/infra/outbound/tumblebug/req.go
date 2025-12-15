@@ -204,20 +204,44 @@ type SshKeyInfo struct {
 	PrivateKey       string `json:"privateKey,omitempty"`
 }
 
-// CB-Tumblebug v0.11.8+ 스마트 매칭 구조체
+// CB-Tumblebug v0.12.1 스마트 매칭 구조체
 type SearchImageRequest struct {
-	MatchedSpecId          string   `json:"matchedSpecId,omitempty"`
-	ProviderName           string   `json:"providerName"`
-	RegionName             string   `json:"regionName"`
-	OSType                 string   `json:"osType"`
-	OSArchitecture         string   `json:"osArchitecture"`
-	IsGPUImage             *bool    `json:"isGPUImage,omitempty"`
-	IsKubernetesImage      *bool    `json:"isKubernetesImage,omitempty"`
-	IsRegisteredByAsset    *bool    `json:"isRegisteredByAsset,omitempty"`
-	IncludeDeprecatedImage *bool    `json:"includeDeprecatedImage,omitempty"`
-	IncludeBasicImageOnly  *bool    `json:"includeBasicImageOnly,omitempty"`
-	MaxResults             int      `json:"maxResults,omitempty"`
-	DetailSearchKeys       []string `json:"detailSearchKeys,omitempty"`
+	// MatchedSpecId is the ID of the matched spec.
+	// If specified, only the images that match this spec will be returned.
+	MatchedSpecId string `json:"matchedSpecId,omitempty"`
+
+	// Cloud Service Provider (ex: "aws", "azure", "gcp", etc.)
+	ProviderName string `json:"providerName,omitempty"`
+
+	// Cloud Service Provider Region (ex: "us-east-1", "us-west-2", etc.)
+	RegionName string `json:"regionName,omitempty"`
+
+	// Simplified OS name and version string. Space-separated for AND condition (ex: "ubuntu 22.04")
+	OSType string `json:"osType,omitempty"`
+
+	// The architecture of the operating system of the image. (ex: "x86_64", "arm64", etc.)
+	OSArchitecture string `json:"osArchitecture,omitempty"`
+
+	// Whether the image is ready for GPU usage or not.
+	IsGPUImage *bool `json:"isGPUImage,omitempty"`
+
+	// Whether the image is specialized image only for Kubernetes nodes.
+	IsKubernetesImage *bool `json:"isKubernetesImage,omitempty"`
+
+	// Whether the image is registered by CB-Tumblebug asset file or not.
+	IsRegisteredByAsset *bool `json:"isRegisteredByAsset,omitempty"`
+
+	// Whether the search results should include deprecated images or not.
+	IncludeDeprecatedImage *bool `json:"includeDeprecatedImage,omitempty"`
+
+	// Return basic OS distribution only without additional applications.
+	IncludeBasicImageOnly *bool `json:"includeBasicImageOnly,omitempty"`
+
+	// Maximum number of images to be returned in the search results.
+	MaxResults int `json:"maxResults,omitempty"`
+
+	// Keywords for searching images in detail.
+	DetailSearchKeys []string `json:"detailSearchKeys,omitempty"`
 }
 
 type SearchImageResponse struct {

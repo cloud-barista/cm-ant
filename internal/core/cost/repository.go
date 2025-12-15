@@ -144,7 +144,7 @@ func (r *CostRepository) GetMatchingEstimateCostTx(ctx context.Context, param Re
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		q := d.Model(&EstimateCostInfo{}).
 			Where(
-				"LOWER(provider_name) = ? AND LOWER(region_name) = ? AND instance_type  = ? AND price_policy = ? AND last_updated_at >= ?",
+				"LOWER(provider_name) = ? AND LOWER(region_name) = ? AND LOWER(instance_type) = ? AND price_policy = ? AND last_updated_at >= ?",
 				strings.ToLower(param.ProviderName),
 				strings.ToLower(param.RegionName),
 				strings.ToLower(param.InstanceType),

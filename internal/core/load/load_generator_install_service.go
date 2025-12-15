@@ -689,16 +689,24 @@ func (l *LoadService) getFallbackImage(connectionName string) (string, error) {
 }
 
 // selectBestImage selects the most appropriate image from the search results
+// v0.12.1: OSType 필드를 활용하여 더 정확한 이미지 선택
 func (l *LoadService) selectBestImage(images []tumblebug.ImageInfo, preferredOS string) tumblebug.ImageInfo {
 	// 우선순위별로 이미지 분류
 	var basicImages []tumblebug.ImageInfo
+	var osMatchedImages []tumblebug.ImageInfo
 	var serverImages []tumblebug.ImageInfo
 	var otherImages []tumblebug.ImageInfo
 
 	for _, img := range images {
+		// v0.12.1: OSType 필드를 사용하여 더 정확한 매칭
+		osType := img.GetOSType() // v0.11.19 및 v0.12.1 호환
+
 		// isBasicImage=true인 이미지 우선
 		if img.IsBasicImage {
 			basicImages = append(basicImages, img)
+		} else if osType != "" && strings.Contains(strings.ToLower(osType), strings.ToLower(preferredOS)) {
+			// v0.12.1: OSType이 선호 OS와 일치하는 경우
+			osMatchedImages = append(osMatchedImages, img)
 		} else if strings.Contains(strings.ToLower(img.Name), "server") ||
 			strings.Contains(strings.ToLower(img.Name), "jammy") {
 			// server 또는 jammy가 포함된 이미지
@@ -711,31 +719,38 @@ func (l *LoadService) selectBestImage(images []tumblebug.ImageInfo, preferredOS 
 
 	// 1순위: isBasicImage=true인 이미지
 	if len(basicImages) > 0 {
-		log.Info().Msgf("Found %d basic images, selecting first one", len(basicImages))
+		// 기본 이미지 중에서도 OSType이 선호 OS와 일치하는 것 우선
+		for _, img := range basicImages {
+			osType := img.GetOSType()
+			if osType != "" && strings.Contains(strings.ToLower(osType), strings.ToLower(preferredOS)) {
+				log.Info().Msgf("Found basic image with matching OSType '%s': %s", osType, img.Name)
+				return img
+			}
+		}
+		log.Info().Msgf("Found %d basic images, selecting first one: %s", len(basicImages), basicImages[0].Name)
 		return basicImages[0]
 	}
 
-	// 2순위: server/jammy 이미지 (daily, pro 제외)
+	// 2순위: v0.12.1 OSType이 선호 OS와 일치하는 이미지
+	if len(osMatchedImages) > 0 {
+		for _, img := range osMatchedImages {
+			// daily, pro, minimal, fips, k8s, deep-learning 등 제외
+			if l.isSuitableImage(img) {
+				log.Info().Msgf("Found OSType matched image: %s (OSType: %s)", img.Name, img.GetOSType())
+				return img
+			}
+		}
+	}
+
+	// 3순위: server/jammy 이미지 (daily, pro 제외)
 	for _, img := range serverImages {
-		// daily, pro, minimal, fips, k8s, deep-learning 등 제외
-		if !strings.Contains(strings.ToLower(img.Name), "daily") &&
-			!strings.Contains(strings.ToLower(img.Name), "pro") &&
-			!strings.Contains(strings.ToLower(img.Name), "minimal") &&
-			!strings.Contains(strings.ToLower(img.Name), "fips") &&
-			!strings.Contains(strings.ToLower(img.Name), "k8s") &&
-			!strings.Contains(strings.ToLower(img.Name), "kubernetes") &&
-			!strings.Contains(strings.ToLower(img.Name), "container") &&
-			!strings.Contains(strings.ToLower(img.Name), "deep") &&
-			!strings.Contains(strings.ToLower(img.Name), "learning") &&
-			!strings.Contains(strings.ToLower(img.Name), "neuron") &&
-			!strings.Contains(strings.ToLower(img.Name), "parallelcluster") &&
-			!strings.Contains(strings.ToLower(img.Name), "sql") {
+		if l.isSuitableImage(img) {
 			log.Info().Msgf("Found suitable server image: %s", img.Name)
 			return img
 		}
 	}
 
-	// 3순위: 첫 번째 이미지 (폴백)
+	// 4순위: 첫 번째 이미지 (폴백)
 	if len(images) > 0 {
 		log.Warn().Msgf("No optimal image found, using first available: %s", images[0].Name)
 		return images[0]
@@ -743,6 +758,37 @@ func (l *LoadService) selectBestImage(images []tumblebug.ImageInfo, preferredOS 
 
 	// 이론적으로는 도달하지 않음
 	return tumblebug.ImageInfo{}
+}
+
+// isSuitableImage checks if an image is suitable (excludes daily, pro, minimal, fips, k8s, etc.)
+func (l *LoadService) isSuitableImage(img tumblebug.ImageInfo) bool {
+	name := strings.ToLower(img.Name)
+	osDistribution := strings.ToLower(img.OSDistribution)
+
+	// 제외할 패턴 목록
+	excludePatterns := []string{
+		"daily", "pro", "minimal", "fips", "k8s", "kubernetes",
+		"container", "deep", "learning", "neuron", "parallelcluster",
+		"sql", "ecs", "eks", "bottlerocket",
+	}
+
+	for _, pattern := range excludePatterns {
+		if strings.Contains(name, pattern) || strings.Contains(osDistribution, pattern) {
+			return false
+		}
+	}
+
+	// v0.12.1: Kubernetes 이미지 제외
+	if img.IsKubernetesImage {
+		return false
+	}
+
+	// v0.12.1: Deprecated 이미지 제외
+	if img.ImageStatus == tumblebug.ImageDeprecated {
+		return false
+	}
+
+	return true
 }
 
 // getAvailableImageTraditional uses the traditional image selection method

@@ -93,7 +93,7 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 
 			var err error
 			var estimateCostInfos EstimateCostInfos
-			possibleFetch := true
+			possibleIbmOrAzureFetch := false
 
 			if p.ProviderName == "ibm" || p.ProviderName == "azure" {
 				r, err := c.costRepo.GetMatchingEstimateCostWithoutTypeTx(ctx, v, param.TimeStandard, param.PricePolicy)
@@ -124,7 +124,7 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 					if len(temp) > 0 {
 						estimateCostInfos = temp
 					} else {
-						possibleFetch = false
+						possibleIbmOrAzureFetch = true
 					}
 				}
 			} else if strings.Contains(p.ProviderName, "ncp") {
@@ -139,7 +139,7 @@ func (c *CostService) UpdateAndGetEstimateCost(param UpdateAndGetEstimateCostPar
 				return
 			}
 
-			if len(estimateCostInfos) == 0 || possibleFetch {
+			if len(estimateCostInfos) == 0 || possibleIbmOrAzureFetch {
 				log.Info().Msgf("No matching estimate cost found from database for spec: %+v, fetching from price collector", p)
 
 				resList, err := c.priceCollector.FetchPriceInfos(ctx, p)
