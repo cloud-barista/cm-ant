@@ -46,10 +46,11 @@ func httpErrMessage(he *echo.HTTPError) string {
 }
 
 // TestRunLoadTest_ParamRangeValidation verifies the fixed range validation:
-//   - out-of-range parameters must be rejected with HTTP 400 (this is the
-//     regression that the `&&` bug previously let through),
-//   - in-range parameters must pass range validation (verified indirectly by
-//     stopping at the next check, "http request required", with empty httpReqs).
+//   - out-of-range values (above max AND below min) and non-numeric values
+//     must be rejected with HTTP 400 (the `&&` bug previously let valid
+//     out-of-range integers — both too-large and too-small, e.g. "0" — pass),
+//   - in-range values (including min/max boundaries) must pass range validation
+//     (verified by stopping at the next check, "http request required").
 func TestRunLoadTest_ParamRangeValidation(t *testing.T) {
 	const base = `"installLoadGenerator":{"installLocation":"local"}`
 
@@ -83,11 +84,47 @@ func TestRunLoadTest_ParamRangeValidation(t *testing.T) {
 			body:      `{` + base + `,"virtualUsers":"10","duration":"10","rampUpTime":"5","rampUpSteps":"2","httpReqs":[{"method":"GET","protocol":"http","hostname":"127.0.0.1","port":"99999","path":"/"}]}`,
 			wantMsgIn: "Port",
 		},
+
+		// --- below range (v < 1): also broken by the && bug ("0" previously passed) ---
 		{
-			// In-range params must pass the range checks; with empty httpReqs the
-			// handler then stops at the "http request required" check (still 400 but
-			// a different message), proving the range validation did not reject them.
-			name:      "in-range params pass range validation",
+			name:      "VirtualUsers below range (0) -> 400",
+			body:      `{` + base + `,"virtualUsers":"0","duration":"10","rampUpTime":"5","rampUpSteps":"2"}`,
+			wantMsgIn: "virtual user",
+		},
+		{
+			name:      "Duration below range (0) -> 400",
+			body:      `{` + base + `,"virtualUsers":"10","duration":"0","rampUpTime":"5","rampUpSteps":"2"}`,
+			wantMsgIn: "duration",
+		},
+		{
+			name:      "RampUpTime below range (0) -> 400",
+			body:      `{` + base + `,"virtualUsers":"10","duration":"10","rampUpTime":"0","rampUpSteps":"2"}`,
+			wantMsgIn: "ramp up time",
+		},
+		{
+			name:      "RampUpSteps below range (0) -> 400",
+			body:      `{` + base + `,"virtualUsers":"10","duration":"10","rampUpTime":"5","rampUpSteps":"0"}`,
+			wantMsgIn: "ramp up steps",
+		},
+		{
+			name:      "Port below range (0) -> 400",
+			body:      `{` + base + `,"virtualUsers":"10","duration":"10","rampUpTime":"5","rampUpSteps":"2","httpReqs":[{"method":"GET","protocol":"http","hostname":"127.0.0.1","port":"0","path":"/"}]}`,
+			wantMsgIn: "Port",
+		},
+		{
+			name:      "VirtualUsers non-numeric (abc) -> 400",
+			body:      `{` + base + `,"virtualUsers":"abc","duration":"10","rampUpTime":"5","rampUpSteps":"2"}`,
+			wantMsgIn: "virtual user",
+		},
+
+		// --- in-range boundaries must pass range validation (stop at http request check) ---
+		{
+			name:      "in-range min boundary (1/1/1/1) passes range validation",
+			body:      `{` + base + `,"virtualUsers":"1","duration":"1","rampUpTime":"1","rampUpSteps":"1","httpReqs":[]}`,
+			wantMsgIn: "http request",
+		},
+		{
+			name:      "in-range max boundary (100/300/60/20) passes range validation",
 			body:      `{` + base + `,"virtualUsers":"100","duration":"300","rampUpTime":"60","rampUpSteps":"20","httpReqs":[]}`,
 			wantMsgIn: "http request",
 		},
