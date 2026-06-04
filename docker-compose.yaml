@@ -20,8 +20,12 @@ services:
     environment:
       - ANT_SPIDER_HOST=http://cb-spider
       - ANT_SPIDER_PORT=1024
+      - ANT_SPIDER_USERNAME=${SPIDER_USERNAME:?Please set SPIDER_USERNAME}
+      - ANT_SPIDER_PASSWORD=${SPIDER_PASSWORD:?Please set SPIDER_PASSWORD}
       - ANT_TUMBLEBUG_HOST=http://cb-tumblebug
       - ANT_TUMBLEBUG_PORT=1323
+      - ANT_TUMBLEBUG_USERNAME=${TB_API_USERNAME:?Please set TB_API_USERNAME}
+      - ANT_TUMBLEBUG_PASSWORD=${TB_API_PASSWORD:?Please set TB_API_PASSWORD}
       - ANT_DATABASE_HOST=ant-postgres
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8880/ant/readyz" ]
@@ -51,18 +55,20 @@ services:
     restart: unless-stopped
 
   cb-tumblebug:
-    image: cloudbaristaorg/cb-tumblebug:0.11.13
+    image: cloudbaristaorg/cb-tumblebug:0.12.9
     container_name: cb-tumblebug
     pull_policy: always
     platform: linux/amd64
     ports:
       - 1323:1323
-    depends_on: 
+    depends_on:
       cb-tumblebug-etcd:
         condition: service_started
       cb-spider:
         condition: service_started
       cb-tumblebug-postgres:
+        condition: service_healthy
+      mc-terrarium:
         condition: service_healthy
     networks:
       - cm-ant-net
@@ -74,19 +80,29 @@ services:
     environment:
       # - TB_ROOT_PATH=/app
       - TB_SPIDER_REST_URL=http://cb-spider:1024/spider
+      - TB_SPIDER_USERNAME=${SPIDER_USERNAME:?Please set SPIDER_USERNAME}
+      - TB_SPIDER_PASSWORD=${SPIDER_PASSWORD:?Please set SPIDER_PASSWORD}
       - TB_ETCD_ENDPOINTS=http://cb-tumblebug-etcd:2379
       - TB_POSTGRES_ENDPOINT=cb-tumblebug-postgres:5432
       - TB_POSTGRES_DATABASE=tumblebug
       - TB_POSTGRES_USER=tumblebug
       - TB_POSTGRES_PASSWORD=tumblebug
+      # cb-tumblebug 0.12.x 강제 인증 (cm-mayfly default-env와 정합 — 평문 default)
+      - TB_AUTH_ENABLED=true
+      - TB_API_USERNAME=${TB_API_USERNAME:?Please set TB_API_USERNAME}
+      - TB_API_PASSWORD=${TB_API_PASSWORD:?Please set TB_API_PASSWORD}
+      # mc-terrarium 연동 (cb-tumblebug 0.12.3+)
+      - TB_TERRARIUM_REST_URL=http://mc-terrarium:8055/terrarium
+      - TB_TERRARIUM_API_USERNAME=${TERRARIUM_API_USERNAME:?Please set TERRARIUM_API_USERNAME}
+      - TB_TERRARIUM_API_PASSWORD=${TERRARIUM_API_PASSWORD:?Please set TERRARIUM_API_PASSWORD}
+      # OpenBao 시크릿 백엔드 (dev mode, 비어 있으면 통합 비활성)
+      - VAULT_ADDR=http://openbao:8200
+      - VAULT_TOKEN=${VAULT_TOKEN:-}
       # - TB_ETCD_AUTH_ENABLED=false
       # - TB_ETCD_USERNAME=default
       # - TB_ETCD_PASSWORD=default
       # - TB_ALLOW_ORIGINS=*
-      # - TB_AUTH_ENABLED=true
       # - TB_AUTH_MODE=jwt
-      # - TB_API_USERNAME=default
-      # - TB_API_PASSWORD=$$2a$$10$$4PKzCuJ6fPYsbCF.HR//ieLjaCzBAdwORchx62F2JRXQsuR3d9T0q
       # - TB_AUTOCONTROL_DURATION_MS=10000
       # - TB_SELF_ENDPOINT=localhost:1323
       # - TB_DRAGONFLY_REST_URL=http://cb-dragonfly:9090/dragonfly
@@ -178,9 +194,9 @@ services:
     restart: unless-stopped
 
   cb-spider:
-    image: cloudbaristaorg/cb-spider:0.11.13
+    image: cloudbaristaorg/cb-spider:0.12.17
     pull_policy: always
-    container_name: cb-spider 
+    container_name: cb-spider
     platform: linux/amd64
     networks:
       - cb-tumblebug-net
@@ -193,6 +209,9 @@ services:
     environment:
       - PLUGIN_SW=OFF
       - SERVER_ADDRESS=0.0.0.0:1024
+      # cb-spider 0.12.6+ 강제 인증 (비어 있으면 log.Fatal로 즉시 종료)
+      - SPIDER_USERNAME=${SPIDER_USERNAME:?Please set SPIDER_USERNAME}
+      - SPIDER_PASSWORD=${SPIDER_PASSWORD:?Please set SPIDER_PASSWORD}
       - SPIDER_LOG_LEVEL=error
       - SPIDER_HISCALL_LOG_LEVEL=error
       - ID_TRANSFORM_MODE=OFF
@@ -204,6 +223,51 @@ services:
       start_period: 10s
     restart: unless-stopped
     
+  # mc-terrarium — cb-tumblebug 0.12.3+ 통합 대상. cb-tumblebug가 depends_on healthy로 묶음
+  mc-terrarium:
+    image: cloudbaristaorg/mc-terrarium:0.1.4
+    container_name: mc-terrarium
+    pull_policy: always
+    platform: linux/amd64
+    networks:
+      - cb-tumblebug-net
+    environment:
+      - TERRARIUM_API_USERNAME=${TERRARIUM_API_USERNAME:?Please set TERRARIUM_API_USERNAME}
+      - TERRARIUM_API_PASSWORD=${TERRARIUM_API_PASSWORD:?Please set TERRARIUM_API_PASSWORD}
+      - VAULT_ADDR=http://openbao:8200
+      - VAULT_TOKEN=${VAULT_TOKEN:-}
+    depends_on:
+      openbao:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8055/terrarium/readyz" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # OpenBao — dev mode (in-memory, 자동 init/unseal). 운영 환경에선 별도 설정
+  openbao:
+    image: openbao/openbao:2.5.1
+    container_name: openbao
+    platform: linux/amd64
+    cap_add: [ IPC_LOCK ]
+    networks:
+      - cb-tumblebug-net
+    environment:
+      - BAO_ADDR=http://0.0.0.0:8200
+      - BAO_DEV_ROOT_TOKEN_ID=${VAULT_TOKEN:-cmant-dev-token}
+      - SKIP_SETCAP=true
+    command: server -dev
+    healthcheck:
+      test: ["CMD", "sh", "-c", "rc=0; bao status || rc=$$?; [ $$rc -le 2 ]"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
 networks:
   cm-ant-net:
   cb-spider-net:
