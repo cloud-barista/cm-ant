@@ -15,8 +15,9 @@ type MciRes struct {
 	SystemLabel                   string            `json:"systemLabel"`
 	SystemMessage                 []string          `json:"systemMessage"`
 	Description                   string            `json:"description"`
-	Vm                            []VmRes           `json:"vm"`
-	NewVMList                     []string          `json:"newVmList"`
+	// cb-tumblebug v0.12.7 BREAKING: 응답 키 "vm" → "node" (소스 대조 infra.go:185 Node []NodeInfo `json:"node"`)
+	Vm        []VmRes  `json:"node"`
+	NewVMList []string `json:"newNodeList"`
 }
 
 type StatusCountRes struct {
@@ -70,7 +71,8 @@ type VmInfo struct {
 	CspResourceName string `json:"cspResourceName"`
 	CspResourceId   string `json:"cspResourceId"`
 	Name            string `json:"name"`
-	SubGroupId      string `json:"subGroupId"`
+	// cb-tumblebug v0.12.7 BREAKING: 응답 키 "subGroupId" → "nodeGroupId"
+	SubGroupId      string `json:"nodeGroupId"`
 	Location        struct {
 		Display   string  `json:"display"`
 		Latitude  float64 `json:"latitude"`
@@ -122,7 +124,8 @@ type VmRes struct {
 	CspResourceName string `json:"cspResourceName"`
 	CspResourceId   string `json:"cspResourceId"`
 	Name            string `json:"name"`
-	SubGroupId      string `json:"subGroupId"`
+	// cb-tumblebug v0.12.7 BREAKING: 응답 키 "subGroupId" → "nodeGroupId"
+	SubGroupId      string `json:"nodeGroupId"`
 	Location        struct {
 		Display   string  `json:"display"`
 		Latitude  float64 `json:"latitude"`
@@ -343,10 +346,11 @@ type GetNsRes struct {
 }
 
 // SshCmdResultForAPI is struct for SshCmd Result with string error for API response
+// cb-tumblebug v0.12.7 BREAKING: mciId→infraId, vmId→nodeId, vmIp→nodeIp (infra.go:1442~)
 type SshCmdResultForAPI struct {
-	MciId   string         `json:"mciId"`
-	VmId    string         `json:"vmId"`
-	VmIp    string         `json:"vmIp"`
+	MciId   string         `json:"infraId"`
+	VmId    string         `json:"nodeId"`
+	VmIp    string         `json:"nodeIp"`
 	Command map[int]string `json:"command"`
 	Stdout  map[int]string `json:"stdout"`
 	Stderr  map[int]string `json:"stderr"`

@@ -13,7 +13,8 @@ import (
 func (t *TumblebugClient) GetMciWithContext(ctx context.Context, nsId, mciId string) (MciRes, error) {
 	var mciObject MciRes
 
-	url := t.withUrl(fmt.Sprintf("/ns/%s/mci/%s", nsId, mciId))
+	// cb-tumblebug v0.12.7 BREAKING: /mci/ → /infra/
+	url := t.withUrl(fmt.Sprintf("/ns/%s/infra/%s", nsId, mciId))
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
@@ -39,7 +40,8 @@ func (t *TumblebugClient) GetMciWithContext(ctx context.Context, nsId, mciId str
 func (t *TumblebugClient) GetVmWithContext(ctx context.Context, nsId, mciId, vmId string) (VmInfo, error) {
 	var vmObject VmInfo
 
-	url := t.withUrl(fmt.Sprintf("/ns/%s/mci/%s/vm/%s", nsId, mciId, vmId))
+	// cb-tumblebug v0.12.7 BREAKING: /mci/ → /infra/, /vm/ → /node/
+	url := t.withUrl(fmt.Sprintf("/ns/%s/infra/%s/node/%s", nsId, mciId, vmId))
 	resBytes, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
@@ -161,7 +163,8 @@ func (t *TumblebugClient) GetSshKeyWithContext(ctx context.Context, nsId, sshKey
 
 func (t *TumblebugClient) CommandToMciWithContext(ctx context.Context, nsId, mciId string, body SendCommandReq) (string, error) {
 
-	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/mci/%s", nsId, mciId))
+	// cb-tumblebug v0.12.7 BREAKING: /cmd/mci/ → /cmd/infra/
+	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/infra/%s", nsId, mciId))
 
 	// Convert SendCommandReq to MciCmdReq for latest cb-tumblebug compatibility
 	mciCmdReq := MciCmdReq{
@@ -204,7 +207,8 @@ func (t *TumblebugClient) CommandToMciWithContext(ctx context.Context, nsId, mci
 
 func (t *TumblebugClient) CommandToVmWithContext(ctx context.Context, nsId, mciId, vmId string, body SendCommandReq) (string, error) {
 
-	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/mci/%s?vmId=%s", nsId, mciId, vmId))
+	// cb-tumblebug v0.12.7 BREAKING: /cmd/mci/ → /cmd/infra/, vmId → nodeId
+	url := t.withUrl(fmt.Sprintf("/ns/%s/cmd/infra/%s?nodeId=%s", nsId, mciId, vmId))
 
 	// Convert SendCommandReq to MciCmdReq for latest cb-tumblebug compatibility
 	mciCmdReq := MciCmdReq{
@@ -315,7 +319,9 @@ func (t *TumblebugClient) CreateNsWithContext(ctx context.Context, body CreateNs
 
 func (t *TumblebugClient) DynamicVmWithContext(ctx context.Context, nsId, mciId string, body DynamicVmReq) (MciRes, error) {
 	var res MciRes
-	url := t.withUrl(fmt.Sprintf("/ns/%s/mci/%s/vmDynamic", nsId, mciId))
+	// cb-tumblebug v0.12.7 BREAKING: vmDynamic → nodeGroupDynamic, /mci/ → /infra/
+	// (v0.12.9 server.go:412 — RestPostInfraNodeGroupDynamic)
+	url := t.withUrl(fmt.Sprintf("/ns/%s/infra/%s/nodeGroupDynamic", nsId, mciId))
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
@@ -342,7 +348,8 @@ func (t *TumblebugClient) DynamicVmWithContext(ctx context.Context, nsId, mciId 
 
 func (t *TumblebugClient) DynamicMciWithContext(ctx context.Context, nsId string, body DynamicMciReq) (MciRes, error) {
 	var res MciRes
-	url := t.withUrl(fmt.Sprintf("/ns/%s/mciDynamic", nsId))
+	// cb-tumblebug v0.12.7 BREAKING: mciDynamic → infraDynamic
+	url := t.withUrl(fmt.Sprintf("/ns/%s/infraDynamic", nsId))
 
 	marshalledBody, err := json.Marshal(body)
 	if err != nil {
@@ -370,7 +377,8 @@ func (t *TumblebugClient) DynamicMciWithContext(ctx context.Context, nsId string
 // ControlLifecycleWithContext call tumblebug's control lifecycle api with specific action.
 // action should be on of terminate | suspend | resume | reboot | refine | continue | withdraw
 func (t *TumblebugClient) ControlLifecycleWithContext(ctx context.Context, nsId, mciId, action string) error {
-	url := t.withUrl(fmt.Sprintf("/ns/%s/control/mci/%s?action=%s", nsId, mciId, action))
+	// cb-tumblebug v0.12.7 BREAKING: /control/mci/ → /control/infra/
+	url := t.withUrl(fmt.Sprintf("/ns/%s/control/infra/%s?action=%s", nsId, mciId, action))
 
 	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
@@ -386,7 +394,8 @@ func (t *TumblebugClient) ControlLifecycleWithContext(ctx context.Context, nsId,
 // This should call after all the vm's in mci is the status of terminate or suspend.
 // If you want to change mci's vm lifecycle use ControlLifecycleWithContext.
 func (t *TumblebugClient) DeleteAllMciWithContext(ctx context.Context, nsId string) error {
-	url := t.withUrl(fmt.Sprintf("/ns/%s/mci", nsId))
+	// cb-tumblebug v0.12.7 BREAKING: /mci → /infra
+	url := t.withUrl(fmt.Sprintf("/ns/%s/infra", nsId))
 
 	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodDelete, url, nil)
 
