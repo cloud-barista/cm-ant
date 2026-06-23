@@ -119,7 +119,7 @@ type EstimateCostInfoResult struct {
 
 type UpdateEstimateForecastCostParam struct {
 	NsId      string
-	MciId     string
+	InfraId     string
 	StartDate time.Time
 	EndDate   time.Time
 }
@@ -136,7 +136,7 @@ type GetEstimateForecastCostParam struct {
 	StartDate           time.Time
 	EndDate             time.Time
 	NsIds               []string
-	MciIds              []string
+	InfraIds              []string
 	Providers           []string
 	ResourceTypes       []constant.ResourceType
 	ResourceIds         []string

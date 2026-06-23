@@ -51,5 +51,5 @@ type EstimateForecastCostInfo struct {
 	StartDate           time.Time `gorm:"index"`
 	EndDate             time.Time `gorm:"index"`
 	NsId                string    `gorm:"index"`
-	MciId               string    `gorm:"index"`
+	InfraId               string    `gorm:"index"`
 }

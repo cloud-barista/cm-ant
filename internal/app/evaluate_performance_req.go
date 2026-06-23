@@ -4,16 +4,16 @@ import "github.com/cloud-barista/cm-ant/internal/core/common/constant"
 
 type MonitoringAgentInstallationReq struct {
 	NsId  string   `json:"nsId"`
-	MciId string   `json:"mciId"`
-	VmIds []string `json:"vmIds,omitempty"`
+	InfraId string   `json:"infraId"`
+	NodeIds []string `json:"nodeIds,omitempty"`
 }
 
 type GetAllMonitoringAgentInfosReq struct {
 	Page  int    `query:"page"`
 	Size  int    `query:"size"`
 	NsId  string `query:"nsId"`
-	MciId string `query:"mciId"`
-	VmId  string `query:"vmId"`
+	InfraId string `query:"infraId"`
+	NodeId  string `query:"nodeId"`
 }
 
 type InstallLoadGeneratorReq struct {
@@ -42,8 +42,8 @@ type RunLoadTestReq struct {
 
 	// for validate agent host and connect to tumblebug resources
 	NsId  string `json:"nsId"`  // for metadata usage
-	MciId string `json:"mciId"` // for metadata usage
-	VmId  string `json:"vmId"`  // for metadata usage
+	InfraId string `json:"infraId"` // for metadata usage
+	NodeId  string `json:"nodeId"`  // for metadata usage
 
 	// agent tcp default port is 5555
 	CollectAdditionalSystemMetrics bool   `json:"collectAdditionalSystemMetrics"`
@@ -70,8 +70,8 @@ type GetAllLoadTestExecutionStateReq struct {
 
 type GetLastLoadTestExecutionStateReq struct {
 	NsId  string `query:"nsId"`
-	MciId string `query:"mciId"`
-	VmId  string `query:"vmId"`
+	InfraId string `query:"infraId"`
+	NodeId  string `query:"nodeId"`
 }
 
 type GetAllLoadTestExecutionHistoryReq struct {
@@ -82,8 +82,8 @@ type GetAllLoadTestExecutionHistoryReq struct {
 type StopLoadTestReq struct {
 	LoadTestKey string `json:"loadTestKey"`
 	NsId        string `json:"nsId"`
-	MciId       string `json:"mciId"`
-	VmId        string `json:"vmId"`
+	InfraId       string `json:"infraId"`
+	NodeId        string `json:"nodeId"`
 }
 
 type GetLoadTestResultReq struct {
@@ -93,8 +93,8 @@ type GetLoadTestResultReq struct {
 
 type GetLastLoadTestResultReq struct {
 	NsId   string                `query:"nsId"`
-	MciId  string                `query:"mciId"`
-	VmId   string                `query:"vmId"`
+	InfraId  string                `query:"infraId"`
+	NodeId   string                `query:"nodeId"`
 	Format constant.ResultFormat `query:"format"`
 }
 

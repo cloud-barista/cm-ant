@@ -22,7 +22,7 @@ type MciDynamicReq struct {
 	Label           map[string]string   `json:"label"` // v0.11.8: string -> map[string]string
 	Name            string              `json:"name"`
 	SystemLabel     string              `json:"systemLabel"`
-	SubGroups       []VirtualMachineReq `json:"subGroups"` // v0.11.8: VM -> SubGroups
+	SubGroups       []VirtualMachineReq `json:"nodeGroups"` // v0.11.8: VM -> SubGroups
 }
 
 type VirtualMachineReq struct {
@@ -32,10 +32,10 @@ type VirtualMachineReq struct {
 	Description    string            `json:"description"`
 	Label          map[string]string `json:"label"` // v0.11.8: string -> map[string]string
 	Name           string            `json:"name"`
-	RootDiskSize   string            `json:"rootDiskSize"`
+	RootDiskSize   int            `json:"rootDiskSize"`
 	RootDiskType   string            `json:"rootDiskType"`
-	SubGroupSize   string            `json:"subGroupSize"`
-	VMUserPassword string            `json:"vmUserPassword"`
+	SubGroupSize   int            `json:"nodeGroupSize"`
+	VMUserPassword string            `json:"nodeUserPassword"`
 }
 
 type SecurityGroupReq struct {
@@ -82,14 +82,14 @@ type MciReq struct {
 	InstallMonAgent string  `json:"installMonAgent"`
 	Label           string  `json:"label"`
 	SystemLabel     string  `json:"systemLabel"`
-	Vm              []VmReq `json:"vm"`
+	Vm              []VmReq `json:"nodeGroups"`
 }
 
 type VmReq struct {
-	SubGroupSize     string   `json:"subGroupSize"`
+	SubGroupSize     int   `json:"nodeGroupSize"`
 	Name             string   `json:"name"`
 	ImageId          string   `json:"imageId"`
-	VmUserAccount    string   `json:"vmUserAccount"`
+	VmUserAccount    string   `json:"nodeUserName"`
 	ConnectionName   string   `json:"connectionName"`
 	SshKeyId         string   `json:"sshKeyId"`
 	SpecId           string   `json:"specId"`
@@ -97,14 +97,15 @@ type VmReq struct {
 	VNetId           string   `json:"vNetId"`
 	SubnetId         string   `json:"subnetId"`
 	Description      string   `json:"description"`
-	VmUserPassword   string   `json:"vmUserPassword"`
+	VmUserPassword   string   `json:"nodeUserPassword"`
 	RootDiskType     string   `json:"rootDiskType"`
-	RootDiskSize     string   `json:"rootDiskSize"`
+	RootDiskSize     int   `json:"rootDiskSize"`
 }
 
 type RecommendVmReq struct {
 	Filter   FilterInfo   `json:"filter"`
-	Limit    string       `json:"limit"`
+	// cb-tumblebug v0.12.x BREAKING: RecommendSpecReq.limit string -> integer
+	Limit    int          `json:"limit"`
 	Priority PriorityInfo `json:"priority"`
 }
 
@@ -168,10 +169,10 @@ type DynamicVmReq struct {
 	Description    string            `json:"description"`
 	Label          map[string]string `json:"label"`
 	Name           string            `json:"name"`
-	RootDiskSize   string            `json:"rootDiskSize"`
+	RootDiskSize   int            `json:"rootDiskSize"`
 	RootDiskType   string            `json:"rootDiskType"`
-	SubGroupSize   string            `json:"subGroupSize"`
-	VMUserPassword string            `json:"vmUserPassword"`
+	SubGroupSize   int            `json:"nodeGroupSize"`
+	VMUserPassword string            `json:"nodeUserPassword"`
 	SshKeyId       string            `json:"sshKeyId,omitempty"` // SSH key for VM access
 }
 
@@ -181,7 +182,7 @@ type DynamicMciReq struct {
 	Label           map[string]string `json:"label"`
 	Name            string            `json:"name"`
 	SystemLabel     string            `json:"systemLabel"`
-	SubGroups       []DynamicVmReq    `json:"subGroups"` // v0.11.8: VM -> SubGroups
+	SubGroups       []DynamicVmReq    `json:"nodeGroups"` // v0.11.8: VM -> SubGroups
 }
 
 // SSH Key related structures

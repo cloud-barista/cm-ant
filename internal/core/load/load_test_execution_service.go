@@ -65,8 +65,8 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 		ExpectedFinishAt:            e,
 		TotalExpectedExcutionSecond: totalExecutionSecond,
 		NsId:                        param.NsId,
-		MciId:                       param.MciId,
-		VmId:                        param.VmId,
+		InfraId:                       param.InfraId,
+		NodeId:                        param.NodeId,
 		WithMetrics:                 param.CollectAdditionalSystemMetrics,
 	}
 
@@ -108,8 +108,8 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		// ✅ VM 정보를 부하 발생기 설치 파라미터에 추가
 		installParam := param.InstallLoadGenerator
 		installParam.NsId = param.NsId
-		installParam.MciId = param.MciId
-		installParam.VmId = param.VmId
+		installParam.InfraId = param.InfraId
+		installParam.NodeId = param.NodeId
 
 		result, err := l.InstallLoadGenerator(installParam)
 		if err != nil {
@@ -151,8 +151,8 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		RampUpSteps:  param.RampUpSteps,
 
 		NsId:  param.NsId,
-		MciId: param.MciId,
-		VmId:  param.VmId,
+		InfraId: param.InfraId,
+		NodeId:  param.NodeId,
 
 		AgentInstalled: param.CollectAdditionalSystemMetrics,
 		AgentHostname:  param.AgentHostname,
@@ -180,7 +180,7 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 
 	if param.CollectAdditionalSystemMetrics {
 		if strings.TrimSpace(param.AgentHostname) == "" {
-			mci, err := l.tumblebugClient.GetMciWithContext(context.Background(), param.NsId, param.MciId)
+			mci, err := l.tumblebugClient.GetMciWithContext(context.Background(), param.NsId, param.InfraId)
 
 			if err != nil {
 				failed(fmt.Sprintf("unexpected error occurred while fetching mci for install metrics agent; %s", err), err)
@@ -196,7 +196,7 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 				param.AgentHostname = mci.Vm[0].PublicIP
 			} else {
 				for _, v := range mci.Vm {
-					if v.Id == param.VmId {
+					if v.Id == param.NodeId {
 						param.AgentHostname = v.PublicIP
 					}
 				}
@@ -211,8 +211,8 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 
 		arg := MonitoringAgentInstallationParams{
 			NsId:  param.NsId,
-			MciId: param.MciId,
-			VmIds: []string{param.VmId},
+			InfraId: param.InfraId,
+			NodeIds: []string{param.NodeId},
 		}
 
 		// install and run the agent for collect metrics
@@ -222,7 +222,7 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 			return
 		}
 
-		log.Info().Msgf("metrics agent installed successfully for load test; %s %s %s", arg.NsId, arg.MciId, arg.VmIds)
+		log.Info().Msgf("metrics agent installed successfully for load test; %s %s %s", arg.NsId, arg.InfraId, arg.NodeIds)
 	}
 
 	loadTestDone := make(chan bool)
@@ -299,7 +299,7 @@ func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInsta
 	// check the installation of agent for additional metrics
 	if param.CollectAdditionalSystemMetrics {
 		if strings.TrimSpace(param.AgentHostname) == "" {
-			mci, err := l.tumblebugClient.GetMciWithContext(context.Background(), param.NsId, param.MciId)
+			mci, err := l.tumblebugClient.GetMciWithContext(context.Background(), param.NsId, param.InfraId)
 
 			if err != nil {
 				log.Error().Msgf("unexpected error occurred while fetching mci for install metrics agent")
@@ -315,7 +315,7 @@ func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInsta
 				param.AgentHostname = mci.Vm[0].PublicIP
 			} else {
 				for _, v := range mci.Vm {
-					if v.Id == param.VmId {
+					if v.Id == param.NodeId {
 						param.AgentHostname = v.PublicIP
 					}
 				}
@@ -329,8 +329,8 @@ func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInsta
 
 		arg := MonitoringAgentInstallationParams{
 			NsId:  param.NsId,
-			MciId: param.MciId,
-			VmIds: []string{param.VmId},
+			InfraId: param.InfraId,
+			NodeIds: []string{param.NodeId},
 		}
 
 		// install and run the agent for collect metrics
@@ -340,7 +340,7 @@ func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInsta
 			return
 		}
 
-		log.Info().Msgf("metrics agent installed successfully for load test; %s %s %s", arg.NsId, arg.MciId, arg.VmIds)
+		log.Info().Msgf("metrics agent installed successfully for load test; %s %s %s", arg.NsId, arg.InfraId, arg.NodeIds)
 	}
 
 	loadTestDone := make(chan bool)
@@ -543,8 +543,8 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 	if param.LoadTestKey == "" {
 		arg = GetLoadTestExecutionStateParam{
 			NsId:  param.NsId,
-			MciId: param.MciId,
-			VmId:  param.VmId,
+			InfraId: param.InfraId,
+			NodeId:  param.NodeId,
 		}
 
 	} else {

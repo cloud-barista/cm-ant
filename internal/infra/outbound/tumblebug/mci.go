@@ -196,8 +196,8 @@ func (t *TumblebugClient) CommandToMciWithContext(ctx context.Context, nsId, mci
 	// Check if there are any errors in the results
 	for _, res := range result.Results {
 		if res.Error != "" {
-			log.Error().Msgf("command execution error for VM %s: %s", res.VmId, res.Error)
-			return "", fmt.Errorf("command execution failed for VM %s: %s", res.VmId, res.Error)
+			log.Error().Msgf("command execution error for VM %s: %s", res.NodeId, res.Error)
+			return "", fmt.Errorf("command execution failed for VM %s: %s", res.NodeId, res.Error)
 		}
 	}
 
@@ -240,8 +240,8 @@ func (t *TumblebugClient) CommandToVmWithContext(ctx context.Context, nsId, mciI
 	// Check if there are any errors in the results
 	for _, res := range result.Results {
 		if res.Error != "" {
-			log.Error().Msgf("command execution error for VM %s: %s", res.VmId, res.Error)
-			return "", fmt.Errorf("command execution failed for VM %s: %s", res.VmId, res.Error)
+			log.Error().Msgf("command execution error for VM %s: %s", res.NodeId, res.Error)
+			return "", fmt.Errorf("command execution failed for VM %s: %s", res.NodeId, res.Error)
 		}
 	}
 

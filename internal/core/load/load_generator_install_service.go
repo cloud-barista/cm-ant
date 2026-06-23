@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,9 +25,9 @@ const (
 
 	antVmDescription  = "Default VM for Cloud Migration Verification"
 	antVmLabel        = "DynamicVm,AntDefault"
-	antVmRootDiskSize = "default"
+	antVmRootDiskSize = 0
 	antVmRootDiskType = "default"
-	antVmSubGroupSize = "1"
+	antVmSubGroupSize = 1
 	antVmUserPassword = ""
 
 	antPubKeyName  = "id_rsa_ant.pub"
@@ -114,11 +115,11 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 		// ✅ 1. 기존 VM의 CSP 정보 조회
 		var existingProvider, existingRegion, existingConnectionName string
 
-		if param.NsId != "" && param.MciId != "" && param.VmId != "" {
+		if param.NsId != "" && param.InfraId != "" && param.NodeId != "" {
 			log.Info().Msgf("Getting CSP information from existing VM: nsId=%s, mciId=%s, vmId=%s",
-				param.NsId, param.MciId, param.VmId)
+				param.NsId, param.InfraId, param.NodeId)
 
-			vmInfo, err := l.tumblebugClient.GetVmWithContext(ctx, param.NsId, param.MciId, param.VmId)
+			vmInfo, err := l.tumblebugClient.GetVmWithContext(ctx, param.NsId, param.InfraId, param.NodeId)
 			if err != nil {
 				log.Error().Msgf("Failed to get VM info; %v", err)
 				return result, fmt.Errorf("failed to get VM info: %w", err)
@@ -252,11 +253,12 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 				loadGeneratorServer.PublicDns = vm.PublicDNS
 				loadGeneratorServer.MachineType = vm.CspSpecName
 				loadGeneratorServer.Status = vm.Status
-				loadGeneratorServer.SshPort = vm.SSHPort
+				// cb-tumblebug v0.12.7~ BREAKING: NodeInfo.sshPort은 integer — DTO는 string 보존
+				loadGeneratorServer.SshPort = strconv.Itoa(vm.SSHPort)
 				loadGeneratorServer.Lat = fmt.Sprintf("%f", vm.Location.Latitude)
 				loadGeneratorServer.Lon = fmt.Sprintf("%f", vm.Location.Longitude)
 				loadGeneratorServer.Username = vm.VMUserName
-				loadGeneratorServer.VmId = vm.Id
+				loadGeneratorServer.NodeId = vm.Id
 				loadGeneratorServer.StartTime = vm.CreatedTime
 				loadGeneratorServer.AdditionalVmKey = vm.CspResourceId
 				loadGeneratorServer.Label = "temp-label"
@@ -276,11 +278,11 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 					PublicDns:       vm.PublicDNS,
 					MachineType:     vm.CspSpecName,
 					Status:          vm.Status,
-					SshPort:         vm.SSHPort,
+					SshPort:         strconv.Itoa(vm.SSHPort),
 					Lat:             fmt.Sprintf("%f", vm.Location.Latitude),
 					Lon:             fmt.Sprintf("%f", vm.Location.Longitude),
 					Username:        vm.VMUserName,
-					VmId:            vm.Id,
+					NodeId:            vm.Id,
 					StartTime:       vm.CreatedTime,
 					AdditionalVmKey: vm.CspResourceId,
 					Label:           "temp-label",
@@ -337,7 +339,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 			Lat:             l.Lat,
 			Lon:             l.Lon,
 			Username:        l.Username,
-			VmId:            l.VmId,
+			NodeId:            l.NodeId,
 			StartTime:       l.StartTime,
 			AdditionalVmKey: l.AdditionalVmKey,
 			Label:           l.Label,
@@ -495,7 +497,8 @@ func (l *LoadService) getRecommendVm(ctx context.Context, coordinates []string, 
 				},
 			},
 		},
-		Limit: "1",
+		// cb-tumblebug v0.12.x BREAKING: RecommendSpecReq.limit string -> integer
+		Limit: 1,
 		Priority: tumblebug.PriorityInfo{
 			Policy: []tumblebug.PriorityCondition{
 				{
@@ -997,7 +1000,7 @@ func (l *LoadService) GetAllLoadGeneratorInstallInfo(param GetAllLoadGeneratorIn
 				Lat:             s.Lat,
 				Lon:             s.Lon,
 				Username:        s.Username,
-				VmId:            s.VmId,
+				NodeId:            s.NodeId,
 				StartTime:       s.StartTime,
 				AdditionalVmKey: s.AdditionalVmKey,
 				Label:           s.Label,

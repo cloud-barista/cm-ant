@@ -9,16 +9,16 @@ import (
 // MonitoringAgentInstallationParams represents parameters for installing a monitoring agent.
 type MonitoringAgentInstallationParams struct {
 	NsId  string   `json:"nsId"`
-	MciId string   `json:"mciId"`
-	VmIds []string `json:"vmIds,omitempty"`
+	InfraId string   `json:"infraId"`
+	NodeIds []string `json:"nodeIds,omitempty"`
 }
 
 // MonitoringAgentInstallationResult represents the result of a monitoring agent installation.
 type MonitoringAgentInstallationResult struct {
 	ID        uint      `json:"id,omitempty"`
 	NsId      string    `json:"nsId,omitempty"`
-	MciId     string    `json:"mciId,omitempty"`
-	VmId      string    `json:"vmId,omitempty"`
+	InfraId     string    `json:"infraId,omitempty"`
+	NodeId      string    `json:"nodeId,omitempty"`
 	VmCount   int       `json:"vmCount,omitempty"`
 	Status    string    `json:"status,omitempty"`
 	Username  string    `json:"username,omitempty"`
@@ -31,8 +31,8 @@ type GetAllMonitoringAgentInfosParam struct {
 	Page  int    `json:"page"`
 	Size  int    `json:"size"`
 	NsId  string `json:"nsId,omitempty"`
-	MciId string `json:"mciId,omitempty"`
-	VmId  string `json:"vmId,omitempty"`
+	InfraId string `json:"infraId,omitempty"`
+	NodeId  string `json:"nodeId,omitempty"`
 }
 
 type GetAllMonitoringAgentInfoResult struct {
@@ -45,8 +45,8 @@ type InstallLoadGeneratorParam struct {
 	Coordinates     []string                 `json:"coordinate"`
 	// VM 정보 추가 (CSP 매칭용)
 	NsId  string `json:"nsId,omitempty"`
-	MciId string `json:"mciId,omitempty"`
-	VmId  string `json:"vmId,omitempty"`
+	InfraId string `json:"infraId,omitempty"`
+	NodeId  string `json:"nodeId,omitempty"`
 }
 
 type LoadGeneratorServerResult struct {
@@ -63,7 +63,7 @@ type LoadGeneratorServerResult struct {
 	Lat             string    `json:"lat,omitempty"`
 	Lon             string    `json:"lon,omitempty"`
 	Username        string    `json:"username,omitempty"`
-	VmId            string    `json:"vmId,omitempty"`
+	NodeId            string    `json:"nodeId,omitempty"`
 	StartTime       string    `json:"startTime,omitempty"`
 	AdditionalVmKey string    `json:"additionalVmKey,omitempty"`
 	Label           string    `json:"label,omitempty"`
@@ -115,8 +115,8 @@ type RunLoadTestParam struct {
 
 	// related tumblebug
 	NsId  string `json:"nsId"`
-	MciId string `json:"mciId"`
-	VmId  string `json:"vmId"`
+	InfraId string `json:"infraId"`
+	NodeId  string `json:"nodeId"`
 
 	CollectAdditionalSystemMetrics bool
 	AgentHostname                  string
@@ -166,8 +166,8 @@ type LoadTestExecutionStateResult struct {
 type GetLoadTestExecutionStateParam struct {
 	LoadTestKey string `json:"loadTestKey"`
 	NsId        string `json:"nsId"`
-	MciId       string `json:"mciId"`
-	VmId        string `json:"vmId"`
+	InfraId       string `json:"infraId"`
+	NodeId        string `json:"nodeId"`
 }
 
 type GetAllLoadTestExecutionInfosParam struct {
@@ -214,8 +214,8 @@ type GetLoadTestExecutionInfoParam struct {
 type StopLoadTestParam struct {
 	LoadTestKey string `json:"loadTestKey"`
 	NsId        string `json:"nsId"`
-	MciId       string `json:"mciId"`
-	VmId        string `json:"vmId"`
+	InfraId       string `json:"infraId"`
+	NodeId        string `json:"nodeId"`
 }
 
 type ResultSummary struct {
@@ -271,8 +271,8 @@ type GetLoadTestResultParam struct {
 
 type GetLastLoadTestResultParam struct {
 	NsId   string
-	MciId  string
-	VmId   string
+	InfraId  string
+	NodeId   string
 	Format constant.ResultFormat
 }
 

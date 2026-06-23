@@ -15,8 +15,8 @@ type MonitoringAgentInfo struct {
 	AgentType string
 
 	NsId    string
-	MciId   string
-	VmId    string
+	InfraId   string
+	NodeId    string
 	VmCount int
 }
 
@@ -37,7 +37,7 @@ type LoadGeneratorServer struct {
 	Lat             string
 	Lon             string
 	Username        string
-	VmId            string
+	NodeId            string
 	StartTime       string
 	AdditionalVmKey string
 	Label           string
@@ -72,8 +72,8 @@ type LoadTestExecutionState struct {
 	LoadTestKey string `gorm:"index:idx_state_load_test_key,unique"`
 
 	NsId  string
-	MciId string
-	VmId  string
+	InfraId string
+	NodeId  string
 
 	ExecutionStatus             constant.ExecutionStatus
 	StartAt                     time.Time
@@ -100,8 +100,8 @@ type LoadTestExecutionInfo struct {
 	RampUpSteps  string
 
 	NsId  string
-	MciId string
-	VmId  string
+	InfraId string
+	NodeId  string
 
 	AgentHostname  string
 	AgentInstalled bool

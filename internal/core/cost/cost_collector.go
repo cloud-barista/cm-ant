@@ -320,13 +320,13 @@ func (a *AwsCostExplorerBaristaCostCollector) UpdateEstimateForecastCost(ctx con
 		param.NsId = defaultNsId
 	}
 
-	if param.MciId == "" {
-		param.MciId = defaultMciId
+	if param.InfraId == "" {
+		param.InfraId = defaultMciId
 	}
 
 	res := EstimateForecastCostInfos{}
 
-	mci, err := a.tc.GetMciWithContext(ctx, param.NsId, param.MciId)
+	mci, err := a.tc.GetMciWithContext(ctx, param.NsId, param.InfraId)
 
 	if err != nil {
 		log.Error().Msgf("error while get mci from tumblebug; ", err)
@@ -384,7 +384,7 @@ func (a *AwsCostExplorerBaristaCostCollector) UpdateEstimateForecastCost(ctx con
 	for i := range infos {
 		info := infos[i]
 		info.NsId = param.NsId
-		info.MciId = param.MciId
+		info.InfraId = param.InfraId
 	}
 
 	return infos, nil
