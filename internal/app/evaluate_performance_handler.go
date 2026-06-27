@@ -256,8 +256,8 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 		AgentHostname:                  strings.TrimSpace(req.AgentHostname),
 
 		NsId:  strings.TrimSpace(req.NsId),
-		MciId: strings.TrimSpace(req.MciId),
-		VmId:  strings.TrimSpace(req.VmId),
+		InfraId: strings.TrimSpace(req.InfraId),
+		NodeId:  strings.TrimSpace(req.NodeId),
 
 		HttpReqs: https,
 	}
@@ -295,7 +295,7 @@ func (s *AntServer) stopLoadTest(c echo.Context) error {
 	}
 
 	if strings.TrimSpace(req.LoadTestKey) == "" ||
-		(strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.MciId) == "" || strings.TrimSpace(req.VmId) == "") {
+		(strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.InfraId) == "" || strings.TrimSpace(req.NodeId) == "") {
 		return errorResponseJson(http.StatusBadRequest, "load test stop info is not correct.")
 	}
 
@@ -517,8 +517,8 @@ func (s *AntServer) getAllLoadTestExecutionState(c echo.Context) error {
 // @Accept json
 // @Produce json
 // @Param nsId query string true "nsId"
-// @Param mciId query string true "mciId"
-// @Param vmId query string true "Load test key"
+// @Param infraId query string true "infraId"
+// @Param nodeId query string true "Load test key"
 // @Success 200 {object} app.AntResponse[load.LoadTestExecutionStateResult] "Successfully retrieved load test execution state information"
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
 // @Failure 500 {object} app.AntResponse[string] "Failed to retrieve load test execution state information"
@@ -529,14 +529,14 @@ func (s *AntServer) getLastLoadTestExecutionState(c echo.Context) error {
 		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
 	}
 
-	if strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.MciId) == "" || strings.TrimSpace(req.VmId) == "" {
+	if strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.InfraId) == "" || strings.TrimSpace(req.NodeId) == "" {
 		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
 	}
 
 	arg := load.GetLoadTestExecutionStateParam{
 		NsId:  req.NsId,
-		MciId: req.MciId,
-		VmId:  req.VmId,
+		InfraId: req.InfraId,
+		NodeId:  req.NodeId,
 	}
 
 	result, err := s.services.loadService.GetLoadTestExecutionState(arg)
@@ -603,8 +603,8 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 
 	arg := load.MonitoringAgentInstallationParams{
 		NsId:  req.NsId,
-		MciId: req.MciId,
-		VmIds: req.VmIds,
+		InfraId: req.InfraId,
+		NodeIds: req.NodeIds,
 	}
 
 	result, err := s.services.loadService.InstallMonitoringAgent(arg)
@@ -628,8 +628,8 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 // @Accept json
 // @Produce json
 // @Param nsId query string false "Namespace ID" default:""
-// @Param mciId query string false "MCI ID" default:""
-// @Param vmId query string false "VM ID" default:""
+// @Param infraId query string false "MCI ID" default:""
+// @Param nodeId query string false "VM ID" default:""
 // @Param size query integer false "Number of results per page" default:"10"
 // @Param page query integer false "Page number for pagination" default:"1"
 // @Success 200 {object} app.AntResponse[load.GetAllMonitoringAgentInfoResult] "Successfully retrieved monitoring agent information"
@@ -652,8 +652,8 @@ func (s *AntServer) getAllMonitoringAgentInfos(c echo.Context) error {
 		Page:  req.Page,
 		Size:  req.Size,
 		NsId:  req.NsId,
-		MciId: req.MciId,
-		VmId:  req.VmId,
+		InfraId: req.InfraId,
+		NodeId:  req.NodeId,
 	}
 
 	result, err := s.services.loadService.GetAllMonitoringAgentInfos(arg)
@@ -686,8 +686,8 @@ func (s *AntServer) uninstallMonitoringAgent(c echo.Context) error {
 
 	arg := load.MonitoringAgentInstallationParams{
 		NsId:  req.NsId,
-		MciId: req.MciId,
-		VmIds: req.VmIds,
+		InfraId: req.InfraId,
+		NodeIds: req.NodeIds,
 	}
 
 	affectedResults, err := s.services.loadService.UninstallMonitoringAgent(arg)
@@ -711,8 +711,8 @@ func (s *AntServer) uninstallMonitoringAgent(c echo.Context) error {
 // @Accept json
 // @Produce json
 // @Param nsId query string true "ns id"
-// @Param mciId query string true "mci id"
-// @Param vmId query string true "vm id"
+// @Param infraId query string true "mci id"
+// @Param nodeId query string true "vm id"
 // @Param format query string false "Result format (normal or aggregate)"
 // @Success 200 {object} app.JsonResult{[normal]=app.AntResponse[[]load.ResultSummary],[aggregate]=app.AntResponse[[]load.LoadTestStatistics]} "Successfully retrieved load test metrics"
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
@@ -724,8 +724,8 @@ func (s *AntServer) getLastLoadTestResult(c echo.Context) error {
 		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
 	}
 
-	if strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.MciId) == "" || strings.TrimSpace(req.VmId) == "" {
-		return errorResponseJson(http.StatusBadRequest, "pass correct nsId / mciId / vmId")
+	if strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.InfraId) == "" || strings.TrimSpace(req.NodeId) == "" {
+		return errorResponseJson(http.StatusBadRequest, "pass correct nsId / infraId / nodeId")
 	}
 
 	if req.Format == "" {
@@ -736,8 +736,8 @@ func (s *AntServer) getLastLoadTestResult(c echo.Context) error {
 
 	arg := load.GetLastLoadTestResultParam{
 		NsId:   req.NsId,
-		MciId:  req.MciId,
-		VmId:   req.VmId,
+		InfraId:  req.InfraId,
+		NodeId:   req.NodeId,
 		Format: req.Format,
 	}
 
@@ -758,8 +758,8 @@ func (s *AntServer) getLastLoadTestResult(c echo.Context) error {
 // @Accept json
 // @Produce json
 // @Param nsId query string true "ns id"
-// @Param mciId query string true "mci id"
-// @Param vmId query string true "vm id"
+// @Param infraId query string true "mci id"
+// @Param nodeId query string true "vm id"
 // @Param format query string false "Result format (normal for the moment)"
 // @success 200 {object} app.AntResponse[[]load.MetricsSummary] "Successfully retrieved load test metrics"
 // @Failure 400 {object} app.AntResponse[string] "Invalid request parameters"
@@ -771,14 +771,14 @@ func (s *AntServer) getLastLoadTestMetrics(c echo.Context) error {
 		return errorResponseJson(http.StatusBadRequest, "Invalid request parameters")
 	}
 
-	if strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.MciId) == "" || strings.TrimSpace(req.VmId) == "" {
-		return errorResponseJson(http.StatusBadRequest, "pass correct nsId / mciId / vmId")
+	if strings.TrimSpace(req.NsId) == "" || strings.TrimSpace(req.InfraId) == "" || strings.TrimSpace(req.NodeId) == "" {
+		return errorResponseJson(http.StatusBadRequest, "pass correct nsId / infraId / nodeId")
 	}
 
 	arg := load.GetLastLoadTestResultParam{
 		NsId:   req.NsId,
-		MciId:  req.MciId,
-		VmId:   req.VmId,
+		InfraId:  req.InfraId,
+		NodeId:   req.NodeId,
 		Format: constant.Normal,
 	}
 

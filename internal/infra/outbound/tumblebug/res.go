@@ -15,8 +15,9 @@ type MciRes struct {
 	SystemLabel                   string            `json:"systemLabel"`
 	SystemMessage                 []string          `json:"systemMessage"`
 	Description                   string            `json:"description"`
-	Vm                            []VmRes           `json:"vm"`
-	NewVMList                     []string          `json:"newVmList"`
+	// cb-tumblebug v0.12.7 BREAKING: 응답 키 "vm" → "node" (소스 대조 infra.go:185 Node []NodeInfo `json:"node"`)
+	Vm        []VmRes  `json:"node"`
+	NewVMList []string `json:"newNodeList"`
 }
 
 type StatusCountRes struct {
@@ -70,7 +71,8 @@ type VmInfo struct {
 	CspResourceName string `json:"cspResourceName"`
 	CspResourceId   string `json:"cspResourceId"`
 	Name            string `json:"name"`
-	SubGroupId      string `json:"subGroupId"`
+	// cb-tumblebug v0.12.7 BREAKING: 응답 키 "subGroupId" → "nodeGroupId"
+	SubGroupId      string `json:"nodeGroupId"`
 	Location        struct {
 		Display   string  `json:"display"`
 		Latitude  float64 `json:"latitude"`
@@ -87,12 +89,14 @@ type VmInfo struct {
 	Description        string              `json:"description"`
 	Region             RegionRes           `json:"region"`
 	PublicIP           string              `json:"publicIP"`
-	SSHPort            string              `json:"sshPort"`
+	// cb-tumblebug v0.12.7~ BREAKING: NodeInfo.sshPort/rootDiskSize 응답 타입이 integer
+	// (cm-ant 이전 string 가정 → json decode 실패 회귀 방지)
+	SSHPort            int                 `json:"sshPort"`
 	PublicDNS          string              `json:"publicDNS"`
 	PrivateIP          string              `json:"privateIP"`
 	PrivateDNS         string              `json:"privateDNS"`
 	RootDiskType       string              `json:"rootDiskType"`
-	RootDiskSize       string              `json:"rootDiskSize"`
+	RootDiskSize       int                 `json:"rootDiskSize"`
 	RootDeviceName     string              `json:"rootDeviceName"`
 	ConnectionName     string              `json:"connectionName"`
 	ConnectionConfig   ConnectionConfigRes `json:"connectionConfig"`
@@ -109,8 +113,8 @@ type VmInfo struct {
 	DataDiskIds        []string            `json:"dataDiskIds"`
 	SshKeyId           string              `json:"sshKeyId"`
 	CspSshKeyId        string              `json:"cspSshKeyId"`
-	VmUserName         string              `json:"vmUserName"`
-	VmUserPassword     string              `json:"vmUserPassword"`
+	VmUserName         string              `json:"nodeUserName"`
+	VmUserPassword     string              `json:"nodeUserPassword"`
 	CommandStatus      []CommandStatusInfo `json:"commandStatus"`
 	AddtionalDetails   []KeyValue          `json:"addtionalDetails"`
 }
@@ -122,7 +126,8 @@ type VmRes struct {
 	CspResourceName string `json:"cspResourceName"`
 	CspResourceId   string `json:"cspResourceId"`
 	Name            string `json:"name"`
-	SubGroupId      string `json:"subGroupId"`
+	// cb-tumblebug v0.12.7 BREAKING: 응답 키 "subGroupId" → "nodeGroupId"
+	SubGroupId      string `json:"nodeGroupId"`
 	Location        struct {
 		Display   string  `json:"display"`
 		Latitude  float64 `json:"latitude"`
@@ -139,12 +144,13 @@ type VmRes struct {
 	Description        string              `json:"description"`
 	Region             RegionRes           `json:"region"`
 	PublicIP           string              `json:"publicIP"`
-	SSHPort            string              `json:"sshPort"`
+	// cb-tumblebug v0.12.7~ BREAKING: NodeInfo.sshPort/rootDiskSize 응답 타입이 integer
+	SSHPort            int                 `json:"sshPort"`
 	PublicDNS          string              `json:"publicDNS"`
 	PrivateIP          string              `json:"privateIP"`
 	PrivateDNS         string              `json:"privateDNS"`
 	RootDiskType       string              `json:"rootDiskType"`
-	RootDiskSize       string              `json:"rootDiskSize"`
+	RootDiskSize       int                 `json:"rootDiskSize"`
 	RootDeviceName     string              `json:"rootDeviceName"`
 	ConnectionName     string              `json:"connectionName"`
 	ConnectionConfig   ConnectionConfigRes `json:"connectionConfig"`
@@ -161,7 +167,7 @@ type VmRes struct {
 	DataDiskIds        []string            `json:"dataDiskIds"`
 	SSHKeyId           string              `json:"sshKeyId"`
 	CspSSHKeyId        string              `json:"cspSshKeyId"`
-	VMUserName         string              `json:"vmUserName"`
+	VMUserName         string              `json:"nodeUserName"`
 	AddtionalDetails   []KeyValueRes       `json:"addtionalDetails"`
 }
 
@@ -211,7 +217,8 @@ type SpecInfo struct {
 	EvaluationScore09     float32  `json:"evaluationScore09"`
 	EvaluationScore10     float32  `json:"evaluationScore10"`
 	RootDiskType          string   `json:"rootDiskType"`
-	RootDiskSize          string   `json:"rootDiskSize"`
+	// cb-tumblebug v0.12.7~ BREAKING: SpecInfo.rootDiskSize 응답 타입이 integer
+	RootDiskSize          int      `json:"rootDiskSize"`
 	AssociatedObjectList  []string `json:"associatedObjectList,omitempty"`
 	IsAutoGenerated       bool     `json:"isAutoGenerated,omitempty"`
 	SystemLabel           string   `json:"systemLabel,omitempty"`
@@ -287,7 +294,8 @@ type ImageInfo struct {
 	Namespace          string         `json:"namespace,omitempty"`
 	ProviderName       string         `json:"providerName,omitempty"`
 	RegionList         []string       `json:"regionList,omitempty"`
-	SourceVmUid        string         `json:"sourceVmUid,omitempty"`
+	// cb-tumblebug v0.12.7~ BREAKING: sourceVmUid → sourceNodeUid (vm→node 정합)
+	SourceVmUid        string         `json:"sourceNodeUid,omitempty"`
 	SourceCspImageName string         `json:"sourceCspImageName,omitempty"`
 	InfraType          string         `json:"infraType,omitempty"`
 	FetchedTime        string         `json:"fetchedTime,omitempty"`
@@ -343,10 +351,11 @@ type GetNsRes struct {
 }
 
 // SshCmdResultForAPI is struct for SshCmd Result with string error for API response
+// cb-tumblebug v0.12.7 BREAKING: mciId→infraId, vmId→nodeId, vmIp→nodeIp (infra.go:1442~)
 type SshCmdResultForAPI struct {
-	MciId   string         `json:"mciId"`
-	VmId    string         `json:"vmId"`
-	VmIp    string         `json:"vmIp"`
+	InfraId   string         `json:"infraId"`
+	NodeId    string         `json:"nodeId"`
+	VmIp    string         `json:"nodeIp"`
 	Command map[int]string `json:"command"`
 	Stdout  map[int]string `json:"stdout"`
 	Stderr  map[int]string `json:"stderr"`

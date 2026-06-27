@@ -18,7 +18,7 @@ type UpdateAndGetEstimateCostReq struct {
 
 type UpdateEstimateForecastCostReq struct {
 	NsId  string `json:"nsId"`
-	MciId string `json:"mciId"`
+	InfraId string `json:"infraId"`
 }
 
 type GetEstimateCostInfosReq struct {
@@ -38,7 +38,7 @@ type GetEstimateForecastCostReq struct {
 	StartDate           string                       `query:"startDate" validate:"required"`
 	EndDate             string                       `query:"endDate" validate:"required"`
 	NsIds               []string                     `query:"nsIds"`
-	MciIds              []string                     `query:"mciIds"`
+	InfraIds              []string                     `query:"infraIds"`
 	Providers           []string                     `query:"provider"`
 	ResourceTypes       []constant.ResourceType      `query:"resourceTypes"`
 	ResourceIds         []string                     `query:"resourceIds"`

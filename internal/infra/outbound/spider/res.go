@@ -73,8 +73,23 @@ type VCpuRes struct {
 }
 
 type PriceInfoRes struct {
-	PricingPolicies []PricingPoliciesRes `json:"pricingPolicies"`
-	CSPPriceInfo    interface{}          `json:"cspPriceInfo"`
+	// cb-spider v0.11.5+ BREAKING: PricingPolicies []PricingPolicies -> OnDemand (단일 객체).
+	// 신규 서버는 OnDemand 만 송신하므로 1순위 파싱 대상.
+	// json tag도 v0.11.5+ 캡로 통일 (Go decoder는 case-insensitive이므로 기존 cspPriceInfo 도 호환).
+	OnDemand        OnDemandRes          `json:"OnDemand"`
+	CSPPriceInfo    interface{}          `json:"CSPPriceInfo"`
+	// 옛 서버(<v0.11.5) 호환을 위한 leftover. v0.12.x 서버에선 비어 있다.
+	PricingPolicies []PricingPoliciesRes `json:"pricingPolicies,omitempty"`
+}
+
+// OnDemandRes — cb-spider v0.11.5+ PriceInfo.OnDemand 정합.
+// 모든 CSP 공통 단일 가격(시간당)이 직접 들어오므로 CSPPriceInfo 파싱 실패 시 fallback에 사용.
+type OnDemandRes struct {
+	PricingId   string `json:"PricingId"`
+	Unit        string `json:"Unit"`
+	Currency    string `json:"Currency"`
+	Price       string `json:"Price"`
+	Description string `json:"Description,omitempty"`
 }
 
 type PricingPoliciesRes struct {

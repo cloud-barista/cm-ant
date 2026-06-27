@@ -275,6 +275,58 @@ func (s *SpiderPriceCollector) FetchPriceInfos(ctx context.Context, param Recomm
 						}
 					}
 				}
+			} else if priceInfo.OnDemand.Price != "" {
+				// cb-spider v0.11.5+ — PricingPolicies는 사라지고 OnDemand 단일 객체가 들어옴.
+				// CSPPriceInfo 파싱 실패(=AWS terms 구조가 아니다, 즉 비-AWS)인 경우 OnDemand로 fallback.
+				originalPricePolicy := "OnDemand"
+				priceDescription = s.naChecker(priceInfo.OnDemand.Description)
+				originalCurrency = s.naChecker(priceInfo.OnDemand.Currency)
+				originalUnit = s.naChecker(priceInfo.OnDemand.Unit)
+				unit = s.parseUnit(originalUnit)
+				currency = s.parseCurrency(priceInfo.OnDemand.Currency)
+				convertedPrice, err := strconv.ParseFloat(priceInfo.OnDemand.Price, 64)
+				if err != nil {
+					log.Warn().Msgf("OnDemand price parse error: %s", err)
+				} else if convertedPrice == float64(0) {
+					log.Warn().Msg("OnDemand price empty (=0)")
+				} else {
+					price = s.naChecker(priceInfo.OnDemand.Price)
+
+					regionName := param.RegionName
+					if productInfo.VMSpecInfo != nil {
+						regionName = productInfo.VMSpecInfo.Region
+					}
+
+					pi := EstimateCostInfo{
+						ProviderName:           param.ProviderName,
+						RegionName:             regionName,
+						InstanceType:           instanceType,
+						ZoneName:               zoneName,
+						VCpu:                   vCpu,
+						OriginalMemory:         originalMemory,
+						Memory:                 memory,
+						MemoryUnit:             memoryUnit,
+						Storage:                storage,
+						OsType:                 osType,
+						ProductDescription:     productDescription,
+						OriginalPricePolicy:    originalPricePolicy,
+						PricePolicy:            constant.OnDemand,
+						Price:                  price,
+						Currency:               currency,
+						Unit:                   unit,
+						OriginalUnit:           originalUnit,
+						OriginalCurrency:       originalCurrency,
+						PriceDescription:       priceDescription,
+						CalculatedMonthlyPrice: s.calculatePrice(price, unit),
+						LastUpdatedAt:          time.Now(),
+						ImageName:              param.Image,
+					}
+
+					if priceValidator[param.ProviderName](&pi) {
+						createdPriceInfo = append(createdPriceInfo, &pi)
+						log.Info().Msgf("Added price info (OnDemand): %s %s %s - $%s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.Price)
+					}
+				}
 			} else if priceInfo.PricingPolicies != nil {
 				// Process existing v0.10.0 PricingPolicies
 				for k := range priceInfo.PricingPolicies {

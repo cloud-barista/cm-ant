@@ -130,7 +130,7 @@ func (a *AntServer) updateAndGetEstimateCost(c echo.Context) error {
 // @Tags [Cost Estimate]
 // @Accept json
 // @Produce json
-// @Param body body UpdateEstimateForecastCostReq true "Request body containing NsId (Namespace ID) and MciId (Migration Configuration ID) for cost estimation forecast"
+// @Param body body UpdateEstimateForecastCostReq true "Request body containing NsId (Namespace ID) and InfraId (Migration Configuration ID) for cost estimation forecast"
 // @Success 200 {object} app.AntResponse[cost.UpdateEstimateForecastCostInfoResult] "Successfully updated and retrieved estimated forecast cost information"
 // @Failure 400 {object} app.AntResponse[string] "Request body binding error"
 // @Failure 500 {object} app.AntResponse[string] "Failed to update or retrieve forecast cost information"
@@ -147,7 +147,7 @@ func (a *AntServer) updateEstimateForecastCost(c echo.Context) error {
 
 	param := cost.UpdateEstimateForecastCostParam{
 		NsId:      req.NsId,
-		MciId:     req.MciId,
+		InfraId:     req.InfraId,
 		StartDate: startDate,
 		EndDate:   endDate,
 	}
@@ -231,7 +231,7 @@ func (server *AntServer) getEstimateCost(c echo.Context) error {
 // @Param startDate query string true "Start date for the forecast cost retrieval in 'YYYY-MM-DD' format"
 // @Param endDate query string true "End date for the forecast cost retrieval in 'YYYY-MM-DD' format"
 // @Param nsIds query []string false "List of namespace IDs to filter forecast cost information"
-// @Param mciIds query []string false "List of migration configuration IDs to filter forecast cost information"
+// @Param infraIds query []string false "List of migration configuration IDs to filter forecast cost information"
 // @Param providers query []string false "List of cloud providers to filter forecast cost information"
 // @Param resourceTypes query []string false "List of resource types to filter forecast cost information"
 // @Param resourceIds query []string false "List of resource IDs to filter forecast cost information"
@@ -294,7 +294,7 @@ func (s *AntServer) getEstimateForecastCost(c echo.Context) error {
 		StartDate:           startDate,
 		EndDate:             endDate,
 		NsIds:               req.NsIds,
-		MciIds:              req.MciIds,
+		InfraIds:              req.InfraIds,
 		Providers:           req.Providers,
 		ResourceTypes:       req.ResourceTypes,
 		ResourceIds:         req.ResourceIds,

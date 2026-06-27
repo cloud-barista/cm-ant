@@ -192,7 +192,7 @@ const docTemplate = `{
                         },
                         "collectionFormat": "csv",
                         "description": "List of migration configuration IDs to filter forecast cost information",
-                        "name": "mciIds",
+                        "name": "infraIds",
                         "in": "query"
                     },
                     {
@@ -292,7 +292,7 @@ const docTemplate = `{
                 "operationId": "UpdateEstimateForecastCost",
                 "parameters": [
                     {
-                        "description": "Request body containing NsId (Namespace ID) and MciId (Migration Configuration ID) for cost estimation forecast",
+                        "description": "Request body containing NsId (Namespace ID) and InfraId (Migration Configuration ID) for cost estimation forecast",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -540,13 +540,13 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "MCI ID",
-                        "name": "mciId",
+                        "name": "infraId",
                         "in": "query"
                     },
                     {
                         "type": "string",
                         "description": "VM ID",
-                        "name": "vmId",
+                        "name": "nodeId",
                         "in": "query"
                     },
                     {
@@ -1123,14 +1123,14 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "mci id",
-                        "name": "mciId",
+                        "name": "infraId",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "vm id",
-                        "name": "vmId",
+                        "name": "nodeId",
                         "in": "query",
                         "required": true
                     },
@@ -1248,14 +1248,14 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "mci id",
-                        "name": "mciId",
+                        "name": "infraId",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "vm id",
-                        "name": "vmId",
+                        "name": "nodeId",
                         "in": "query",
                         "required": true
                     },
@@ -1421,15 +1421,15 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "mciId",
-                        "name": "mciId",
+                        "description": "infraId",
+                        "name": "infraId",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
                         "description": "Load test key",
-                        "name": "vmId",
+                        "name": "nodeId",
                         "in": "query",
                         "required": true
                     }
@@ -1960,17 +1960,17 @@ const docTemplate = `{
         "app.MonitoringAgentInstallationReq": {
             "type": "object",
             "properties": {
-                "mciId": {
+                "infraId": {
                     "type": "string"
                 },
-                "nsId": {
-                    "type": "string"
-                },
-                "vmIds": {
+                "nodeIds": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
+                },
+                "nsId": {
+                    "type": "string"
                 }
             }
         },
@@ -2031,6 +2031,10 @@ const docTemplate = `{
                         "$ref": "#/definitions/app.RunLoadGeneratorHttpReq"
                     }
                 },
+                "infraId": {
+                    "description": "for metadata usage",
+                    "type": "string"
+                },
                 "installLoadGenerator": {
                     "description": "localhost for installing load generator; local | remote",
                     "allOf": [
@@ -2043,7 +2047,7 @@ const docTemplate = `{
                     "description": "if already installed load generator simply put this field",
                     "type": "integer"
                 },
-                "mciId": {
+                "nodeId": {
                     "description": "for metadata usage",
                     "type": "string"
                 },
@@ -2063,26 +2067,22 @@ const docTemplate = `{
                 },
                 "virtualUsers": {
                     "type": "string"
-                },
-                "vmId": {
-                    "description": "for metadata usage",
-                    "type": "string"
                 }
             }
         },
         "app.StopLoadTestReq": {
             "type": "object",
             "properties": {
+                "infraId": {
+                    "type": "string"
+                },
                 "loadTestKey": {
                     "type": "string"
                 },
-                "mciId": {
+                "nodeId": {
                     "type": "string"
                 },
                 "nsId": {
-                    "type": "string"
-                },
-                "vmId": {
                     "type": "string"
                 }
             }
@@ -2154,7 +2154,7 @@ const docTemplate = `{
         "app.UpdateEstimateForecastCostReq": {
             "type": "object",
             "properties": {
-                "mciId": {
+                "infraId": {
                     "type": "string"
                 },
                 "nsId": {
@@ -2635,6 +2635,9 @@ const docTemplate = `{
                 "machineType": {
                     "type": "string"
                 },
+                "nodeId": {
+                    "type": "string"
+                },
                 "privateIp": {
                     "type": "string"
                 },
@@ -2660,9 +2663,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
-                    "type": "string"
-                },
-                "vmId": {
                     "type": "string"
                 },
                 "zone": {
@@ -2915,7 +2915,10 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
-                "mciId": {
+                "infraId": {
+                    "type": "string"
+                },
+                "nodeId": {
                     "type": "string"
                 },
                 "nsId": {
@@ -2932,9 +2935,6 @@ const docTemplate = `{
                 },
                 "vmCount": {
                     "type": "integer"
-                },
-                "vmId": {
-                    "type": "string"
                 }
             }
         },

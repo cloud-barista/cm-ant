@@ -38,8 +38,8 @@ func (r *LoadRepository) InsertMonitoringAgentInfoTx(ctx context.Context, param 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		return d.
 			Where(
-				"ns_id = ? AND mci_id = ? AND vm_id = ? AND username = ? AND agent_type = ?",
-				param.NsId, param.MciId, param.VmId, param.Username, param.AgentType,
+				"ns_id = ? AND infra_id = ? AND node_id = ? AND username = ? AND agent_type = ?",
+				param.NsId, param.InfraId, param.NodeId, param.Username, param.AgentType,
 			).
 			FirstOrCreate(
 				param,
@@ -85,12 +85,12 @@ func (r *LoadRepository) GetPagingMonitoringAgentInfosTx(ctx context.Context, pa
 			q = q.Where("ns_id = ?", param.NsId)
 		}
 
-		if param.MciId != "" {
-			q = q.Where("mci_id = ?", param.MciId)
+		if param.InfraId != "" {
+			q = q.Where("infra_id = ?", param.InfraId)
 		}
 
-		if param.VmId != "" {
-			q = q.Where("vm_id = ?", param.VmId)
+		if param.NodeId != "" {
+			q = q.Where("node_id = ?", param.NodeId)
 		}
 
 		if err := q.Count(&totalRows).Error; err != nil {
@@ -120,12 +120,12 @@ func (r *LoadRepository) GetAllMonitoringAgentInfosTx(ctx context.Context, param
 			q = q.Where("ns_id = ?", param.NsId)
 		}
 
-		if param.MciId != "" {
-			q = q.Where("mci_id = ?", param.MciId)
+		if param.InfraId != "" {
+			q = q.Where("infra_id = ?", param.InfraId)
 		}
 
-		if param.VmIds != nil && len(param.VmIds) > 0 {
-			q = q.Where("vm_id IN (?)", param.VmIds)
+		if param.NodeIds != nil && len(param.NodeIds) > 0 {
+			q = q.Where("node_id IN (?)", param.NodeIds)
 		}
 
 		if err := q.Find(&monitoringAgentInfos).Error; err != nil {
@@ -372,12 +372,12 @@ func (r *LoadRepository) GetLoadTestExecutionStateTx(ctx context.Context, param 
 			q = q.Where("load_test_execution_states.ns_id = ?", param.NsId)
 		}
 
-		if param.MciId != "" {
-			q = q.Where("load_test_execution_states.mci_id = ?", param.MciId)
+		if param.InfraId != "" {
+			q = q.Where("load_test_execution_states.infra_id = ?", param.InfraId)
 		}
 
-		if param.VmId != "" {
-			q = q.Where("load_test_execution_states.vm_id = ?", param.VmId)
+		if param.NodeId != "" {
+			q = q.Where("load_test_execution_states.node_id = ?", param.NodeId)
 		}
 
 		q = q.Order("load_test_execution_states.start_at desc").

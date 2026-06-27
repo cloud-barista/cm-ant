@@ -278,7 +278,7 @@ func (r *CostRepository) UpsertCostInfo(ctx context.Context, costInfo EstimateFo
 				"cost":   costInfo.Cost,
 				"unit":   costInfo.Unit,
 				"ns_id":  costInfo.NsId,
-				"mci_id": costInfo.MciId,
+				"infra_id": costInfo.InfraId,
 			}).Error; err != nil {
 				return err
 			}
@@ -314,8 +314,8 @@ func (r *CostRepository) GetEstimateForecastCostInfosTx(ctx context.Context, par
 			query = query.Where("ns_id IN ?", param.NsIds)
 		}
 
-		if len(param.MciIds) > 0 {
-			query = query.Where("mci_id IN ?", param.MciIds)
+		if len(param.InfraIds) > 0 {
+			query = query.Where("infra_id IN ?", param.InfraIds)
 		}
 
 		query = query.Where("start_date >= ? AND end_date <= ?", param.StartDate, param.EndDate)

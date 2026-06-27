@@ -140,8 +140,8 @@ func (l *LoadService) GetLastLoadTestResult(param GetLastLoadTestResultParam) (i
 
 	stateQueryParam := GetLoadTestExecutionStateParam{
 		NsId:  param.NsId,
-		MciId: param.MciId,
-		VmId:  param.VmId,
+		InfraId: param.InfraId,
+		NodeId:  param.NodeId,
 	}
 	state, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, stateQueryParam)
 
@@ -183,8 +183,8 @@ func (l *LoadService) GetLastLoadTestMetrics(param GetLastLoadTestResultParam) (
 
 	stateQueryParam := GetLoadTestExecutionStateParam{
 		NsId:  param.NsId,
-		MciId: param.MciId,
-		VmId:  param.VmId,
+		InfraId: param.InfraId,
+		NodeId:  param.NodeId,
 	}
 
 	state, err := l.loadRepo.GetLoadTestExecutionStateTx(ctx, stateQueryParam)

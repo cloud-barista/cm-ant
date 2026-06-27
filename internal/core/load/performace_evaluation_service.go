@@ -191,7 +191,7 @@ func mapLoadGeneratorServerResult(s LoadGeneratorServer) LoadGeneratorServerResu
 		Lat:             s.Lat,
 		Lon:             s.Lon,
 		Username:        s.Username,
-		VmId:            s.VmId,
+		NodeId:            s.NodeId,
 		StartTime:       s.StartTime,
 		AdditionalVmKey: s.AdditionalVmKey,
 		Label:           s.Label,

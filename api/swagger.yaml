@@ -242,14 +242,14 @@ definitions:
     type: object
   app.MonitoringAgentInstallationReq:
     properties:
-      mciId:
+      infraId:
         type: string
-      nsId:
-        type: string
-      vmIds:
+      nodeIds:
         items:
           type: string
         type: array
+      nsId:
+        type: string
     type: object
   app.RunLoadGeneratorHttpReq:
     properties:
@@ -293,6 +293,9 @@ definitions:
         items:
           $ref: '#/definitions/app.RunLoadGeneratorHttpReq'
         type: array
+      infraId:
+        description: for metadata usage
+        type: string
       installLoadGenerator:
         allOf:
         - $ref: '#/definitions/app.InstallLoadGeneratorReq'
@@ -300,7 +303,7 @@ definitions:
       loadGeneratorInstallInfoId:
         description: if already installed load generator simply put this field
         type: integer
-      mciId:
+      nodeId:
         description: for metadata usage
         type: string
       nsId:
@@ -315,19 +318,16 @@ definitions:
         type: string
       virtualUsers:
         type: string
-      vmId:
-        description: for metadata usage
-        type: string
     type: object
   app.StopLoadTestReq:
     properties:
+      infraId:
+        type: string
       loadTestKey:
         type: string
-      mciId:
+      nodeId:
         type: string
       nsId:
-        type: string
-      vmId:
         type: string
     type: object
   app.UpdateAndGetEstimateCostReq:
@@ -374,7 +374,7 @@ definitions:
     type: object
   app.UpdateEstimateForecastCostReq:
     properties:
-      mciId:
+      infraId:
         type: string
       nsId:
         type: string
@@ -700,6 +700,8 @@ definitions:
         type: string
       machineType:
         type: string
+      nodeId:
+        type: string
       privateIp:
         type: string
       publicDns:
@@ -717,8 +719,6 @@ definitions:
       updatedAt:
         type: string
       username:
-        type: string
-      vmId:
         type: string
       zone:
         type: string
@@ -884,7 +884,9 @@ definitions:
         type: string
       id:
         type: integer
-      mciId:
+      infraId:
+        type: string
+      nodeId:
         type: string
       nsId:
         type: string
@@ -896,8 +898,6 @@ definitions:
         type: string
       vmCount:
         type: integer
-      vmId:
-        type: string
     type: object
   load.ResultRawData:
     properties:
@@ -1085,7 +1085,7 @@ paths:
         in: query
         items:
           type: string
-        name: mciIds
+        name: infraIds
         type: array
       - collectionFormat: csv
         description: List of cloud providers to filter forecast cost information
@@ -1153,7 +1153,7 @@ paths:
         and migration configuration ID over the past 14 days.
       operationId: UpdateEstimateForecastCost
       parameters:
-      - description: Request body containing NsId (Namespace ID) and MciId (Migration
+      - description: Request body containing NsId (Namespace ID) and InfraId (Migration
           Configuration ID) for cost estimation forecast
         in: body
         name: body
@@ -1324,11 +1324,11 @@ paths:
         type: string
       - description: MCI ID
         in: query
-        name: mciId
+        name: infraId
         type: string
       - description: VM ID
         in: query
-        name: vmId
+        name: nodeId
         type: string
       - description: Number of results per page
         in: query
@@ -1715,12 +1715,12 @@ paths:
         type: string
       - description: mci id
         in: query
-        name: mciId
+        name: infraId
         required: true
         type: string
       - description: vm id
         in: query
-        name: vmId
+        name: nodeId
         required: true
         type: string
       - description: Result format (normal or aggregate)
@@ -1796,12 +1796,12 @@ paths:
         type: string
       - description: mci id
         in: query
-        name: mciId
+        name: infraId
         required: true
         type: string
       - description: vm id
         in: query
-        name: vmId
+        name: nodeId
         required: true
         type: string
       - description: Result format (normal for the moment)
@@ -1941,14 +1941,14 @@ paths:
         name: nsId
         required: true
         type: string
-      - description: mciId
+      - description: infraId
         in: query
-        name: mciId
+        name: infraId
         required: true
         type: string
       - description: Load test key
         in: query
-        name: vmId
+        name: nodeId
         required: true
         type: string
       produces:

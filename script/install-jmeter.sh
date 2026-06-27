@@ -26,11 +26,51 @@ create_directory "${JMETER_WORK_DIR}"
 create_directory "${JMETER_WORK_DIR}/result"
 create_directory "${JMETER_WORK_DIR}/test_plan"
 
-echo "[CM-ANT] [Step 1/6] Installing required tools..."
-sudo apt install -y software-properties-common
-sudo add-apt-repository universe -y
-sudo apt-get update -y
-sudo apt-get install -y wget openjdk-17-jre
+echo "[CM-ANT] [Step 1/6] Installing Java (Eclipse Temurin JRE 21 LTS, no apt dependency)..."
+
+# Tunable via env (cm-ant can override per-install). Defaults: Java 21 LTS, linux x64.
+JAVA_VERSION="${JAVA_VERSION:-21.0.5+11}"
+JAVA_ARCH="${JAVA_ARCH:-x64}"
+JAVA_OS="${JAVA_OS:-linux}"
+JAVA_HOME_PATH="${JMETER_WORK_DIR}/jdk"
+
+# Adoptium URL pattern. Build path uses %2B for + (URL-encoded) and _ in filename.
+JAVA_VERSION_URL="${JAVA_VERSION//+/%2B}"
+JAVA_VERSION_FILE="${JAVA_VERSION//+/_}"
+JAVA_TGZ="OpenJDK21U-jre_${JAVA_ARCH}_${JAVA_OS}_hotspot_${JAVA_VERSION_FILE}.tar.gz"
+JAVA_URL="${JAVA_URL:-https://github.com/adoptium/temurin21-binaries/releases/download/jdk-${JAVA_VERSION_URL}/${JAVA_TGZ}}"
+
+# Ensure wget or curl is available. Minimal stock AMIs may need a one-shot apt for wget.
+if ! command -v wget >/dev/null 2>&1; then
+  sudo apt-get install -y wget 2>/dev/null || true
+fi
+if ! command -v wget >/dev/null 2>&1 && ! command -v curl >/dev/null 2>&1; then
+  echo "[CM-ANT][ERROR] Neither wget nor curl is available" >&2
+  exit 1
+fi
+
+# Download and extract Temurin JRE.
+sudo mkdir -p "${JAVA_HOME_PATH}"
+if command -v wget >/dev/null 2>&1; then
+  sudo wget -qO /tmp/jre.tgz "${JAVA_URL}"
+else
+  sudo curl -fsSL -o /tmp/jre.tgz "${JAVA_URL}"
+fi
+sudo tar -xzf /tmp/jre.tgz -C "${JAVA_HOME_PATH}" --strip-components=1
+sudo rm -f /tmp/jre.tgz
+
+# Safety net (1) — system-wide login shells pick up JAVA_HOME automatically.
+sudo tee /etc/profile.d/cm-ant-jmeter.sh > /dev/null <<EOF
+export JAVA_HOME="${JAVA_HOME_PATH}"
+export PATH="\${JAVA_HOME}/bin:\${PATH}"
+EOF
+sudo chmod 644 /etc/profile.d/cm-ant-jmeter.sh
+
+# Safety net (2) — current install session uses Temurin for Steps 5 and 6.
+export JAVA_HOME="${JAVA_HOME_PATH}"
+export PATH="${JAVA_HOME}/bin:${PATH}"
+
+"${JAVA_HOME}/bin/java" -version 2>&1 || { echo "[CM-ANT][ERROR] java installation failed"; exit 1; }
 
 # Function to extract JMeter
 unzip_jmeter() {
@@ -87,7 +127,16 @@ install_required_plugins() {
 configure_jmeter() {
   echo "[CM-ANT] [Step 6/6] Configuring JMeter..."
   sudo chmod +x "${JMETER_FULL_PATH}/bin/jmeter.sh"
-  "${JMETER_FULL_PATH}/bin/jmeter.sh" --version
+
+  # Safety net (3) — non-interactive ssh (cb-tumblebug POST /cmd/infra) does not
+  # source /etc/profile.d/*.sh, so jmeter.sh would not find java otherwise.
+  # Inject JAVA_HOME export right after the shebang; guarded by a marker so the
+  # injection is idempotent across re-installs and JMeter upgrades.
+  if ! sudo grep -q "# CM-ANT: JAVA_HOME injected" "${JMETER_FULL_PATH}/bin/jmeter.sh"; then
+    sudo sed -i "2i # CM-ANT: JAVA_HOME injected\\nexport JAVA_HOME=\"${JAVA_HOME_PATH}\"\\nexport PATH=\"\${JAVA_HOME}/bin:\${PATH}\"" "${JMETER_FULL_PATH}/bin/jmeter.sh"
+  fi
+
+  JAVA_HOME="${JAVA_HOME_PATH}" "${JMETER_FULL_PATH}/bin/jmeter.sh" --version
 }
 
 # Execute steps

@@ -33,8 +33,8 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 	}
 	username := "cb-user"
 
-	log.Info().Msgf("Fetching mci object for NS: %s, msi id: %s", param.NsId, param.MciId)
-	mci, err := l.tumblebugClient.GetMciWithContext(ctx, param.NsId, param.MciId)
+	log.Info().Msgf("Fetching mci object for NS: %s, msi id: %s", param.NsId, param.InfraId)
+	mci, err := l.tumblebugClient.GetMciWithContext(ctx, param.NsId, param.InfraId)
 	if err != nil {
 		log.Error().Msgf("Failed to fetch mci; %v", err)
 		return res, err
@@ -46,8 +46,8 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 	}
 
 	var mapSet map[string]struct{}
-	if len(param.VmIds) > 0 {
-		mapSet = utils.SliceToMap(param.VmIds)
+	if len(param.NodeIds) > 0 {
+		mapSet = utils.SliceToMap(param.NodeIds)
 	}
 
 	var errorCollection []error
@@ -67,8 +67,8 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 			Status:    "installing",
 			AgentType: "perfmon",
 			NsId:      param.NsId,
-			MciId:     param.MciId,
-			VmId:      vm.Id,
+			InfraId:     param.InfraId,
+			NodeId:      vm.Id,
 			VmCount:   len(mci.Vm),
 		}
 		log.Info().Msgf("Inserting monitoring agent installation info into database vm id : %s", vm.Id)
@@ -84,8 +84,8 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 			UserName: username,
 		}
 
-		log.Info().Msgf("Sending install command to mci. NS: %s, mci: %s, VMID: %s", param.NsId, param.MciId, vm.Id)
-		_, err = l.tumblebugClient.CommandToVmWithContext(ctx, param.NsId, param.MciId, vm.Id, commandReq)
+		log.Info().Msgf("Sending install command to mci. NS: %s, mci: %s, VMID: %s", param.NsId, param.InfraId, vm.Id)
+		_, err = l.tumblebugClient.CommandToVmWithContext(ctx, param.NsId, param.InfraId, vm.Id, commandReq)
 
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
@@ -105,8 +105,8 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 		r := MonitoringAgentInstallationResult{
 			ID:        m.ID,
 			NsId:      m.NsId,
-			MciId:     m.MciId,
-			VmId:      m.VmId,
+			InfraId:     m.InfraId,
+			NodeId:      m.NodeId,
 			VmCount:   m.VmCount,
 			Status:    m.Status,
 			Username:  m.Username,
@@ -118,8 +118,8 @@ func (l *LoadService) InstallMonitoringAgent(param MonitoringAgentInstallationPa
 		res = append(res, r)
 		log.Info().Msgf(
 			"Complete installing monitoring agent on mics: %s, vm: %s",
-			m.MciId,
-			m.VmId,
+			m.InfraId,
+			m.NodeId,
 		)
 
 		time.Sleep(time.Second)
@@ -156,8 +156,8 @@ func (l *LoadService) GetAllMonitoringAgentInfos(param GetAllMonitoringAgentInfo
 		var r MonitoringAgentInstallationResult
 		r.ID = monitoringAgentInfo.ID
 		r.NsId = monitoringAgentInfo.NsId
-		r.MciId = monitoringAgentInfo.MciId
-		r.VmId = monitoringAgentInfo.VmId
+		r.InfraId = monitoringAgentInfo.InfraId
+		r.NodeId = monitoringAgentInfo.NodeId
 		r.VmCount = monitoringAgentInfo.VmCount
 		r.Status = monitoringAgentInfo.Status
 		r.Username = monitoringAgentInfo.Username
@@ -213,22 +213,22 @@ func (l *LoadService) UninstallMonitoringAgent(param MonitoringAgentInstallation
 			UserName: username,
 		}
 
-		_, err = l.tumblebugClient.CommandToVmWithContext(ctx, monitoringAgentInfo.NsId, monitoringAgentInfo.MciId, monitoringAgentInfo.VmId, commandReq)
+		_, err = l.tumblebugClient.CommandToVmWithContext(ctx, monitoringAgentInfo.NsId, monitoringAgentInfo.InfraId, monitoringAgentInfo.NodeId, commandReq)
 		if err != nil {
 			errorCollection = append(errorCollection, err)
-			log.Error().Msgf("Failed to uninstall monitoring agent on mci: %s, VM: %s - Error: %v", monitoringAgentInfo.MciId, monitoringAgentInfo.VmId, err)
+			log.Error().Msgf("Failed to uninstall monitoring agent on mci: %s, VM: %s - Error: %v", monitoringAgentInfo.InfraId, monitoringAgentInfo.NodeId, err)
 			continue
 		}
 
 		err = l.loadRepo.DeleteAgentInstallInfoStatusTx(ctx, &monitoringAgentInfo)
 
 		if err != nil {
-			log.Error().Msgf("Failed to delete agent installation status for mci: %s, VM: %s - Error: %v", monitoringAgentInfo.MciId, monitoringAgentInfo.VmId, err)
+			log.Error().Msgf("Failed to delete agent installation status for mci: %s, VM: %s - Error: %v", monitoringAgentInfo.InfraId, monitoringAgentInfo.NodeId, err)
 			errorCollection = append(errorCollection, err)
 			continue
 		}
 
-		log.Info().Msgf("Successfully uninstalled monitoring agent on mci: %s, VM: %s", monitoringAgentInfo.MciId, monitoringAgentInfo.VmId)
+		log.Info().Msgf("Successfully uninstalled monitoring agent on mci: %s, VM: %s", monitoringAgentInfo.InfraId, monitoringAgentInfo.NodeId)
 
 		time.Sleep(time.Second)
 	}
