@@ -34,9 +34,19 @@ type antServices struct {
 // AntServer represents the server instance for the CM-Ant application.
 // It contains an Echo instance for handling HTTP requests
 // and multiple services for validating the core functionality of cloud migration.
+//
+// The spider/tumblebug clients and DB connection are also held directly so that
+// startup fail-fast and the /ant/readyz handler can share a single dependency
+// check function (see internal/app/dependency_check.go and STANDARD-READYZ in
+// cmig-workflow c-mig-common/design/07-DESIGN/STANDARD-READYZ.md).
 type AntServer struct {
-	e        *echo.Echo
-	services *antServices
+	e               *echo.Echo
+	services        *antServices
+	spiderClient    *spider.SpiderClient
+	tumblebugClient *tumblebug.TumblebugClient
+	db              *gorm.DB
+
+	depCache depCache
 }
 
 // NewAntServer initializes and returns a new instance of AntServer.
@@ -60,8 +70,11 @@ func NewAntServer() (*AntServer, error) {
 	services := initializeServices(repos, tumblebugClient, spiderClient, conn)
 
 	return &AntServer{
-		e:        e,
-		services: services,
+		e:               e,
+		services:        services,
+		spiderClient:    spiderClient,
+		tumblebugClient: tumblebugClient,
+		db:              conn,
 	}, nil
 }
 

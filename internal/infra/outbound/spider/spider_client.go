@@ -16,6 +16,7 @@ import (
 
 var (
 	ErrBadRequest          = errors.New("bad request")
+	ErrUnauthorized        = errors.New("unauthorized")
 	ErrNotFound            = errors.New("object not found")
 	ErrInternalServerError = errors.New("spider server has got error")
 )
@@ -54,6 +55,10 @@ func NewSpiderClient(client *http.Client) *SpiderClient {
 	}
 }
 
+func (s *SpiderClient) Endpoint() string {
+	return s.domain
+}
+
 func (s *SpiderClient) withUrl(endpoint string) string {
 	trimmedEndpoint := strings.TrimPrefix(endpoint, "/")
 	return fmt.Sprintf("%s/spider/%s", s.domain, trimmedEndpoint)
@@ -85,6 +90,8 @@ func (s *SpiderClient) requestWithContext(ctx context.Context, method, url strin
 
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, ErrNotFound
+		} else if resp.StatusCode == http.StatusUnauthorized {
+			return nil, ErrUnauthorized
 		} else if resp.StatusCode == http.StatusInternalServerError {
 			return nil, ErrInternalServerError
 		} else if resp.StatusCode == http.StatusBadRequest {
@@ -114,9 +121,25 @@ func (s *SpiderClient) ReadyzWithContext(ctx context.Context) error {
 	_, err := s.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
-		log.Error().Msgf("error sending tumblebug readyz request; %v", err)
+		log.Error().Msgf("error sending cb-spider readyz request; %v", err)
 		return err
 	}
 
+	return nil
+}
+
+// AuthCheckWithContext calls a lightweight authenticated cb-spider endpoint
+// (GET /spider/cloudos) to verify Basic Auth credentials. Per STANDARD-READYZ
+// (c-mig-common/design/07-DESIGN/STANDARD-READYZ.md), the cb-spider /readyz
+// endpoint is on the auth-middleware skip list and therefore does not validate
+// credentials. /spider/cloudos is enforced and returns a small static list of
+// built-in cloud OS names, so it is unaffected by operator data.
+func (s *SpiderClient) AuthCheckWithContext(ctx context.Context) error {
+	url := s.withUrl("/cloudos")
+	_, err := s.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		log.Error().Msgf("cb-spider auth check failed (GET /spider/cloudos); %v", err)
+		return err
+	}
 	return nil
 }

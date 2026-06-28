@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +17,10 @@ import (
 
 var (
 	ErrBadRequest          = errors.New("bad request")
+	ErrUnauthorized        = errors.New("unauthorized")
 	ErrNotFound            = errors.New("object not found")
+	ErrNotReady            = errors.New("cb-tumblebug not ready")
+	ErrNotInitialized      = errors.New("cb-tumblebug not initialized")
 	ErrInternalServerError = errors.New("tumblebug server has got error")
 )
 
@@ -28,6 +32,16 @@ type TumblebugClient struct {
 	password   string
 	domain     string
 	authHeader string
+}
+
+// readyzResponse mirrors the relevant fields of cb-tumblebug's ReadyzResponse
+// (src/interface/rest/server/common/utility.go RestGetReadyz). cb-tumblebug
+// returns HTTP 200 even when Initialized is false (per STANDARD-READYZ pattern
+// B), so callers must inspect the body to determine actual readiness.
+type readyzResponse struct {
+	Ready       bool   `json:"ready"`
+	Initialized bool   `json:"initialized"`
+	Message     string `json:"message"`
 }
 
 func NewTumblebugClient(client *http.Client) *TumblebugClient {
@@ -47,6 +61,10 @@ func NewTumblebugClient(client *http.Client) *TumblebugClient {
 			),
 		),
 	}
+}
+
+func (t *TumblebugClient) Endpoint() string {
+	return t.domain
 }
 
 func (t *TumblebugClient) withUrl(endpoint string) string {
@@ -80,6 +98,8 @@ func (t *TumblebugClient) requestWithContext(ctx context.Context, method, url st
 
 		if resp.StatusCode == http.StatusNotFound {
 			return nil, ErrNotFound
+		} else if resp.StatusCode == http.StatusUnauthorized {
+			return nil, ErrUnauthorized
 		} else if resp.StatusCode == http.StatusInternalServerError {
 			return nil, ErrInternalServerError
 		} else if resp.StatusCode == http.StatusBadRequest {
@@ -103,15 +123,43 @@ func (t *TumblebugClient) requestWithBaseAuthWithContext(ctx context.Context, me
 	return t.requestWithContext(ctx, method, url, body, map[string]string{"Authorization": t.authHeader})
 }
 
+// ReadyzWithContext calls cb-tumblebug GET /tumblebug/readyz and inspects the
+// response body. Per STANDARD-READYZ §5, cb-tumblebug returns HTTP 200 even
+// when SystemInitialized is false, so a simple status check is insufficient.
+// We require both Ready and Initialized to be true.
 func (t *TumblebugClient) ReadyzWithContext(ctx context.Context) error {
-
 	url := t.withUrl("/readyz")
-	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
-
+	body, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		log.Error().Msgf("error sending tumblebug readyz request; %v", err)
+		log.Error().Msgf("error sending cb-tumblebug readyz request; %v", err)
 		return err
 	}
 
+	var rz readyzResponse
+	if uerr := json.Unmarshal(body, &rz); uerr != nil {
+		return fmt.Errorf("failed to parse cb-tumblebug readyz response: %w", uerr)
+	}
+
+	if !rz.Ready {
+		return fmt.Errorf("%w: %s", ErrNotReady, rz.Message)
+	}
+	if !rz.Initialized {
+		return fmt.Errorf("%w (Ready=true, Initialized=false): %s", ErrNotInitialized, rz.Message)
+	}
+	return nil
+}
+
+// AuthCheckWithContext calls a lightweight authenticated cb-tumblebug endpoint
+// (GET /tumblebug/cloudInfo) to verify Basic Auth credentials. Per
+// STANDARD-READYZ, /tumblebug/readyz is on the auth-middleware skip list and
+// does not validate credentials. /tumblebug/cloudInfo is enforced and returns
+// a small static cloud metadata payload that is independent of operator data.
+func (t *TumblebugClient) AuthCheckWithContext(ctx context.Context) error {
+	url := t.withUrl("/cloudInfo")
+	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		log.Error().Msgf("cb-tumblebug auth check failed (GET /tumblebug/cloudInfo); %v", err)
+		return err
+	}
 	return nil
 }
