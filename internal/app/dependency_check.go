@@ -81,11 +81,11 @@ func probeDB(ctx context.Context, db *gorm.DB, now time.Time) DepStatus {
 	sqlDB, err := db.DB()
 	if err != nil {
 		return DepStatus{Reachable: false, LastCheck: now,
-			Error: fmt.Sprintf("cm-ant DB handle 획득 실패: %v. Check DB driver/configuration", err)}
+			Error: fmt.Sprintf("failed to acquire cm-ant DB handle: %v. Check DB driver/configuration", err)}
 	}
 	if err := sqlDB.PingContext(ctx); err != nil {
 		return DepStatus{Reachable: false, LastCheck: now,
-			Error: fmt.Sprintf("cm-ant DB ping 실패: %v. Check ANT_DB_HOST/USER/PASSWORD/network", err)}
+			Error: fmt.Sprintf("cm-ant DB ping failed: %v. Check ANT_DB_HOST/USER/PASSWORD and network", err)}
 	}
 	// DB connectivity == authentication for DB (creds are part of the conn).
 	return DepStatus{Reachable: true, Authenticated: true, LastCheck: now}
@@ -99,15 +99,15 @@ func probeSpider(ctx context.Context, c *spider.SpiderClient, now time.Time) Dep
 	endpoint := c.Endpoint()
 	if err := c.ReadyzWithContext(ctx); err != nil {
 		return DepStatus{Reachable: false, LastCheck: now,
-			Error: fmt.Sprintf("cb-spider 미응답 (host=%s): %v. Check cb-spider 컨테이너 상태·network", endpoint, err)}
+			Error: fmt.Sprintf("cb-spider unreachable (host=%s): %v. Check cb-spider container state and network", endpoint, err)}
 	}
 	if err := c.AuthCheckWithContext(ctx); err != nil {
 		if errors.Is(err, spider.ErrUnauthorized) {
 			return DepStatus{Reachable: true, Authenticated: false, LastCheck: now,
-				Error: fmt.Sprintf("cb-spider 인증 실패 (host=%s, HTTP 401). cm-ant 측 ANT_SPIDER_USERNAME/ANT_SPIDER_PASSWORD 환경변수 또는 config Spider.Username/Password 확인 필요", endpoint)}
+				Error: fmt.Sprintf("cb-spider authentication failed (host=%s, HTTP 401). Verify ANT_SPIDER_USERNAME and ANT_SPIDER_PASSWORD env vars (or config Spider.Username/Password) on the cm-ant side", endpoint)}
 		}
 		return DepStatus{Reachable: true, Authenticated: false, LastCheck: now,
-			Error: fmt.Sprintf("cb-spider 인증 확인 호출 오류 (host=%s, GET /spider/cloudos): %v", endpoint, err)}
+			Error: fmt.Sprintf("cb-spider auth check call error (host=%s, GET /spider/cloudos): %v", endpoint, err)}
 	}
 	return DepStatus{Reachable: true, Authenticated: true, LastCheck: now}
 }
@@ -122,22 +122,22 @@ func probeTumblebug(ctx context.Context, c *tumblebug.TumblebugClient, now time.
 		switch {
 		case errors.Is(err, tumblebug.ErrNotReady):
 			return DepStatus{Reachable: false, LastCheck: now,
-				Error: fmt.Sprintf("cb-tumblebug 미응답 (host=%s): %v. Check cb-tumblebug 컨테이너 상태·network", endpoint, err)}
+				Error: fmt.Sprintf("cb-tumblebug unreachable (host=%s): %v. Check cb-tumblebug container state and network", endpoint, err)}
 		case errors.Is(err, tumblebug.ErrNotInitialized):
 			return DepStatus{Reachable: true, Authenticated: false, LastCheck: now,
-				Error: fmt.Sprintf("cb-tumblebug 초기화 미완료 (host=%s): %v. cb-tumblebug 초기화 절차 완료 필요", endpoint, err)}
+				Error: fmt.Sprintf("cb-tumblebug not initialized (host=%s): %v. Complete cb-tumblebug initialization procedure", endpoint, err)}
 		default:
 			return DepStatus{Reachable: false, LastCheck: now,
-				Error: fmt.Sprintf("cb-tumblebug 미응답 (host=%s): %v. Check cb-tumblebug 컨테이너 상태·network", endpoint, err)}
+				Error: fmt.Sprintf("cb-tumblebug unreachable (host=%s): %v. Check cb-tumblebug container state and network", endpoint, err)}
 		}
 	}
 	if err := c.AuthCheckWithContext(ctx); err != nil {
 		if errors.Is(err, tumblebug.ErrUnauthorized) {
 			return DepStatus{Reachable: true, Authenticated: false, LastCheck: now,
-				Error: fmt.Sprintf("cb-tumblebug 인증 실패 (host=%s, HTTP 401). cm-ant 측 ANT_TUMBLEBUG_USERNAME/ANT_TUMBLEBUG_PASSWORD 환경변수 또는 config Tumblebug.Username/Password 확인 필요", endpoint)}
+				Error: fmt.Sprintf("cb-tumblebug authentication failed (host=%s, HTTP 401). Verify ANT_TUMBLEBUG_USERNAME and ANT_TUMBLEBUG_PASSWORD env vars (or config Tumblebug.Username/Password) on the cm-ant side", endpoint)}
 		}
 		return DepStatus{Reachable: true, Authenticated: false, LastCheck: now,
-			Error: fmt.Sprintf("cb-tumblebug 인증 확인 호출 오류 (host=%s, GET /tumblebug/cloudInfo): %v", endpoint, err)}
+			Error: fmt.Sprintf("cb-tumblebug auth check call error (host=%s, GET /tumblebug/cloudInfo): %v", endpoint, err)}
 	}
 	return DepStatus{Reachable: true, Authenticated: true, LastCheck: now}
 }

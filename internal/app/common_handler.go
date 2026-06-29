@@ -44,7 +44,7 @@ func (s *AntServer) readyz(c echo.Context) error {
 	}
 
 	if !res.Ready {
-		body.Message = "CM-Ant is not ready — see dependencies for the failing component"
+		body.Message = "CM-Ant is not ready - see dependencies for the failing component"
 		return c.JSON(http.StatusServiceUnavailable, body)
 	}
 	body.Message = "CM-Ant is ready"
