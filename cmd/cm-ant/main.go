@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"os"
@@ -20,7 +21,7 @@ import (
 // InitRouter initializes the routing for CM-ANT API server.
 
 // @title CM-ANT REST API
-// @version 0.4.0
+// @version 0.6.0
 // @description CM-ANT REST API swagger document.
 // @basePath /ant
 
@@ -86,6 +87,17 @@ func main() {
 	if err != nil {
 		log.Fatal().Msgf("CM-Ant server creation error: %v", err)
 	}
+
+	// Fail-fast dependency check before accepting traffic. Per STANDARD-READYZ
+	// (cmig-workflow c-mig-common/design/07-DESIGN/STANDARD-READYZ.md §6.2),
+	// the container should not enter a "healthy but non-functional" state when
+	// DB, cb-spider, or cb-tumblebug are unreachable or misconfigured.
+	startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	if derr := s.CheckStartupDependencies(startupCtx); derr != nil {
+		startupCancel()
+		log.Fatal().Msgf("CM-Ant startup dependency check failed: %v", derr)
+	}
+	startupCancel()
 
 	// Initialize the router for the CM-Ant server
 	err = s.InitRouter()

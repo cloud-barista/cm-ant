@@ -233,6 +233,28 @@ definitions:
       resourceType:
         $ref: '#/definitions/constant.ResourceType'
     type: object
+  app.DepResult:
+    properties:
+      db:
+        $ref: '#/definitions/app.DepStatus'
+      ready:
+        type: boolean
+      spider:
+        $ref: '#/definitions/app.DepStatus'
+      tumblebug:
+        $ref: '#/definitions/app.DepStatus'
+    type: object
+  app.DepStatus:
+    properties:
+      authenticated:
+        type: boolean
+      error:
+        type: string
+      lastCheck:
+        type: string
+      reachable:
+        type: boolean
+    type: object
   app.InstallLoadGeneratorReq:
     properties:
       installLocation:
@@ -378,6 +400,17 @@ definitions:
         type: string
       nsId:
         type: string
+    type: object
+  app.readyzResponse:
+    properties:
+      dependencies:
+        $ref: '#/definitions/app.DepResult'
+      initialized:
+        type: boolean
+      message:
+        type: string
+      ready:
+        type: boolean
     type: object
   constant.ExecutionStatus:
     enum:
@@ -960,7 +993,7 @@ info:
   contact: {}
   description: CM-ANT REST API swagger document.
   title: CM-ANT REST API
-  version: 0.4.0
+  version: 0.6.0
 paths:
   /api/v1/cost/estimate:
     get:
@@ -2004,26 +2037,27 @@ paths:
     get:
       consumes:
       - application/json
-      description: This endpoint checks if the CB-Ant API server is ready by verifying
-        the status of both the load service and the cost service. If either service
-        is unavailable, it returns a 503 status indicating the server is not ready.
+      description: |-
+        Returns CM-Ant server readiness including DB and outbound
+        dependency (cb-spider, cb-tumblebug) reachability and
+        authentication. Per STANDARD-READYZ pattern B, the response
+        body always carries per-dependency status; the HTTP status is
+        200 when every dependency is reachable and authenticated, and
+        503 otherwise. Results are cached briefly to limit outbound
+        call rate; see STANDARD-READYZ for details.
       operationId: AntServerReadiness
       produces:
       - application/json
       responses:
         "200":
-          description: CM-Ant API server is ready
+          description: CM-Ant is ready (all dependencies healthy)
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/app.readyzResponse'
         "503":
-          description: CB-Ant API server is not ready
+          description: CM-Ant is not ready (see dependencies for the failing component)
           schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Check CB-Ant API server readiness
+            $ref: '#/definitions/app.readyzResponse'
+      summary: Check CM-Ant API server readiness
       tags:
       - '[Server Health]'
 swagger: "2.0"

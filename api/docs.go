@@ -1550,7 +1550,7 @@ const docTemplate = `{
         },
         "/readyz": {
             "get": {
-                "description": "This endpoint checks if the CB-Ant API server is ready by verifying the status of both the load service and the cost service. If either service is unavailable, it returns a 503 status indicating the server is not ready.",
+                "description": "Returns CM-Ant server readiness including DB and outbound\ndependency (cb-spider, cb-tumblebug) reachability and\nauthentication. Per STANDARD-READYZ pattern B, the response\nbody always carries per-dependency status; the HTTP status is\n200 when every dependency is reachable and authenticated, and\n503 otherwise. Results are cached briefly to limit outbound\ncall rate; see STANDARD-READYZ for details.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1560,25 +1560,19 @@ const docTemplate = `{
                 "tags": [
                     "[Server Health]"
                 ],
-                "summary": "Check CB-Ant API server readiness",
+                "summary": "Check CM-Ant API server readiness",
                 "operationId": "AntServerReadiness",
                 "responses": {
                     "200": {
-                        "description": "CM-Ant API server is ready",
+                        "description": "CM-Ant is ready (all dependencies healthy)",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/app.readyzResponse"
                         }
                     },
                     "503": {
-                        "description": "CB-Ant API server is not ready",
+                        "description": "CM-Ant is not ready (see dependencies for the failing component)",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/app.readyzResponse"
                         }
                     }
                 }
@@ -1946,6 +1940,40 @@ const docTemplate = `{
                 }
             }
         },
+        "app.DepResult": {
+            "type": "object",
+            "properties": {
+                "db": {
+                    "$ref": "#/definitions/app.DepStatus"
+                },
+                "ready": {
+                    "type": "boolean"
+                },
+                "spider": {
+                    "$ref": "#/definitions/app.DepStatus"
+                },
+                "tumblebug": {
+                    "$ref": "#/definitions/app.DepStatus"
+                }
+            }
+        },
+        "app.DepStatus": {
+            "type": "object",
+            "properties": {
+                "authenticated": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "lastCheck": {
+                    "type": "string"
+                },
+                "reachable": {
+                    "type": "boolean"
+                }
+            }
+        },
         "app.InstallLoadGeneratorReq": {
             "type": "object",
             "properties": {
@@ -2159,6 +2187,23 @@ const docTemplate = `{
                 },
                 "nsId": {
                     "type": "string"
+                }
+            }
+        },
+        "app.readyzResponse": {
+            "type": "object",
+            "properties": {
+                "dependencies": {
+                    "$ref": "#/definitions/app.DepResult"
+                },
+                "initialized": {
+                    "type": "boolean"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "ready": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3025,7 +3070,7 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "0.4.0",
+	Version:          "0.6.0",
 	Host:             "",
 	BasePath:         "/ant",
 	Schemes:          []string{},
