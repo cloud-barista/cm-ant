@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/config"
@@ -92,6 +93,12 @@ func (s *stepRecorder) skip(name constant.ExecutionStep, message string) {
 	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepSkipped, Message: message})
 }
 
+// generatorRunMu serializes load test runs. The load generator is a shared singleton
+// (one ant-default MCI reused across runs), so concurrent runs would contend on the same
+// VM (JMeter CPU contention, install/reset races). Runs are therefore serialized and a
+// concurrent request is rejected rather than corrupting the shared generator (BAR-1414).
+var generatorRunMu sync.Mutex
+
 // RunLoadTest initiates the load test and performs necessary initializations.
 // Generates a load test key, installs the load generator or retrieves existing installation information,
 // saves the load test execution state, and then asynchronously runs the load test.
@@ -103,6 +110,17 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	// BAR-1414: only one load test may run at a time on the shared generator.
+	if !generatorRunMu.TryLock() {
+		return "", errors.New("a load test is already running; the shared load generator supports one run at a time")
+	}
+	locked := true
+	defer func() {
+		if locked {
+			generatorRunMu.Unlock()
+		}
+	}()
 
 	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()
 	param.LoadTestKey = loadTestKey
@@ -131,8 +149,8 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 		ExpectedFinishAt:            e,
 		TotalExpectedExcutionSecond: totalExecutionSecond,
 		NsId:                        param.NsId,
-		InfraId:                       param.InfraId,
-		NodeId:                        param.NodeId,
+		InfraId:                     param.InfraId,
+		NodeId:                      param.NodeId,
 		WithMetrics:                 param.CollectAdditionalSystemMetrics,
 	}
 
@@ -143,7 +161,12 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 	}
 	log.Info().Msgf("Initial load test execution state saved for key: %s", loadTestKey)
 
-	go l.processLoadTestAsync(param, &stateArg)
+	locked = false // ownership transferred to the async run; it releases the lock when done
+	go func() {
+		defer generatorRunMu.Unlock()
+		l.processLoadTestAsync(param, &stateArg)
+		l.applyGeneratorIdlePolicy(param) // BAR-1413: keep / suspend / terminate the generator when idle
+	}()
 
 	return loadTestKey, nil
 
@@ -227,7 +250,7 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		RampUpTime:   param.RampUpTime,
 		RampUpSteps:  param.RampUpSteps,
 
-		NsId:  param.NsId,
+		NsId:    param.NsId,
 		InfraId: param.InfraId,
 		NodeId:  param.NodeId,
 
@@ -291,7 +314,7 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		}
 
 		arg := MonitoringAgentInstallationParams{
-			NsId:  param.NsId,
+			NsId:    param.NsId,
 			InfraId: param.InfraId,
 			NodeIds: []string{param.NodeId},
 		}
@@ -344,11 +367,17 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		StepRec:                        rec,
 	}
 
+	dataParam.Finished = make(chan struct{})
 	go l.fetchData(dataParam)
 
 	defer func() {
 		loadTestDone <- true
 		close(loadTestDone)
+		if dataParam.Finished != nil {
+			// Wait for the final result rsync to complete before finalizing state and applying
+			// the generator idle policy, so suspend/terminate can't interrupt it (BAR-1413).
+			<-dataParam.Finished
+		}
 		updateErr := l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
 		if updateErr != nil {
 			failed(fmt.Sprintf("Error updating load test execution state: %v", updateErr), updateErr)
@@ -414,7 +443,7 @@ func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInsta
 		}
 
 		arg := MonitoringAgentInstallationParams{
-			NsId:  param.NsId,
+			NsId:    param.NsId,
 			InfraId: param.InfraId,
 			NodeIds: []string{param.NodeId},
 		}
@@ -636,7 +665,7 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 
 	if param.LoadTestKey == "" {
 		arg = GetLoadTestExecutionStateParam{
-			NsId:  param.NsId,
+			NsId:    param.NsId,
 			InfraId: param.InfraId,
 			NodeId:  param.NodeId,
 		}
@@ -694,4 +723,49 @@ func killCmdGen(loadTestKey string) string {
 	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*%s'", loadTestKey)
 	log.Info().Msgf("Generating kill command for load test key: %s", loadTestKey)
 	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
+}
+
+// applyGeneratorIdlePolicy suspends or tears down the shared load generator after a run,
+// per load.generator.idle ("keep" | "suspend" | "terminate"). Default "keep" preserves the
+// previous behavior (the generator stays running for fast reuse). It runs only after the
+// final result rsync has completed (guaranteed by the caller) and only for remote generators.
+// BAR-1413 / FR-MA2-PERF-007-01.
+func (l *LoadService) applyGeneratorIdlePolicy(param RunLoadTestParam) {
+	idle := strings.ToLower(strings.TrimSpace(config.AppConfig.Load.Generator.Idle))
+	if idle == "" || idle == "keep" {
+		return
+	}
+
+	timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.CommandExecution)
+	if err != nil {
+		timeout = 50 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Resolve the generator's actual location. When a run reuses a generator by ID, the
+	// request's InstallLoadGenerator is blanked out, so consult the install record instead.
+	location := param.InstallLoadGenerator.InstallLocation
+	if param.LoadGeneratorInstallInfoId != 0 {
+		if info, e := l.loadRepo.GetValidLoadGeneratorInstallInfoByIdTx(ctx, param.LoadGeneratorInstallInfoId); e == nil {
+			location = info.InstallLocation
+		}
+	}
+	if location != constant.Remote {
+		return // local generators have no VM lifecycle to manage
+	}
+
+	nsId, mciId, _, _ := getResourceNames()
+	switch idle {
+	case "suspend":
+		log.Info().Msgf("idle policy: suspending load generator %s/%s", nsId, mciId)
+		if err := l.tumblebugClient.ControlLifecycleWithContext(ctx, nsId, mciId, "suspend"); err != nil {
+			log.Warn().Msgf("idle policy: failed to suspend generator %s/%s: %v", nsId, mciId, err)
+		}
+	case "terminate":
+		log.Info().Msgf("idle policy: terminating load generator %s/%s", nsId, mciId)
+		l.forceResetLoadGenerator(ctx, nsId, mciId)
+	default:
+		log.Warn().Msgf("idle policy: unknown value %q (expected keep|suspend|terminate); leaving generator as-is", idle)
+	}
 }

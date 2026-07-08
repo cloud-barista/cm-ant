@@ -27,6 +27,7 @@ type fetchDataParam struct {
 	fetchRunning                   bool
 	Home                           string
 	StepRec                        *stepRecorder // FR-MA2-PERF-007-08 (nil = no recording)
+	Finished                       chan struct{} // closed when fetchData returns, after the final rsync (BAR-1413; nil = not awaited)
 }
 
 func (f *fetchDataParam) setFetchRunning(running bool) {
@@ -46,6 +47,9 @@ const (
 )
 
 func (l *LoadService) fetchData(f *fetchDataParam) {
+	if f.Finished != nil {
+		defer close(f.Finished)
+	}
 	ticker := time.NewTicker(defaultFetchIntervalSec * time.Second)
 	defer ticker.Stop()
 
@@ -147,7 +151,7 @@ func rsyncFiles(f *fetchDataParam) error {
 				return // Success, exit the retry loop
 			}
 
-			log.Error().Msgf(fmt.Sprintf("Error during rsync attempt %d for %s: %v", attempt, fileName, err))
+			log.Error().Msg(fmt.Sprintf("Error during rsync attempt %d for %s: %v", attempt, fileName, err))
 
 			// Wait before retrying
 			if attempt < maxRetries {

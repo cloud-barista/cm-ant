@@ -101,7 +101,9 @@ func (t *TumblebugClient) requestWithContext(ctx context.Context, method, url st
 		} else if resp.StatusCode == http.StatusUnauthorized {
 			return nil, ErrUnauthorized
 		} else if resp.StatusCode == http.StatusInternalServerError {
-			return nil, ErrInternalServerError
+			// Carry the response body so callers can tell a genuine not-found (cb-tumblebug
+			// returns 500 for absent infra/node) from a transient server error (BAR-1412).
+			return nil, fmt.Errorf("%w: %s", ErrInternalServerError, string(rb))
 		} else if resp.StatusCode == http.StatusBadRequest {
 			return nil, ErrBadRequest
 		}

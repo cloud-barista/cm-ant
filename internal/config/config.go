@@ -61,7 +61,22 @@ type AntConfig struct {
 			//                  name (base-01/-02/...); the suffix is persisted in the DB.
 			// FR-MA2-PERF-007-09.
 			Recovery string `yaml:"recovery"`
+			// Idle controls what happens to the shared load generator after a run finishes:
+			//   "keep"      - leave it running for fast reuse (default; previous behavior)
+			//   "suspend"   - suspend the VM; the next run resumes it
+			//   "terminate" - tear the generator down; the next run recreates it (~15 min)
+			// Applied only after the final result rsync completes, remote generators only.
+			// FR-MA2-PERF-007-01 (BAR-1413).
+			Idle string `yaml:"idle"`
 		} `yaml:"generator"`
+		Limits struct {
+			// Upper bounds for load test parameters (FR-MA2-PERF-007-01). A value of 0 (unset)
+			// falls back to the built-in default. Override via config.yaml or ANT_LOAD_LIMITS_*.
+			MaxVirtualUsers int `yaml:"maxVirtualUsers"`
+			MaxDuration     int `yaml:"maxDuration"`
+			MaxRampUpTime   int `yaml:"maxRampUpTime"`
+			MaxRampUpSteps  int `yaml:"maxRampUpSteps"`
+		} `yaml:"limits"`
 		JMeter struct {
 			Dir     string `yaml:"dir"`
 			Version string `yaml:"version"`

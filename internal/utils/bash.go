@@ -17,7 +17,7 @@ func InlineCmd(cmdStr string) error {
 		return err
 	}
 
-	log.Info().Msgf(string(out))
+	log.Info().Msg(string(out))
 	return nil
 }
 
@@ -32,11 +32,11 @@ func Script(scriptPath string, envs []string, args ...string) error {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Error().Msgf("error while execute bash call; %v", err)
-		log.Error().Msgf(string(out))
+		log.Error().Msg(string(out))
 		return err
 	}
 
-	log.Info().Msgf(string(out))
+	log.Info().Msg(string(out))
 	return nil
 }
 

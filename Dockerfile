@@ -1,5 +1,5 @@
 # Stage 1: Build the Ant app
-FROM golang:1.23.0-bookworm AS builder
+FROM golang:1.25-bookworm AS builder
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
@@ -37,7 +37,7 @@ COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/test_plan /app/test_
 COPY --from=builder /go/src/github.com/cloud-barista/cm-ant/script /app/script
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=10s \
-   CMD curl -f "http://localhost:8880/ant/api/v1/readyz" || exit 1   
+   CMD curl -f "http://localhost:8880/ant/readyz" || exit 1   
 
 
 EXPOSE 8880

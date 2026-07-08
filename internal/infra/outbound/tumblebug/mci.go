@@ -6,9 +6,26 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 )
+
+// looksLikeNotFound reports whether a cb-tumblebug 500 error body indicates a genuinely
+// missing resource. cb-tumblebug returns HTTP 500 (not 404) for absent infra/node, so
+// GetMci/GetVm remap 500 to ErrNotFound only when the body says so — a transient 500 is
+// propagated instead of being misread as "not found" and triggering a spurious recreate
+// (BAR-1412 / FR-MA2-PERF-007-09 hardening).
+func looksLikeNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	m := strings.ToLower(err.Error())
+	return strings.Contains(m, "does not exist") ||
+		strings.Contains(m, "no node found") ||
+		strings.Contains(m, "not exist") ||
+		strings.Contains(m, "not found")
+}
 
 func (t *TumblebugClient) GetMciWithContext(ctx context.Context, nsId, mciId string) (MciRes, error) {
 	var mciObject MciRes
@@ -20,7 +37,7 @@ func (t *TumblebugClient) GetMciWithContext(ctx context.Context, nsId, mciId str
 	if err != nil {
 		log.Error().Msgf("error sending get mci request; %v", err)
 
-		if errors.Is(err, ErrInternalServerError) {
+		if errors.Is(err, ErrInternalServerError) && looksLikeNotFound(err) {
 			return mciObject, ErrNotFound
 		}
 		return mciObject, fmt.Errorf("failed to send request: %w", err)
@@ -47,7 +64,7 @@ func (t *TumblebugClient) GetVmWithContext(ctx context.Context, nsId, mciId, vmI
 	if err != nil {
 		log.Error().Msgf("error sending get vm request; %v", err)
 
-		if errors.Is(err, ErrInternalServerError) {
+		if errors.Is(err, ErrInternalServerError) && looksLikeNotFound(err) {
 			return vmObject, ErrNotFound
 		}
 		return vmObject, fmt.Errorf("failed to send request: %w", err)

@@ -37,6 +37,14 @@ load:
     #   newInstall : leave the old MCI orphaned and install a fresh one under a rotated name (ant-default-mci-01/-02...).
     #                the suffix is persisted in the DB and carries over to the next run; the operator cleans up orphan MCIs/VMs (mind the cost).
     recovery: "auto"
+    # After a run: keep (leave running, default) | suspend (resume next run) | terminate (recreate next run)
+    idle: "keep"
+  # 부하테스트 파라미터 상한 (FR-MA2-PERF-007-01). 미설정(0)이면 기본값(100/300/60/20) 사용.
+  limits:
+    maxVirtualUsers: 100
+    maxDuration: 300
+    maxRampUpTime: 60
+    maxRampUpSteps: 20
   jmeter:
     dir: "/opt/ant/jmeter"
     version: 5.6
