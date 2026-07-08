@@ -233,7 +233,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 			}
 
 			if prepareErr == nil && antMci.StatusCount.CountRunning < 1 {
-				prepareErr = errors.New("발생기 VM이 실행 상태가 아님 (외부 삭제 추정)")
+				prepareErr = errors.New("generator VM is not in a running state (likely deleted externally)")
 			}
 
 			// Remote install command — reads (key + script) are hard errors (not a recovery
@@ -259,9 +259,9 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 				}
 				for k := 1; k <= cmdRetries; k++ {
 					if k == 1 {
-						log.Info().Msg("JMeter 설치 중")
+						log.Info().Msg("Installing JMeter")
 					} else {
-						log.Info().Msgf("JMeter 설치 중 (재시도%d)", k-1)
+						log.Info().Msgf("Installing JMeter (retry %d)", k-1)
 						time.Sleep(defaultDelay)
 					}
 					_, prepareErr = l.tumblebugClient.CommandToMciWithContext(ctx, nsId, antMci.Id, commandReq)
@@ -299,10 +299,10 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 
 			if recovery == recoveryManual {
 				return result, fmt.Errorf(
-					"발생기 준비 실패 (recovery=manual 이므로 자동 삭제/재생성하지 않음). 발생기 VM(%s/%s)이 tumblebug에는 존재하나 실제로는 접속/원격명령이 안 될 수 있습니다. 실제 VM 상태를 확인·조치(또는 tumblebug 강제삭제) 후 재시도하거나 recovery=auto 를 사용하세요. 원인: %w",
+					"generator preparation failed (recovery=manual, so it is not deleted/recreated automatically). The generator VM (%s/%s) exists in tumblebug but may be unreachable for SSH/remote commands. Check and fix the actual VM state (or force-delete it in tumblebug) and retry, or use recovery=auto. cause: %w",
 					nsId, antMci.Id, prepareErr)
 			}
-			return result, fmt.Errorf("발생기 준비 실패 (자동 복구(%s) 후에도 복구되지 않음). 실제 VM 상태 확인이 필요합니다. 원인: %w", recovery, prepareErr)
+			return result, fmt.Errorf("generator preparation failed (still unrecoverable after automatic recovery (%s)). The actual VM state needs checking. cause: %w", recovery, prepareErr)
 		}
 
 		marking := make(map[string]LoadGeneratorServer)
