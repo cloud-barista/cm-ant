@@ -165,6 +165,7 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 	go func() {
 		defer generatorRunMu.Unlock()
 		l.processLoadTestAsync(param, &stateArg)
+		l.applyGeneratorIdlePolicy(param) // BAR-1413: keep / suspend / terminate the generator when idle
 	}()
 
 	return loadTestKey, nil
@@ -366,11 +367,17 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		StepRec:                        rec,
 	}
 
+	dataParam.Finished = make(chan struct{})
 	go l.fetchData(dataParam)
 
 	defer func() {
 		loadTestDone <- true
 		close(loadTestDone)
+		if dataParam.Finished != nil {
+			// Wait for the final result rsync to complete before finalizing state and applying
+			// the generator idle policy, so suspend/terminate can't interrupt it (BAR-1413).
+			<-dataParam.Finished
+		}
 		updateErr := l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
 		if updateErr != nil {
 			failed(fmt.Sprintf("Error updating load test execution state: %v", updateErr), updateErr)
@@ -716,4 +723,40 @@ func killCmdGen(loadTestKey string) string {
 	grepRegex := fmt.Sprintf("'\\/bin\\/ApacheJMeter\\.jar.*%s'", loadTestKey)
 	log.Info().Msgf("Generating kill command for load test key: %s", loadTestKey)
 	return fmt.Sprintf("kill -15 $(ps -ef | grep -E %s | awk '{print $2}')", grepRegex)
+}
+
+// applyGeneratorIdlePolicy suspends or tears down the shared load generator after a run,
+// per load.generator.idle ("keep" | "suspend" | "terminate"). Default "keep" preserves the
+// previous behavior (the generator stays running for fast reuse). It runs only after the
+// final result rsync has completed (guaranteed by the caller) and only for remote generators.
+// BAR-1413 / FR-MA2-PERF-007-01.
+func (l *LoadService) applyGeneratorIdlePolicy(param RunLoadTestParam) {
+	idle := strings.ToLower(strings.TrimSpace(config.AppConfig.Load.Generator.Idle))
+	if idle == "" || idle == "keep" {
+		return
+	}
+	if param.InstallLoadGenerator.InstallLocation != constant.Remote {
+		return // local generators have no VM lifecycle to manage
+	}
+
+	timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.CommandExecution)
+	if err != nil {
+		timeout = 50 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	nsId, mciId, _, _ := getResourceNames()
+	switch idle {
+	case "suspend":
+		log.Info().Msgf("idle policy: suspending load generator %s/%s", nsId, mciId)
+		if err := l.tumblebugClient.ControlLifecycleWithContext(ctx, nsId, mciId, "suspend"); err != nil {
+			log.Warn().Msgf("idle policy: failed to suspend generator %s/%s: %v", nsId, mciId, err)
+		}
+	case "terminate":
+		log.Info().Msgf("idle policy: terminating load generator %s/%s", nsId, mciId)
+		l.forceResetLoadGenerator(ctx, nsId, mciId)
+	default:
+		log.Warn().Msgf("idle policy: unknown value %q (expected keep|suspend|terminate); leaving generator as-is", idle)
+	}
 }
