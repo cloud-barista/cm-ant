@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/config"
@@ -92,6 +93,12 @@ func (s *stepRecorder) skip(name constant.ExecutionStep, message string) {
 	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepSkipped, Message: message})
 }
 
+// generatorRunMu serializes load test runs. The load generator is a shared singleton
+// (one ant-default MCI reused across runs), so concurrent runs would contend on the same
+// VM (JMeter CPU contention, install/reset races). Runs are therefore serialized and a
+// concurrent request is rejected rather than corrupting the shared generator (BAR-1414).
+var generatorRunMu sync.Mutex
+
 // RunLoadTest initiates the load test and performs necessary initializations.
 // Generates a load test key, installs the load generator or retrieves existing installation information,
 // saves the load test execution state, and then asynchronously runs the load test.
@@ -103,6 +110,17 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	// BAR-1414: only one load test may run at a time on the shared generator.
+	if !generatorRunMu.TryLock() {
+		return "", errors.New("a load test is already running; the shared load generator supports one run at a time")
+	}
+	locked := true
+	defer func() {
+		if locked {
+			generatorRunMu.Unlock()
+		}
+	}()
 
 	loadTestKey := utils.CreateUniqIdBaseOnUnixTime()
 	param.LoadTestKey = loadTestKey
@@ -131,8 +149,8 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 		ExpectedFinishAt:            e,
 		TotalExpectedExcutionSecond: totalExecutionSecond,
 		NsId:                        param.NsId,
-		InfraId:                       param.InfraId,
-		NodeId:                        param.NodeId,
+		InfraId:                     param.InfraId,
+		NodeId:                      param.NodeId,
 		WithMetrics:                 param.CollectAdditionalSystemMetrics,
 	}
 
@@ -143,7 +161,11 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 	}
 	log.Info().Msgf("Initial load test execution state saved for key: %s", loadTestKey)
 
-	go l.processLoadTestAsync(param, &stateArg)
+	locked = false // ownership transferred to the async run; it releases the lock when done
+	go func() {
+		defer generatorRunMu.Unlock()
+		l.processLoadTestAsync(param, &stateArg)
+	}()
 
 	return loadTestKey, nil
 
@@ -227,7 +249,7 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		RampUpTime:   param.RampUpTime,
 		RampUpSteps:  param.RampUpSteps,
 
-		NsId:  param.NsId,
+		NsId:    param.NsId,
 		InfraId: param.InfraId,
 		NodeId:  param.NodeId,
 
@@ -291,7 +313,7 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		}
 
 		arg := MonitoringAgentInstallationParams{
-			NsId:  param.NsId,
+			NsId:    param.NsId,
 			InfraId: param.InfraId,
 			NodeIds: []string{param.NodeId},
 		}
@@ -414,7 +436,7 @@ func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInsta
 		}
 
 		arg := MonitoringAgentInstallationParams{
-			NsId:  param.NsId,
+			NsId:    param.NsId,
 			InfraId: param.InfraId,
 			NodeIds: []string{param.NodeId},
 		}
@@ -636,7 +658,7 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 
 	if param.LoadTestKey == "" {
 		arg = GetLoadTestExecutionStateParam{
-			NsId:  param.NsId,
+			NsId:    param.NsId,
 			InfraId: param.InfraId,
 			NodeId:  param.NodeId,
 		}
