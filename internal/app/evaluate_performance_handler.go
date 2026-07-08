@@ -76,13 +76,13 @@ func (s *AntServer) installLoadGenerator(c echo.Context) error {
 	log.Info().Msg("Received request to install load generator")
 
 	if err := c.Bind(&req); err != nil {
-		log.Error().Msgf("Failed to bind request:", err)
+		log.Error().Msgf("Failed to bind request: %v", err)
 		return errorResponseJson(http.StatusBadRequest, "load generator installation info is not correct.")
 	}
 
 	if req.InstallLocation == "" ||
 		(req.InstallLocation != constant.Remote && req.InstallLocation != constant.Local) {
-		log.Error().Msgf("Invalid install location:", req.InstallLocation)
+		log.Error().Msgf("Invalid install location: %v", req.InstallLocation)
 		return errorResponseJson(http.StatusBadRequest, "available install locations are remote or local.")
 	}
 
@@ -96,7 +96,7 @@ func (s *AntServer) installLoadGenerator(c echo.Context) error {
 	result, err := s.services.loadService.InstallLoadGenerator(param)
 
 	if err != nil {
-		log.Error().Msgf("Error installing load generator:", err)
+		log.Error().Msgf("Error installing load generator: %v", err)
 		return errorResponseJson(http.StatusBadRequest, err.Error())
 	}
 

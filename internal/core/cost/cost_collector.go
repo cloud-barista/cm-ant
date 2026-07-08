@@ -217,7 +217,7 @@ func (a *AwsCostExplorerBaristaCostCollector) GetCostInfos(ctx context.Context, 
 
 	if err != nil {
 		if errors.Is(err, spider.ErrSpiderCostResultEmpty) {
-			log.Error().Msgf("error from spider: ", err)
+			log.Error().Msgf("error from spider: %v", err)
 			return nil, ErrCostResultEmpty
 		}
 		return nil, err
@@ -256,12 +256,12 @@ func (a *AwsCostExplorerBaristaCostCollector) GetCostInfos(ctx context.Context, 
 			}
 			mt, ok := group.Metrics[metrics]
 			if !ok {
-				log.Error().Msgf("matric value does not exist:", metrics)
+				log.Error().Msgf("matric value does not exist: %v", metrics)
 				continue
 			}
 			cost, err := strconv.ParseFloat(utils.NilSafeStr(mt.Amount), 64)
 			if err != nil {
-				log.Error().Msgf("cost parsing error:", mt.Amount)
+				log.Error().Msgf("cost parsing error: %v", mt.Amount)
 				continue
 			}
 			unit := utils.NilSafeStr(mt.Unit)
@@ -275,7 +275,7 @@ func (a *AwsCostExplorerBaristaCostCollector) GetCostInfos(ctx context.Context, 
 
 			startDate, err := time.Parse(time.RFC3339, utils.NilSafeStr(result.TimePeriod.Start))
 			if err != nil {
-				log.Error().Msgf("start date parsing error:", result.TimePeriod.Start)
+				log.Error().Msgf("start date parsing error: %v", result.TimePeriod.Start)
 				continue
 			}
 
@@ -329,7 +329,7 @@ func (a *AwsCostExplorerBaristaCostCollector) UpdateEstimateForecastCost(ctx con
 	mci, err := a.tc.GetMciWithContext(ctx, param.NsId, param.InfraId)
 
 	if err != nil {
-		log.Error().Msgf("error while get mci from tumblebug; ", err)
+		log.Error().Msgf("error while get mci from tumblebug; %v", err)
 		return res, err
 	}
 
@@ -377,7 +377,7 @@ func (a *AwsCostExplorerBaristaCostCollector) UpdateEstimateForecastCost(ctx con
 	infos, err := a.GetCostInfos(ctx, arg)
 
 	if err != nil {
-		log.Error().Msgf("error while get cost info from spider;", err)
+		log.Error().Msgf("error while get cost info from spider; %v", err)
 		return res, fmt.Errorf("error from get cost infos +%w", err)
 	}
 

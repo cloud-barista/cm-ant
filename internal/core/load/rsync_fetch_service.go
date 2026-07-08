@@ -147,7 +147,7 @@ func rsyncFiles(f *fetchDataParam) error {
 				return // Success, exit the retry loop
 			}
 
-			log.Error().Msgf(fmt.Sprintf("Error during rsync attempt %d for %s: %v", attempt, fileName, err))
+			log.Error().Msg(fmt.Sprintf("Error during rsync attempt %d for %s: %v", attempt, fileName, err))
 
 			// Wait before retrying
 			if attempt < maxRetries {
