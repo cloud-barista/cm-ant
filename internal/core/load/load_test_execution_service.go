@@ -735,9 +735,6 @@ func (l *LoadService) applyGeneratorIdlePolicy(param RunLoadTestParam) {
 	if idle == "" || idle == "keep" {
 		return
 	}
-	if param.InstallLoadGenerator.InstallLocation != constant.Remote {
-		return // local generators have no VM lifecycle to manage
-	}
 
 	timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.CommandExecution)
 	if err != nil {
@@ -745,6 +742,18 @@ func (l *LoadService) applyGeneratorIdlePolicy(param RunLoadTestParam) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	// Resolve the generator's actual location. When a run reuses a generator by ID, the
+	// request's InstallLoadGenerator is blanked out, so consult the install record instead.
+	location := param.InstallLoadGenerator.InstallLocation
+	if param.LoadGeneratorInstallInfoId != 0 {
+		if info, e := l.loadRepo.GetValidLoadGeneratorInstallInfoByIdTx(ctx, param.LoadGeneratorInstallInfoId); e == nil {
+			location = info.InstallLocation
+		}
+	}
+	if location != constant.Remote {
+		return // local generators have no VM lifecycle to manage
+	}
 
 	nsId, mciId, _, _ := getResourceNames()
 	switch idle {
