@@ -172,6 +172,20 @@ func mapLoadTestExecutionStateResult(state LoadTestExecutionState) LoadTestExecu
 		stateResult.IconCode = constant.Pending
 	}
 
+	// FR-MA2-PERF-007-08: expose per-step progress.
+	for _, s := range state.Steps {
+		stateResult.Steps = append(stateResult.Steps, LoadTestExecutionStepResult{
+			Seq:      s.Seq,
+			Name:     s.Name,
+			Status:   s.Status,
+			Attempt:  s.Attempt,
+			StartAt:  s.StartAt,
+			FinishAt: s.FinishAt,
+			Message:  s.Message,
+			Detail:   s.Detail,
+		})
+	}
+
 	return *stateResult
 
 }

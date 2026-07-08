@@ -302,6 +302,35 @@ func (r *LoadRepository) UpdateLoadTestExecutionStateTx(ctx context.Context, par
 	return err
 }
 
+// UpsertLoadTestExecutionStepTx creates or updates a step by (state id, name) so each stage
+// keeps exactly one row that is updated in place as it transitions (FR-MA2-PERF-007-08).
+func (r *LoadRepository) UpsertLoadTestExecutionStepTx(ctx context.Context, step *LoadTestExecutionStep) error {
+	return r.execInTransaction(ctx, func(d *gorm.DB) error {
+		var existing LoadTestExecutionStep
+		err := d.
+			Where("load_test_execution_state_id = ? AND name = ?", step.LoadTestExecutionStateId, step.Name).
+			First(&existing).Error
+
+		if err == gorm.ErrRecordNotFound {
+			return d.Create(step).Error
+		} else if err != nil {
+			return err
+		}
+
+		step.ID = existing.ID
+		step.CreatedAt = existing.CreatedAt
+		// Preserve fields the caller left unset so a transition (running -> ok/failed) keeps
+		// the original start time and sequence.
+		if step.StartAt == nil {
+			step.StartAt = existing.StartAt
+		}
+		if step.Seq == 0 {
+			step.Seq = existing.Seq
+		}
+		return d.Save(step).Error
+	})
+}
+
 func (r *LoadRepository) UpdateLoadTestExecutionInfoDuration(ctx context.Context, loadTestKey, compileDuration, executionDuration string) error {
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		err := d.
@@ -330,6 +359,9 @@ func (r *LoadRepository) GetPagingLoadTestExecutionStateTx(ctx context.Context, 
 		q := d.Model(&LoadTestExecutionState{}).
 			// Preload("LoadGeneratorInstallInfo").
 			// Preload("LoadGeneratorInstallInfo.LoadGeneratorServers").
+			Preload("Steps", func(db *gorm.DB) *gorm.DB {
+				return db.Order("seq asc")
+			}).
 			Order("load_test_execution_states.created_at desc")
 
 		if param.LoadTestKey != "" {
@@ -361,8 +393,10 @@ func (r *LoadRepository) GetLoadTestExecutionStateTx(ctx context.Context, param 
 
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 
-		q := d.Model(&loadTestExecutionState)
-
+		q := d.Model(&loadTestExecutionState).
+			Preload("Steps", func(db *gorm.DB) *gorm.DB {
+				return db.Order("seq asc")
+			})
 
 		if param.LoadTestKey != "" {
 			q = q.Where("load_test_execution_states.load_test_key = ?", param.LoadTestKey)
@@ -402,6 +436,9 @@ func (r *LoadRepository) GetPagingLoadTestExecutionHistoryTx(ctx context.Context
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		q := d.Model(&LoadTestExecutionInfo{}).
 			Preload("LoadTestExecutionState").
+			Preload("LoadTestExecutionState.Steps", func(db *gorm.DB) *gorm.DB {
+				return db.Order("seq asc")
+			}).
 			Preload("LoadTestExecutionHttpInfos").
 			Preload("LoadGeneratorInstallInfo").
 			Preload("LoadGeneratorInstallInfo.LoadGeneratorServers").
@@ -429,6 +466,9 @@ func (r *LoadRepository) GetLoadTestExecutionInfoTx(ctx context.Context, param G
 	err := r.execInTransaction(ctx, func(d *gorm.DB) error {
 		return d.Model(&loadTestExecutionInfo).
 			Preload("LoadTestExecutionState").
+			Preload("LoadTestExecutionState.Steps", func(db *gorm.DB) *gorm.DB {
+				return db.Order("seq asc")
+			}).
 			Preload("LoadTestExecutionHttpInfos").
 			Preload("LoadGeneratorInstallInfo").
 			Preload("LoadGeneratorInstallInfo.LoadGeneratorServers").

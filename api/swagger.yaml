@@ -424,6 +424,20 @@ definitions:
     - OnFetching
     - Successed
     - TestFailed
+  constant.ExecutionStep:
+    enum:
+    - generator_install
+    - agent_install
+    - jmx_prepare
+    - jmeter_run
+    - result_fetch
+    type: string
+    x-enum-varnames:
+    - StepGeneratorInstall
+    - StepAgentInstall
+    - StepJmxPrepare
+    - StepJmeterRun
+    - StepResultFetch
   constant.IconCode:
     enum:
     - IC0001
@@ -476,6 +490,20 @@ definitions:
     - VNet
     - DataDisk
     - Etc
+  constant.StepStatus:
+    enum:
+    - pending
+    - running
+    - ok
+    - failed
+    - skipped
+    type: string
+    x-enum-varnames:
+    - StepPending
+    - StepRunning
+    - StepOk
+    - StepFailed
+    - StepSkipped
   cost.EsimateCostSpecResults:
     properties:
       estimateForecastCostSpecDetailResults:
@@ -834,10 +862,35 @@ definitions:
         type: string
       startAt:
         type: string
+      steps:
+        description: Steps is the per-stage progress of the run (FR-MA2-PERF-007-08),
+          ordered by seq.
+        items:
+          $ref: '#/definitions/load.LoadTestExecutionStepResult'
+        type: array
       totalExpectedExecutionSecond:
         type: integer
       updatedAt:
         type: string
+    type: object
+  load.LoadTestExecutionStepResult:
+    properties:
+      attempt:
+        type: integer
+      detail:
+        type: string
+      finishAt:
+        type: string
+      message:
+        type: string
+      name:
+        $ref: '#/definitions/constant.ExecutionStep'
+      seq:
+        type: integer
+      startAt:
+        type: string
+      status:
+        $ref: '#/definitions/constant.StepStatus'
     type: object
   load.LoadTestScenarioCatalogResult:
     properties:

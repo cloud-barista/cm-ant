@@ -26,6 +26,7 @@ type fetchDataParam struct {
 	fetchMx                        sync.Mutex
 	fetchRunning                   bool
 	Home                           string
+	StepRec                        *stepRecorder // FR-MA2-PERF-007-08 (nil = no recording)
 }
 
 func (f *fetchDataParam) setFetchRunning(running bool) {
@@ -60,16 +61,28 @@ func (l *LoadService) fetchData(f *fetchDataParam) {
 				f.setFetchRunning(false)
 			}
 		case <-done:
+			// FR-MA2-PERF-007-08: record the final result collection as its own step so a
+			// rsync failure is visible (previously it was only logged and the run was still
+			// marked successed).
+			f.StepRec.begin(constant.StepResultFetch, "Collecting results")
 			retry := config.AppConfig.Load.Retry
+			var fetchErr error
 			for retry > 0 {
 				if !f.isRunning() {
-					if err := rsyncFiles(f); err != nil {
-						log.Error().Msgf("error while fetching data from rsync %s", err.Error())
+					fetchErr = rsyncFiles(f)
+					if fetchErr != nil {
+						log.Error().Msgf("error while fetching data from rsync %s", fetchErr.Error())
 					}
 					break
 				}
 				time.Sleep(time.Duration(1<<4-retry) * time.Second)
 				retry--
+			}
+
+			if fetchErr != nil {
+				f.StepRec.fail(constant.StepResultFetch, "Result collection failed", fmt.Sprintf("the load test finished but collecting the result files (rsync) failed: %v", fetchErr))
+			} else {
+				f.StepRec.ok(constant.StepResultFetch, "Results collected")
 			}
 
 			return
