@@ -29,6 +29,14 @@ load:
     mci: "ant-default-mci"         # MCI 이름
     vm: "ant-default-vm"           # VM 이름
     sshKey: "ant-default-shared"   # SSH 키 이름 (접미사는 자동 추가)
+  # Load generator self-heal policy (FR-MA2-PERF-007-09)
+  generator:
+    # What to do when a reused generator is unusable (deleted externally, or unreachable after retries)
+    #   auto       : force-clean the stale generator (terminate+delete) and recreate it (default; keeps the service self-healing)
+    #   manual     : do not delete; fail the test with a diagnostic message so an operator can act
+    #   newInstall : leave the old MCI orphaned and install a fresh one under a rotated name (ant-default-mci-01/-02...).
+    #                the suffix is persisted in the DB and carries over to the next run; the operator cleans up orphan MCIs/VMs (mind the cost).
+    recovery: "auto"
   jmeter:
     dir: "/opt/ant/jmeter"
     version: 5.6

@@ -58,6 +58,12 @@ type LoadGeneratorInstallInfo struct {
 	InstallVersion  string
 	Status          string
 
+	// MciName is the actual cb-tumblebug MCI name backing this generator.
+	// Empty means the config base name (load.defaultResourceName.mci). It is rotated to
+	// base-01/-02/... by the newInstall recovery mode (FR-MA2-PERF-007-09), which leaves the
+	// old MCI orphaned for the operator to clean up instead of deleting it.
+	MciName string
+
 	IsCluster   bool
 	MasterId    uint
 	ClusterSize uint64

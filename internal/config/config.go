@@ -52,6 +52,16 @@ type AntConfig struct {
 			Vm        string `yaml:"vm"`
 			SshKey    string `yaml:"sshKey"`
 		} `yaml:"defaultResourceName"`
+		Generator struct {
+			// Recovery controls what happens when a reused load generator turns out to be
+			// unusable (VM deleted externally, or unreachable after retries):
+			//   "auto"       - force-reset the stale generator and recreate it (default)
+			//   "manual"     - stop with test_failed and a diagnostic message; operator fixes it
+			//   "newInstall" - leave the old MCI orphaned, install a fresh one under a rotated
+			//                  name (base-01/-02/...); the suffix is persisted in the DB.
+			// FR-MA2-PERF-007-09.
+			Recovery string `yaml:"recovery"`
+		} `yaml:"generator"`
 		JMeter struct {
 			Dir     string `yaml:"dir"`
 			Version string `yaml:"version"`
