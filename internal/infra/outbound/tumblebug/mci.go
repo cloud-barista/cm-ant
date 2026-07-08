@@ -393,9 +393,16 @@ func (t *TumblebugClient) ControlLifecycleWithContext(ctx context.Context, nsId,
 // DeleteAllMciWithContext call tumblebug's api which delete all mci in ns.
 // This should call after all the vm's in mci is the status of terminate or suspend.
 // If you want to change mci's vm lifecycle use ControlLifecycleWithContext.
-func (t *TumblebugClient) DeleteAllMciWithContext(ctx context.Context, nsId string) error {
+//
+// option is passed as the tumblebug `option` query parameter. Use "terminate" or
+// "force" to purge an MCI whose backing CSP resources are already gone (both return
+// 200 even when the VM no longer exists); pass "" for the default behaviour.
+func (t *TumblebugClient) DeleteAllMciWithContext(ctx context.Context, nsId, option string) error {
 	// cb-tumblebug v0.12.7 BREAKING: /mci → /infra
 	url := t.withUrl(fmt.Sprintf("/ns/%s/infra", nsId))
+	if option != "" {
+		url = fmt.Sprintf("%s?option=%s", url, option)
+	}
 
 	_, err := t.requestWithBaseAuthWithContext(ctx, http.MethodDelete, url, nil)
 

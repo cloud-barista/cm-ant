@@ -29,6 +29,14 @@ load:
     mci: "ant-default-mci"         # MCI 이름
     vm: "ant-default-vm"           # VM 이름
     sshKey: "ant-default-shared"   # SSH 키 이름 (접미사는 자동 추가)
+  # 부하 발생기 자가 복구 정책 (FR-MA2-PERF-007-09)
+  generator:
+    # 재사용하려던 발생기가 사용 불가(외부 삭제·재시도 후에도 접속 불가)일 때 동작
+    #   auto       : stale 발생기를 강제 정리(terminate+강제삭제) 후 재생성 (기본, 서비스 자동 유지)
+    #   manual     : 삭제하지 않고 test_failed + 진단 메시지로 관리자 조치 유도
+    #   newInstall : 기존 MCI는 고아로 남기고 새 이름(ant-default-mci-01/-02...)으로 새로 설치.
+    #                접미사는 DB에 저장되어 다음 실행에 이어짐. 고아 MCI/VM은 관리자가 정리(비용 주의).
+    recovery: "auto"
   jmeter:
     dir: "/opt/ant/jmeter"
     version: 5.6

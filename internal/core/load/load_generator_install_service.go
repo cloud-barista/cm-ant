@@ -34,6 +34,11 @@ const (
 	antPrivKeyName = "id_rsa_ant"
 
 	defaultDelay = 20 * time.Second
+
+	// FR-MA2-PERF-007-09 generator recovery modes (config load.generator.recovery)
+	recoveryAuto       = "auto"       // force-reset stale generator and recreate (default)
+	recoveryManual     = "manual"     // stop with a diagnostic message, no delete
+	recoveryNewInstall = "newinstall" // leave the old MCI orphaned, install a new base-NN one
 )
 
 // InstallLoadGenerator installs the load generator either locally or remotely.
@@ -167,61 +172,138 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 			return result, err
 		}
 
-		// get the ant default mci
-		antMci, err := l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, existingConnectionName)
-		if err != nil {
-			log.Error().Msgf("Error getting or creating default mci; %v", err)
-			return result, err
+		// FR-MA2-PERF-007-09: reuse the generator, self-healing a stale record.
+		//
+		// When the saved generator VM was deleted externally, cb-tumblebug keeps a stale
+		// "Running" status in its cache (a GET does not trigger a live CSP poll) and the
+		// `reconcile` action only touches transient nodes, so a status-based pre-check is
+		// unreliable. Instead we treat a failure of the reuse/prepare operations as the
+		// signal. The remote install command is retried first (SSH/command flakes are common
+		// on small VMs) to tell a transient failure apart from a truly missing VM; only after
+		// the retries are exhausted do we act on config load.generator.recovery:
+		//   auto       - force-reset the ant MCI (terminate + option=terminate delete, which
+		//                succeed even when the CSP VM is gone) and recreate it, once.
+		//   manual     - stop with a diagnostic message so the operator can inspect/fix the VM.
+		//   newInstall - leave the (assumed broken) MCI orphaned and install a fresh one under a
+		//                rotated name (base-01/-02/...); the operator cleans up the orphan later.
+		recovery := strings.ToLower(strings.TrimSpace(config.AppConfig.Load.Generator.Recovery))
+		if recovery == "" {
+			recovery = recoveryAuto
+		}
+		maxAttempts := 1
+		if recovery == recoveryAuto || recovery == recoveryNewInstall {
+			maxAttempts = 2
 		}
 
-		// if server is not running state, try to resume and get mci information
-		retryCount := config.AppConfig.Load.Retry
-		for retryCount > 0 && antMci.StatusCount.CountRunning < 1 {
-			log.Info().Msgf("Attempting to resume MCI, retry count: %d", retryCount)
+		// Active generator MCI name: the config base name, or a rotated base-NN persisted by a
+		// prior newInstall recovery (FR-MA2-PERF-007-09).
+		_, baseMci, baseVm, _ := getResourceNames()
+		activeMci := loadGeneratorInstallInfo.MciName
+		if activeMci == "" {
+			activeMci = baseMci
+		}
 
-			err = l.tumblebugClient.ControlLifecycleWithContext(ctx, nsId, antMci.Id, "resume")
+		var antMci tumblebug.MciRes
+		for attempt := 1; attempt <= maxAttempts; attempt++ {
+			antMci, err = l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, existingConnectionName, activeMci, baseVm)
 			if err != nil {
-				log.Error().Msgf("Error resuming MCI; %v", err)
+				log.Error().Msgf("Error getting or creating default mci; %v", err)
 				return result, err
 			}
-			time.Sleep(defaultDelay)
-			antMci, err = l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, existingConnectionName)
-			if err != nil {
-				log.Error().Msgf("Error getting MCI after resume attempt; %v", err)
-				return result, err
+
+			// if server is not running state, try to resume and get mci information
+			retryCount := config.AppConfig.Load.Retry
+			var prepareErr error
+			for retryCount > 0 && antMci.StatusCount.CountRunning < 1 {
+				log.Info().Msgf("Attempting to resume MCI, retry count: %d", retryCount)
+
+				prepareErr = l.tumblebugClient.ControlLifecycleWithContext(ctx, nsId, antMci.Id, "resume")
+				if prepareErr != nil {
+					log.Error().Msgf("Error resuming MCI; %v", prepareErr)
+					break
+				}
+				time.Sleep(defaultDelay)
+				antMci, err = l.getAndDefaultMci(ctx, antVmCommonSpec, antVmCommonImage, existingConnectionName, activeMci, baseVm)
+				if err != nil {
+					log.Error().Msgf("Error getting MCI after resume attempt; %v", err)
+					return result, err
+				}
+
+				retryCount = retryCount - 1
 			}
 
-			retryCount = retryCount - 1
-		}
+			if prepareErr == nil && antMci.StatusCount.CountRunning < 1 {
+				prepareErr = errors.New("발생기 VM이 실행 상태가 아님 (외부 삭제 추정)")
+			}
 
-		if antMci.StatusCount.CountRunning < 1 {
-			log.Error().Msg("No running VM on ant default MCI")
-			return result, errors.New("there is no running vm on ant default mci")
-		}
+			// Remote install command — reads (key + script) are hard errors (not a recovery
+			// case), the command send itself is retried to absorb transient SSH/command flakes.
+			if prepareErr == nil {
+				addAuthorizedKeyCommand, kerr := getAddAuthorizedKeyCommand(antPrivKeyName, antPubKeyName)
+				if kerr != nil {
+					log.Error().Msgf("Error getting add authorized key command; %v", kerr)
+					return result, kerr
+				}
+				installationCommand, rerr := utils.ReadToString(installScriptPath)
+				if rerr != nil {
+					log.Error().Msgf("Error reading installation script; %v", rerr)
+					return result, rerr
+				}
+				commandReq := tumblebug.SendCommandReq{
+					Command: []string{installationCommand, addAuthorizedKeyCommand},
+				}
 
-		addAuthorizedKeyCommand, err := getAddAuthorizedKeyCommand(antPrivKeyName, antPubKeyName)
-		if err != nil {
-			log.Error().Msgf("Error getting add authorized key command; %v", err)
-			return result, err
-		}
+				cmdRetries := config.AppConfig.Load.Retry
+				if cmdRetries < 1 {
+					cmdRetries = 1
+				}
+				for k := 1; k <= cmdRetries; k++ {
+					if k == 1 {
+						log.Info().Msg("JMeter 설치 중")
+					} else {
+						log.Info().Msgf("JMeter 설치 중 (재시도%d)", k-1)
+						time.Sleep(defaultDelay)
+					}
+					_, prepareErr = l.tumblebugClient.CommandToMciWithContext(ctx, nsId, antMci.Id, commandReq)
+					if prepareErr == nil {
+						break
+					}
+					log.Warn().Msgf("Remote install command failed (%d/%d); %v", k, cmdRetries, prepareErr)
+				}
+			}
 
-		installationCommand, err := utils.ReadToString(installScriptPath)
-		if err != nil {
-			log.Error().Msgf("Error reading installation script; %v", err)
-			return result, err
-		}
+			if prepareErr == nil {
+				log.Info().Msg("Commands sent to MCI successfully")
+				break
+			}
 
-		commandReq := tumblebug.SendCommandReq{
-			Command: []string{installationCommand, addAuthorizedKeyCommand},
-		}
+			// Generator unusable after retries → act on the configured recovery policy.
+			if attempt < maxAttempts {
+				switch recovery {
+				case recoveryAuto:
+					log.Warn().Msgf("Generator unusable (recovery=auto); force-resetting %q and recreating; %v", activeMci, prepareErr)
+					l.forceResetLoadGenerator(ctx, nsId, activeMci)
+					continue
+				case recoveryNewInstall:
+					newMci := nextGeneratorMciName(activeMci, baseMci)
+					log.Warn().Msgf("Generator unusable (recovery=newInstall); leaving old MCI %q orphaned, installing new %q; %v", activeMci, newMci, prepareErr)
+					activeMci = newMci
+					loadGeneratorInstallInfo.MciName = newMci
+					loadGeneratorInstallInfo.LoadGeneratorServers = nil
+					if uerr := l.loadRepo.UpdateLoadGeneratorInstallInfoTx(ctx, loadGeneratorInstallInfo); uerr != nil {
+						log.Warn().Msgf("newInstall: failed to persist rotated MCI name %q; %v", newMci, uerr)
+					}
+					continue
+				}
+			}
 
-		_, err = l.tumblebugClient.CommandToMciWithContext(ctx, nsId, antMci.Id, commandReq)
-		if err != nil {
-			log.Error().Msgf("Error sending command to MCI; %v", err)
-			return result, err
+			if recovery == recoveryManual {
+				return result, fmt.Errorf(
+					"발생기 준비 실패 (recovery=manual 이므로 자동 삭제/재생성하지 않음). 발생기 VM(%s/%s)이 tumblebug에는 존재하나 실제로는 접속/원격명령이 안 될 수 있습니다. 실제 VM 상태를 확인·조치(또는 tumblebug 강제삭제) 후 재시도하거나 recovery=auto 를 사용하세요. 원인: %w",
+					nsId, antMci.Id, prepareErr)
+			}
+			return result, fmt.Errorf("발생기 준비 실패 (자동 복구(%s) 후에도 복구되지 않음). 실제 VM 상태 확인이 필요합니다. 원인: %w", recovery, prepareErr)
 		}
-
-		log.Info().Msg("Commands sent to MCI successfully")
 
 		marking := make(map[string]LoadGeneratorServer)
 		deleteChecker := make(map[uint]bool)
@@ -366,11 +448,52 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 	return result, nil
 }
 
-// getAndDefaultMci retrieves or creates the default MCI.
-func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, antVmCommonImage, antVmConnectionName string) (tumblebug.MciRes, error) {
+// forceResetLoadGenerator purges a stale ant-default MCI so the next getAndDefaultMci
+// recreates it from scratch (FR-MA2-PERF-007-09 self-heal).
+//
+// It is status-agnostic on purpose: when the generator VM was deleted externally,
+// cb-tumblebug still reports it as "Running" from cache, so `reconcile`/`refine` leave
+// the ghost node in place. `action=terminate` followed by DELETE .../infra?option=terminate
+// both return 200 even when the CSP VM is already gone and remove the MCI record
+// completely. The ant namespace holds only the generator MCI, so this never touches the
+// user's target VMs. The stale LoadGeneratorServer rows are reconciled by the normal
+// rebuild loop once the fresh MCI is created, so no explicit DB cleanup is needed here.
+//
+// Best-effort: errors are logged but not returned, because the recreate on the next
+// attempt is what actually determines success or failure.
+func (l *LoadService) forceResetLoadGenerator(ctx context.Context, nsId, mciId string) {
+	if err := l.tumblebugClient.ControlLifecycleWithContext(ctx, nsId, mciId, "terminate"); err != nil {
+		log.Warn().Msgf("force-reset: terminate returned error (continuing to delete); %v", err)
+	}
+	time.Sleep(defaultDelay)
+
+	// The ant namespace is dedicated to the generator, so delete-all purges the stale MCI
+	// (and any orphans left by a prior newInstall) without touching user resources.
+	if err := l.tumblebugClient.DeleteAllMciWithContext(ctx, nsId, "terminate"); err != nil {
+		log.Warn().Msgf("force-reset: delete-all-mci returned error; %v", err)
+	}
+}
+
+// nextGeneratorMciName rotates the generator MCI name for the newInstall recovery mode:
+// base -> base-01 -> base-02 ... (FR-MA2-PERF-007-09). current may be the base name or an
+// already-rotated base-NN.
+func nextGeneratorMciName(current, base string) string {
+	n := 0
+	if strings.HasPrefix(current, base+"-") {
+		if v, err := strconv.Atoi(strings.TrimPrefix(current, base+"-")); err == nil {
+			n = v
+		}
+	}
+	return fmt.Sprintf("%s-%02d", base, n+1)
+}
+
+// getAndDefaultMci retrieves or creates the generator MCI named mciId (with VM vmName).
+// mciId/vmName let the caller target a rotated name for the newInstall recovery mode
+// (FR-MA2-PERF-007-09); pass the config base names for the default generator.
+func (l *LoadService) getAndDefaultMci(ctx context.Context, antVmCommonSpec, antVmCommonImage, antVmConnectionName, mciId, vmName string) (tumblebug.MciRes, error) {
 	var antMci tumblebug.MciRes
 	var err error
-	nsId, mciId, vmName, _ := getResourceNames()
+	nsId, _, _, _ := getResourceNames()
 	antMci, err = l.tumblebugClient.GetMciWithContext(ctx, nsId, mciId)
 	if err != nil {
 		if errors.Is(err, tumblebug.ErrNotFound) {
@@ -938,7 +1061,11 @@ func (l *LoadService) UninstallLoadGenerator(param UninstallLoadGeneratorParam) 
 			Command: []string{uninstallCommand},
 		}
 
-		nsId, mciId, _, _ := getResourceNames()
+		nsId, baseMci, _, _ := getResourceNames()
+		mciId := loadGeneratorInstallInfo.MciName
+		if mciId == "" {
+			mciId = baseMci
+		}
 		_, err = l.tumblebugClient.CommandToMciWithContext(ctx, nsId, mciId, commandReq)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
