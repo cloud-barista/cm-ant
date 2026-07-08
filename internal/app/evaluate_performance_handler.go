@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cloud-barista/cm-ant/internal/config"
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/core/load"
 	"github.com/google/uuid"
@@ -182,24 +183,41 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 		req.TestName = uuid.New().String()
 	}
 
-	if v, err := strconv.Atoi(strings.TrimSpace(req.VirtualUsers)); err != nil || v < 1 || v > 100 {
-		log.Error().Msgf("virtual user count is invalid")
-		return errorResponseJson(http.StatusBadRequest, "virtual user  is not correct. the range must be in 1 to 100")
+	// FR-MA2-PERF-007-01: parameter upper bounds are configurable (config.yaml load.limits /
+	// ANT_LOAD_LIMITS_*), falling back to the built-in defaults when unset.
+	lim := config.AppConfig.Load.Limits
+	maxVU, maxDur, maxRU, maxRS := lim.MaxVirtualUsers, lim.MaxDuration, lim.MaxRampUpTime, lim.MaxRampUpSteps
+	if maxVU <= 0 {
+		maxVU = 100
+	}
+	if maxDur <= 0 {
+		maxDur = 300
+	}
+	if maxRU <= 0 {
+		maxRU = 60
+	}
+	if maxRS <= 0 {
+		maxRS = 20
 	}
 
-	if v, err := strconv.Atoi(strings.TrimSpace(req.Duration)); err != nil || v < 1 || v > 300 {
-		log.Error().Msgf("duration is invalid")
-		return errorResponseJson(http.StatusBadRequest, "duration is not correct. the range must be in 1 to 300")
+	if v, err := strconv.Atoi(strings.TrimSpace(req.VirtualUsers)); err != nil || v < 1 || v > maxVU {
+		log.Error().Msg("virtual user count is invalid")
+		return errorResponseJson(http.StatusBadRequest, fmt.Sprintf("virtual user is not correct. the range must be in 1 to %d", maxVU))
 	}
 
-	if v, err := strconv.Atoi(strings.TrimSpace(req.RampUpTime)); err != nil || v < 1 || v > 60 {
-		log.Error().Msgf("ramp up time is invalid")
-		return errorResponseJson(http.StatusBadRequest, "ramp up time is not correct. the range must be in 1 to 60")
+	if v, err := strconv.Atoi(strings.TrimSpace(req.Duration)); err != nil || v < 1 || v > maxDur {
+		log.Error().Msg("duration is invalid")
+		return errorResponseJson(http.StatusBadRequest, fmt.Sprintf("duration is not correct. the range must be in 1 to %d", maxDur))
 	}
 
-	if v, err := strconv.Atoi(strings.TrimSpace(req.RampUpSteps)); err != nil || v < 1 || v > 20 {
-		log.Error().Msgf("ramp up steps is invalid")
-		return errorResponseJson(http.StatusBadRequest, "ramp up steps is not correct. the range must be in 1 to 20")
+	if v, err := strconv.Atoi(strings.TrimSpace(req.RampUpTime)); err != nil || v < 1 || v > maxRU {
+		log.Error().Msg("ramp up time is invalid")
+		return errorResponseJson(http.StatusBadRequest, fmt.Sprintf("ramp up time is not correct. the range must be in 1 to %d", maxRU))
+	}
+
+	if v, err := strconv.Atoi(strings.TrimSpace(req.RampUpSteps)); err != nil || v < 1 || v > maxRS {
+		log.Error().Msg("ramp up steps is invalid")
+		return errorResponseJson(http.StatusBadRequest, fmt.Sprintf("ramp up steps is not correct. the range must be in 1 to %d", maxRS))
 	}
 
 	if len(req.HttpReqs) == 0 {
@@ -255,7 +273,7 @@ func (s *AntServer) runLoadTest(c echo.Context) error {
 		CollectAdditionalSystemMetrics: req.CollectAdditionalSystemMetrics,
 		AgentHostname:                  strings.TrimSpace(req.AgentHostname),
 
-		NsId:  strings.TrimSpace(req.NsId),
+		NsId:    strings.TrimSpace(req.NsId),
 		InfraId: strings.TrimSpace(req.InfraId),
 		NodeId:  strings.TrimSpace(req.NodeId),
 
@@ -534,7 +552,7 @@ func (s *AntServer) getLastLoadTestExecutionState(c echo.Context) error {
 	}
 
 	arg := load.GetLoadTestExecutionStateParam{
-		NsId:  req.NsId,
+		NsId:    req.NsId,
 		InfraId: req.InfraId,
 		NodeId:  req.NodeId,
 	}
@@ -602,7 +620,7 @@ func (s *AntServer) installMonitoringAgent(c echo.Context) error {
 	}
 
 	arg := load.MonitoringAgentInstallationParams{
-		NsId:  req.NsId,
+		NsId:    req.NsId,
 		InfraId: req.InfraId,
 		NodeIds: req.NodeIds,
 	}
@@ -649,9 +667,9 @@ func (s *AntServer) getAllMonitoringAgentInfos(c echo.Context) error {
 	}
 
 	arg := load.GetAllMonitoringAgentInfosParam{
-		Page:  req.Page,
-		Size:  req.Size,
-		NsId:  req.NsId,
+		Page:    req.Page,
+		Size:    req.Size,
+		NsId:    req.NsId,
 		InfraId: req.InfraId,
 		NodeId:  req.NodeId,
 	}
@@ -685,7 +703,7 @@ func (s *AntServer) uninstallMonitoringAgent(c echo.Context) error {
 	}
 
 	arg := load.MonitoringAgentInstallationParams{
-		NsId:  req.NsId,
+		NsId:    req.NsId,
 		InfraId: req.InfraId,
 		NodeIds: req.NodeIds,
 	}
@@ -735,10 +753,10 @@ func (s *AntServer) getLastLoadTestResult(c echo.Context) error {
 	}
 
 	arg := load.GetLastLoadTestResultParam{
-		NsId:   req.NsId,
-		InfraId:  req.InfraId,
-		NodeId:   req.NodeId,
-		Format: req.Format,
+		NsId:    req.NsId,
+		InfraId: req.InfraId,
+		NodeId:  req.NodeId,
+		Format:  req.Format,
 	}
 
 	result, err := s.services.loadService.GetLastLoadTestResult(arg)
@@ -776,10 +794,10 @@ func (s *AntServer) getLastLoadTestMetrics(c echo.Context) error {
 	}
 
 	arg := load.GetLastLoadTestResultParam{
-		NsId:   req.NsId,
-		InfraId:  req.InfraId,
-		NodeId:   req.NodeId,
-		Format: constant.Normal,
+		NsId:    req.NsId,
+		InfraId: req.InfraId,
+		NodeId:  req.NodeId,
+		Format:  constant.Normal,
 	}
 
 	result, err := s.services.loadService.GetLastLoadTestMetrics(arg)

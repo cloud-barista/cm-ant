@@ -62,6 +62,14 @@ type AntConfig struct {
 			// FR-MA2-PERF-007-09.
 			Recovery string `yaml:"recovery"`
 		} `yaml:"generator"`
+		Limits struct {
+			// Upper bounds for load test parameters (FR-MA2-PERF-007-01). A value of 0 (unset)
+			// falls back to the built-in default. Override via config.yaml or ANT_LOAD_LIMITS_*.
+			MaxVirtualUsers int `yaml:"maxVirtualUsers"`
+			MaxDuration     int `yaml:"maxDuration"`
+			MaxRampUpTime   int `yaml:"maxRampUpTime"`
+			MaxRampUpSteps  int `yaml:"maxRampUpSteps"`
+		} `yaml:"limits"`
 		JMeter struct {
 			Dir     string `yaml:"dir"`
 			Version string `yaml:"version"`
