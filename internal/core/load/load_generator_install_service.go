@@ -41,10 +41,24 @@ const (
 	recoveryNewInstall = "newinstall" // leave the old MCI orphaned, install a new base-NN one
 )
 
+// InstallProgressFn receives generator install progress so callers (e.g. a load test run)
+// can surface it as per-step status (FR-MA2-PERF-007-08). attempt is the retry count
+// (0 = first try), message is a short line, detail is a verbose diagnosis.
+type InstallProgressFn func(attempt int, message, detail string)
+
 // InstallLoadGenerator installs the load generator either locally or remotely.
 // Currently remote request is executing via cb-tumblebug.
-func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (LoadGeneratorInstallInfoResult, error) {
+// The optional progress callback (FR-MA2-PERF-007-08) is invoked during retries/recovery.
+func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam, progress ...InstallProgressFn) (LoadGeneratorInstallInfoResult, error) {
 	log.Info().Msg("Starting InstallLoadGenerator")
+
+	notify := func(attempt int, message, detail string) {
+		for _, p := range progress {
+			if p != nil {
+				p(attempt, message, detail)
+			}
+		}
+	}
 
 	// config.yaml의 commandExecution 타임아웃 설정 사용
 	timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.CommandExecution)
@@ -260,8 +274,11 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 				for k := 1; k <= cmdRetries; k++ {
 					if k == 1 {
 						log.Info().Msg("Installing JMeter")
+						notify(0, "Installing JMeter", "")
 					} else {
 						log.Info().Msgf("Installing JMeter (retry %d)", k-1)
+						notify(k-1, fmt.Sprintf("Installing JMeter (retry %d)", k-1),
+							fmt.Sprintf("SSH/remote command to the generator VM (%s) failed; retrying. The instance may be under-sized or the VM may no longer exist.", antMci.Id))
 						time.Sleep(defaultDelay)
 					}
 					_, prepareErr = l.tumblebugClient.CommandToMciWithContext(ctx, nsId, antMci.Id, commandReq)
@@ -282,6 +299,7 @@ func (l *LoadService) InstallLoadGenerator(param InstallLoadGeneratorParam) (Loa
 				switch recovery {
 				case recoveryAuto:
 					log.Warn().Msgf("Generator unusable (recovery=auto); force-resetting %q and recreating; %v", activeMci, prepareErr)
+					notify(0, "Recreating generator", fmt.Sprintf("the existing generator (%s) is unusable; cleaning it up and recreating (self-heal). cause: %v", activeMci, prepareErr))
 					l.forceResetLoadGenerator(ctx, nsId, activeMci)
 					continue
 				case recoveryNewInstall:

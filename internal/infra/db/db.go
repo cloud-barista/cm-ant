@@ -31,6 +31,7 @@ func migrateDB(defaultDb *gorm.DB) error {
 		&load.LoadTestExecutionInfo{},
 		&load.LoadTestExecutionHttpInfo{},
 		&load.LoadTestExecutionState{},
+		&load.LoadTestExecutionStep{},
 		&load.LoadTestScenarioCatalog{},
 
 		&cost.EstimateCostInfo{},

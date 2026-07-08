@@ -94,6 +94,25 @@ type LoadTestExecutionState struct {
 	// not to make one to one relationship between LoadTestExecutionInfo and LoadGeneratorInstallInfo
 	TestExecutionInfoId    uint
 	GeneratorInstallInfoId uint
+
+	// Steps are the per-stage progress records (FR-MA2-PERF-007-08).
+	Steps []LoadTestExecutionStep `gorm:"foreignKey:LoadTestExecutionStateId;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+}
+
+// LoadTestExecutionStep records the status of one stage of a load test run so the web
+// console can show detailed, real-time progress (FR-MA2-PERF-007-08).
+type LoadTestExecutionStep struct {
+	gorm.Model
+	LoadTestExecutionStateId uint   `gorm:"index:idx_step_state_name,unique;index"`
+	LoadTestKey              string `gorm:"index"`
+	Seq                      int
+	Name                     constant.ExecutionStep `gorm:"index:idx_step_state_name,unique"`
+	Status                   constant.StepStatus
+	Attempt                  int
+	StartAt                  *time.Time
+	FinishAt                 *time.Time
+	Message                  string // short current-status line (e.g. "Installing JMeter (retry 1)")
+	Detail                   string // verbose diagnosis / error cause
 }
 
 type LoadTestExecutionInfo struct {

@@ -2222,6 +2222,23 @@ const docTemplate = `{
                 "TestFailed"
             ]
         },
+        "constant.ExecutionStep": {
+            "type": "string",
+            "enum": [
+                "generator_install",
+                "agent_install",
+                "jmx_prepare",
+                "jmeter_run",
+                "result_fetch"
+            ],
+            "x-enum-varnames": [
+                "StepGeneratorInstall",
+                "StepAgentInstall",
+                "StepJmxPrepare",
+                "StepJmeterRun",
+                "StepResultFetch"
+            ]
+        },
         "constant.IconCode": {
             "type": "string",
             "enum": [
@@ -2290,6 +2307,23 @@ const docTemplate = `{
                 "VNet",
                 "DataDisk",
                 "Etc"
+            ]
+        },
+        "constant.StepStatus": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "running",
+                "ok",
+                "failed",
+                "skipped"
+            ],
+            "x-enum-varnames": [
+                "StepPending",
+                "StepRunning",
+                "StepOk",
+                "StepFailed",
+                "StepSkipped"
             ]
         },
         "cost.EsimateCostSpecResults": {
@@ -2833,11 +2867,47 @@ const docTemplate = `{
                 "startAt": {
                     "type": "string"
                 },
+                "steps": {
+                    "description": "Steps is the per-stage progress of the run (FR-MA2-PERF-007-08), ordered by seq.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/load.LoadTestExecutionStepResult"
+                    }
+                },
                 "totalExpectedExecutionSecond": {
                     "type": "integer"
                 },
                 "updatedAt": {
                     "type": "string"
+                }
+            }
+        },
+        "load.LoadTestExecutionStepResult": {
+            "type": "object",
+            "properties": {
+                "attempt": {
+                    "type": "integer"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "finishAt": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "$ref": "#/definitions/constant.ExecutionStep"
+                },
+                "seq": {
+                    "type": "integer"
+                },
+                "startAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/constant.StepStatus"
                 }
             }
         },

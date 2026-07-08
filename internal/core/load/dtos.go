@@ -161,6 +161,22 @@ type LoadTestExecutionStateResult struct {
 	ExecutionDuration           string                         `json:"executionDuration,omitempty"`
 	CreatedAt                   time.Time                      `json:"createdAt,omitempty"`
 	UpdatedAt                   time.Time                      `json:"updatedAt,omitempty"`
+	// Steps is the per-stage progress of the run (FR-MA2-PERF-007-08), ordered by seq.
+	Steps []LoadTestExecutionStepResult `json:"steps,omitempty"`
+}
+
+// LoadTestExecutionStepResult exposes one execution stage for the web console
+// (FR-MA2-PERF-007-08). message is a short current-status line, detail is the verbose
+// diagnosis/error cause, attempt is the retry count (0 = first try).
+type LoadTestExecutionStepResult struct {
+	Seq      int                    `json:"seq"`
+	Name     constant.ExecutionStep `json:"name"`
+	Status   constant.StepStatus    `json:"status"`
+	Attempt  int                    `json:"attempt,omitempty"`
+	StartAt  *time.Time             `json:"startAt,omitempty"`
+	FinishAt *time.Time             `json:"finishAt,omitempty"`
+	Message  string                 `json:"message,omitempty"`
+	Detail   string                 `json:"detail,omitempty"`
 }
 
 type GetLoadTestExecutionStateParam struct {

@@ -26,6 +26,72 @@ func getResourceNames() (nsId, mciId, vmName, sshKeyBase string) {
 	return
 }
 
+// stepSeq fixes the display order of the execution steps (FR-MA2-PERF-007-08).
+var stepSeq = map[constant.ExecutionStep]int{
+	constant.StepGeneratorInstall: 1,
+	constant.StepAgentInstall:     2,
+	constant.StepJmxPrepare:       3,
+	constant.StepJmeterRun:        4,
+	constant.StepResultFetch:      5,
+}
+
+// stepRecorder persists per-step progress of a running load test so the web console can show
+// detailed, real-time status with timing and error messages (FR-MA2-PERF-007-08). A nil
+// recorder (or one without a persisted state) is a no-op, so callers that have no execution
+// state can pass nil safely.
+type stepRecorder struct {
+	l     *LoadService
+	state *LoadTestExecutionState
+}
+
+func (l *LoadService) newStepRecorder(state *LoadTestExecutionState) *stepRecorder {
+	return &stepRecorder{l: l, state: state}
+}
+
+func (s *stepRecorder) upsert(step *LoadTestExecutionStep) {
+	if s == nil || s.state == nil || s.state.ID == 0 {
+		return
+	}
+	step.LoadTestExecutionStateId = s.state.ID
+	step.LoadTestKey = s.state.LoadTestKey
+	step.Seq = stepSeq[step.Name]
+	if err := s.l.loadRepo.UpsertLoadTestExecutionStepTx(context.Background(), step); err != nil {
+		log.Warn().Msgf("failed to record execution step %s; %v", step.Name, err)
+	}
+}
+
+// seed creates the full pipeline as pending so the web can render every step upfront.
+func (s *stepRecorder) seed() {
+	for name := range stepSeq {
+		s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepPending})
+	}
+}
+
+func (s *stepRecorder) begin(name constant.ExecutionStep, message string) {
+	now := time.Now()
+	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepRunning, StartAt: &now, Message: message})
+}
+
+// progress updates a running step with a retry count and diagnostic detail
+// (e.g. "Installing JMeter (retry 1)").
+func (s *stepRecorder) progress(name constant.ExecutionStep, attempt int, message, detail string) {
+	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepRunning, Attempt: attempt, Message: message, Detail: detail})
+}
+
+func (s *stepRecorder) ok(name constant.ExecutionStep, message string) {
+	now := time.Now()
+	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepOk, FinishAt: &now, Message: message})
+}
+
+func (s *stepRecorder) fail(name constant.ExecutionStep, message, detail string) {
+	now := time.Now()
+	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepFailed, FinishAt: &now, Message: message, Detail: detail})
+}
+
+func (s *stepRecorder) skip(name constant.ExecutionStep, message string) {
+	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepSkipped, Message: message})
+}
+
 // RunLoadTest initiates the load test and performs necessary initializations.
 // Generates a load test key, installs the load generator or retrieves existing installation information,
 // saves the load test execution state, and then asynchronously runs the load test.
@@ -93,6 +159,10 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		}
 	}()
 
+	// FR-MA2-PERF-007-08: record per-step progress for the web console.
+	rec := l.newStepRecorder(loadTestExecutionState)
+	rec.seed()
+
 	failed := func(logMsg string, occuredError error) {
 		log.Error().Msg(logMsg)
 		loadTestExecutionState.ExecutionStatus = constant.TestFailed
@@ -104,6 +174,7 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 
 	if param.LoadGeneratorInstallInfoId == uint(0) {
 		log.Info().Msgf("No LoadGeneratorInstallInfoId provided, installing load generator...")
+		rec.begin(constant.StepGeneratorInstall, "Installing load generator")
 
 		// ✅ VM 정보를 부하 발생기 설치 파라미터에 추가
 		installParam := param.InstallLoadGenerator
@@ -111,14 +182,20 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		installParam.InfraId = param.InfraId
 		installParam.NodeId = param.NodeId
 
-		result, err := l.InstallLoadGenerator(installParam)
+		result, err := l.InstallLoadGenerator(installParam, func(attempt int, message, detail string) {
+			rec.progress(constant.StepGeneratorInstall, attempt, message, detail)
+		})
 		if err != nil {
+			rec.fail(constant.StepGeneratorInstall, "Load generator install failed", err.Error())
 			failed(fmt.Sprintf("Error installing load generator: %v", err), err)
 			return
 		}
 
+		rec.ok(constant.StepGeneratorInstall, "Load generator ready")
 		param.LoadGeneratorInstallInfoId = result.ID
 		log.Info().Msgf("Load generator installed with ID: %d", result.ID)
+	} else {
+		rec.ok(constant.StepGeneratorInstall, "Reusing existing generator")
 	}
 
 	loadGeneratorInstallInfo, err := l.loadRepo.GetValidLoadGeneratorInstallInfoByIdTx(context.Background(), param.LoadGeneratorInstallInfoId)
@@ -179,15 +256,18 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 	}
 
 	if param.CollectAdditionalSystemMetrics {
+		rec.begin(constant.StepAgentInstall, "Installing monitoring agent")
 		if strings.TrimSpace(param.AgentHostname) == "" {
 			mci, err := l.tumblebugClient.GetMciWithContext(context.Background(), param.NsId, param.InfraId)
 
 			if err != nil {
+				rec.fail(constant.StepAgentInstall, "Monitoring agent install failed", fmt.Sprintf("failed to look up target MCI: %v", err))
 				failed(fmt.Sprintf("unexpected error occurred while fetching mci for install metrics agent; %s", err), err)
 				return
 			}
 
 			if len(mci.Vm) == 0 {
+				rec.fail(constant.StepAgentInstall, "Monitoring agent install failed", "target MCI has no VM")
 				failed("mci vm's length is zero", errors.New("mci vm's length is zero"))
 				return
 			}
@@ -204,6 +284,7 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 
 			if param.AgentHostname == "" {
 				err := errors.New("agent host name afeter get mci from tumblebug must be set to not nil")
+				rec.fail(constant.StepAgentInstall, "Monitoring agent install failed", "could not resolve the target node hostname")
 				failed(fmt.Sprintf("invalid agent hostname for test %s; %v", param.LoadTestKey, err), err)
 				return
 			}
@@ -218,11 +299,15 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		// install and run the agent for collect metrics
 		_, err := l.InstallMonitoringAgent(arg)
 		if err != nil {
+			rec.fail(constant.StepAgentInstall, "Monitoring agent install failed", err.Error())
 			failed(fmt.Sprintf("unexpected error occurred while installing monitoring agent; %s", err), err)
 			return
 		}
 
+		rec.ok(constant.StepAgentInstall, "Monitoring agent installed")
 		log.Info().Msgf("metrics agent installed successfully for load test; %s %s %s", arg.NsId, arg.InfraId, arg.NodeIds)
+	} else {
+		rec.skip(constant.StepAgentInstall, "Additional metrics not collected")
 	}
 
 	loadTestDone := make(chan bool)
@@ -256,6 +341,7 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		Port:                           port,
 		CollectAdditionalSystemMetrics: param.CollectAdditionalSystemMetrics,
 		Home:                           home,
+		StepRec:                        rec,
 	}
 
 	go l.fetchData(dataParam)
@@ -272,7 +358,7 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		log.Info().Msgf("successfully done load test for %s", dataParam.LoadTestKey)
 	}()
 
-	compileDuration, executionDuration, loadTestErr := l.executeLoadTest(param, &loadGeneratorInstallInfo)
+	compileDuration, executionDuration, loadTestErr := l.executeLoadTest(param, &loadGeneratorInstallInfo, rec)
 
 	loadTestExecutionState.CompileDuration = compileDuration
 	loadTestExecutionState.ExecutionDuration = executionDuration
@@ -389,7 +475,7 @@ func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInsta
 		log.Info().Msgf("successfully done load test for %s", dataParam.LoadTestKey)
 	}()
 
-	compileDuration, executionDuration, loadTestErr := l.executeLoadTest(param, loadGeneratorInstallInfo)
+	compileDuration, executionDuration, loadTestErr := l.executeLoadTest(param, loadGeneratorInstallInfo, nil)
 
 	loadTestExecutionState.CompileDuration = compileDuration
 	loadTestExecutionState.ExecutionDuration = executionDuration
@@ -414,7 +500,7 @@ func (l *LoadService) processLoadTest(param RunLoadTestParam, loadGeneratorInsta
 	loadTestExecutionState.ExecutionStatus = constant.Successed
 }
 
-func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo) (string, string, error) {
+func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInstallInfo *LoadGeneratorInstallInfo, rec *stepRecorder) (string, string, error) {
 	installLocation := loadGeneratorInstallInfo.InstallLocation
 	loadTestKey := param.LoadTestKey
 	loadGeneratorInstallPath := loadGeneratorInstallInfo.InstallPath
@@ -429,9 +515,11 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 
 	if installLocation == constant.Remote {
 		log.Info().Msg("Remote execute detected.")
+		rec.begin(constant.StepJmxPrepare, "Preparing and sending test plan")
 		var buf bytes.Buffer
 		err := parseTestPlanStructToString(&buf, param, loadGeneratorInstallInfo)
 		if err != nil {
+			rec.fail(constant.StepJmxPrepare, "Test plan generation failed", err.Error())
 			return compileDuration, executionDuration, err
 		}
 
@@ -447,9 +535,12 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 		nsId, mciId, _, _ := getResourceNames()
 		_, err = l.tumblebugClient.CommandToMciWithContext(context.Background(), nsId, mciId, commandReq)
 		if err != nil {
+			rec.fail(constant.StepJmxPrepare, "Test plan transfer failed", err.Error())
 			return compileDuration, executionDuration, err
 		}
+		rec.ok(constant.StepJmxPrepare, "Test plan ready")
 
+		rec.begin(constant.StepJmeterRun, "Running load test")
 		jmeterTestCommand := generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVersion, testPlanName, resultFileName)
 
 		commandReq = tumblebug.SendCommandReq{
@@ -458,13 +549,16 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 
 		stdout, err := l.tumblebugClient.CommandToMciWithContext(context.Background(), nsId, mciId, commandReq)
 		if err != nil {
+			rec.fail(constant.StepJmeterRun, "Load test failed", err.Error())
 			return compileDuration, executionDuration, err
 		}
 		executionDuration = utils.DurationString(start)
 
 		if strings.Contains(stdout, "exited with status 1") {
+			rec.fail(constant.StepJmeterRun, "Load test failed", "jmeter test stopped unexpectedly")
 			return compileDuration, executionDuration, errors.New("jmeter test stopped unexpectedly")
 		}
+		rec.ok(constant.StepJmeterRun, "Load test finished")
 
 	} else if installLocation == constant.Local {
 		log.Info().Msg("Local execute detected.")

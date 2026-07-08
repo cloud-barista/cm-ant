@@ -22,6 +22,28 @@ const (
 	TestFailed   ExecutionStatus = "test_failed"
 )
 
+// ExecutionStep identifies a stage of a load test run (FR-MA2-PERF-007-08).
+type ExecutionStep string
+
+const (
+	StepGeneratorInstall ExecutionStep = "generator_install"
+	StepAgentInstall     ExecutionStep = "agent_install"
+	StepJmxPrepare       ExecutionStep = "jmx_prepare"
+	StepJmeterRun        ExecutionStep = "jmeter_run"
+	StepResultFetch      ExecutionStep = "result_fetch"
+)
+
+// StepStatus is the per-step lifecycle status (FR-MA2-PERF-007-08).
+type StepStatus string
+
+const (
+	StepPending StepStatus = "pending"
+	StepRunning StepStatus = "running"
+	StepOk      StepStatus = "ok"
+	StepFailed  StepStatus = "failed"
+	StepSkipped StepStatus = "skipped"
+)
+
 type ResultFormat string
 
 const (
