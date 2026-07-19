@@ -66,6 +66,11 @@ small instance types take longer. The check waits ten seconds per attempt rather
 through it, so the answer comes back quickly and the run can be retried once the node has
 settled.
 
+Before running again, confirm you can reach port 22 yourself. A plain `ssh` from outside the
+platform settles in one step what the message can only guess at — whether the security group
+allows it, whether anything else in front of the node is filtering, and whether the ssh service
+is up at all. A run started while that is still failing will fail the same way.
+
 A stop and start also gives the node a new public address. cb-tumblebug picks the new one up
 when the node is stopped and started through it, but the two can drift apart — if a run fails
 to reach a node that looks healthy in the provider console, compare the address cb-tumblebug

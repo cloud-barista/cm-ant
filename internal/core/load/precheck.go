@@ -179,7 +179,8 @@ func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, r
 			"asked cb-tumblebug to run 'echo' on ns=%s infra=%s node=%s as cb-user, %d times; last error: %v\n"+
 				"everything the run does to the target goes through this path, so it stops here\n"+
 				"if the node was started recently, ssh can take several minutes to accept connections - more so on small instance types - so try again shortly\n"+
-				"if it has been up a while, check that port 22 is open and that the address cb-tumblebug holds for the node still matches the one the provider shows (a stop and start changes it)",
+				"if it has been up a while, check that port 22 is open and that the address cb-tumblebug holds for the node still matches the one the provider shows (a stop and start changes it)\n"+
+				"before running again, confirm you can reach port 22 yourself - a plain ssh from outside settles whether the security group, any other firewall in front of the node, and the ssh service itself are all in order",
 			param.NsId, param.InfraId, param.NodeId, precheckAttempts, err))
 		rec.fail(constant.StepPrecheck, msg, err.Error())
 		return fmt.Errorf("remote command failed: %w", err)
