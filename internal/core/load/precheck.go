@@ -627,7 +627,11 @@ func (l *LoadService) ensureGeneratorReachable(info LoadGeneratorInstallInfo, re
 	}
 	keyPath := fmt.Sprintf("%s/.ssh/%s", home, info.PrivateKeyName)
 
+	// Recorded either way. Leaving the healthy case silent left a pending sub-step sitting under
+	// a finished phase, which reads as work that never happened rather than a check that passed.
+	rec.begin(constant.SubGeneratorReachable, "Checking access to the generator")
 	if utils.ExistCheck(keyPath) && sshWorks(keyPath, server.Username, server.PublicIp) {
+		rec.ok(constant.SubGeneratorReachable, "Generator is reachable")
 		return nil
 	}
 
