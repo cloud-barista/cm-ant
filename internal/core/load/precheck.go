@@ -132,7 +132,7 @@ func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, r
 			detail := fmt.Sprintf(
 				"Metric port %s on %s is closed - add %s inbound to the security group, then run the test again.\n"+
 					"System metrics cannot be measured while it is closed.\n"+
-					"To run without them, turn off additional system metrics in the load configuration.\n"+
+					"If system performance figures are not needed, clear 'Collect Additional System Metrics' in the load configuration and run again.\n"+
 					"(tried %d times with a %s timeout; last error: %v)",
 				metricAgentPort, vm.PublicIP, metricAgentPort, precheckAttempts, precheckDialTimeout, err)
 			rec.fail(constant.SubMetricPortOpen, msg, detail)
