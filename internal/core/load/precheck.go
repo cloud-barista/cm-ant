@@ -308,9 +308,18 @@ const (
 )
 
 // probeAgentProcess asks the target whether the agent process exists.
+//
+// The pattern matches how the agent actually appears in the process list, which is not what
+// its name suggests: the release is distributed as ServerAgent-x.y.z.zip but runs as
+//
+//	java -jar /opt/perfmon-agent/CMDRunner.jar --tool PerfMonAgent --udp-port 0 --tcp-port 5555
+//
+// Looking for "ServerAgent" finds nothing on a target where the agent is running perfectly
+// well - a check that is wrong in the direction that matters, since it reports a healthy
+// agent as missing. The bracket keeps pgrep from matching the command carrying the pattern.
 func (l *LoadService) probeAgentProcess(ctx context.Context, nsId, infraId, nodeId string) error {
 	res, err := l.tumblebugClient.CommandToVmWithContext(ctx, nsId, infraId, nodeId, tumblebug.SendCommandReq{
-		Command:  []string{"pgrep -f ServerAgent >/dev/null && echo agent-up || echo agent-down"},
+		Command:  []string{"pgrep -f '[P]erfMonAgent' >/dev/null && echo agent-up || echo agent-down"},
 		UserName: "cb-user",
 	})
 	if err != nil {
