@@ -92,8 +92,12 @@ func rollUp(p *LoadTestExecutionStepResult, now time.Time) {
 	}
 
 	p.StartAt = start
-	// A phase is only finished once nothing under it is still going.
-	if allDone {
+	// A phase is finished once nothing under it is still going — or once the phase itself has
+	// stopped, which is what happens when a step fails: the ones after it stay pending because
+	// they were never reached, not because they are still to come. Reading allDone alone let a
+	// failed phase go on counting, so a precheck that gave up after four seconds was still
+	// reporting seven minutes when the console next polled.
+	if allDone || p.Status.Terminal() {
 		p.FinishAt = finish
 	} else {
 		p.FinishAt = nil

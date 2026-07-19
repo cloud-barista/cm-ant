@@ -97,6 +97,29 @@ func TestPhasesAreOrdered(t *testing.T) {
 	}
 }
 
+// A failed phase stops when it fails. The steps after it stay pending because they were never
+// reached — reading that as "still going" made a precheck that gave up in four seconds report
+// seven minutes and climbing.
+func TestFailedPhaseStopsCounting(t *testing.T) {
+	base := time.Date(2026, 7, 19, 15, 0, 49, 0, time.UTC)
+	now := base.Add(7 * time.Minute)
+
+	tree := buildStepTree([]LoadTestExecutionStep{
+		{Seq: 1, Name: constant.StepPrecheck, Status: constant.StepFailed},
+		{Seq: 1, Name: constant.SubTargetExists, Status: constant.StepOk, StartAt: at(base, 0), FinishAt: at(base, 0)},
+		{Seq: 4, Name: constant.SubMetricPortOpen, Status: constant.StepFailed, StartAt: at(base, 0), FinishAt: at(base, 4)},
+		{Seq: 5, Name: constant.SubRemoteCommand, Status: constant.StepPending},
+	}, now)
+
+	phase := tree[0]
+	if phase.FinishAt == nil || !phase.FinishAt.Equal(base.Add(4*time.Second)) {
+		t.Fatalf("a failed phase finishes with its last attempted sub-step, got %v", phase.FinishAt)
+	}
+	if phase.ElapsedSec != 4 {
+		t.Errorf("expected 4s, got %d", phase.ElapsedSec)
+	}
+}
+
 func TestParent(t *testing.T) {
 	if got := constant.SubAgentPort.Parent(); got != constant.StepAgentInstall {
 		t.Errorf("expected %s, got %s", constant.StepAgentInstall, got)

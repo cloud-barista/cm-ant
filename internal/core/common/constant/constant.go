@@ -100,6 +100,12 @@ const (
 	StepSkipped StepStatus = "skipped"
 )
 
+// Terminal reports whether a step has stopped for good. Anything after a terminal step that is
+// still pending was never reached, so timings must not keep running against it.
+func (s StepStatus) Terminal() bool {
+	return s == StepOk || s == StepFailed || s == StepSkipped
+}
+
 type ResultFormat string
 
 const (
