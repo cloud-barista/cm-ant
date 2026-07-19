@@ -81,17 +81,24 @@ The script writes its current phase to `/var/tmp/cm-ant-agent-install.state` and
 sequence, across reinstalls, to `/var/tmp/cm-ant-agent-install.log`. Both are worth reading
 when a target keeps failing — the log shows how far each round got before it stopped.
 
-The step does not simply wait out a fixed time. While no agent process is there, it asks the
-target what the install is doing, and:
+The long stages report a figure that advances with the work — apt's current line, the bytes
+downloaded so far — and that is what makes a slow install distinguishable from a dead one.
+Waiting is decided on movement, not on elapsed time:
 
-- **an install is running** — it keeps waiting, up to two minutes, reporting the elapsed time
-- **nothing is running** — there is nothing to wait for, so it reinstalls immediately rather
-  than spending the ceiling on a wait that was never going to end
+- **the report keeps changing** — work is happening, so it keeps waiting, up to five minutes
+- **the report has not changed in 90 seconds** — the install has stopped where it stands, and
+  more time will not help
+- **the script recorded a failure, or nothing is running** — there is nothing to wait for, so
+  it reinstalls at once rather than spending the ceiling on a wait that was never going to end
 
-An install that reaches the ceiling, or ends without leaving an agent behind, gets one more
-round. Two rounds that both end without an agent are reported as `Metric agent could not be
-started`, and the detail says what each round saw — an install still running after two minutes
-is a different problem from an install that finished and left nothing.
+The ceiling is deliberately generous, because a download over a bad link can honestly take
+minutes and cutting it off would only start the same slow download again. The stall window is
+what catches an install that has died, whatever is left of the ceiling.
+
+A round that ends any of those ways gets one more. Two rounds that both end without an agent
+are reported as `Metric agent could not be started`, and the detail says what each round saw —
+`stuck at 'downloading the agent' - no progress for 1m35s` and `the install stopped at 'install
+failed: exit 100 at line 88' and left no agent process` point at quite different problems.
 
 ## When a node has just started
 

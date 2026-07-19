@@ -358,13 +358,13 @@ func (l *LoadService) verifyMetricAgent(param RunLoadTestParam, rec *stepRecorde
 
 	detail := fmt.Sprintf(
 		"the metric agent on ns=%s infra=%s node=%s did not come up after %d install rounds:\n  %s\n"+
-			"each round waited up to %s for the agent, checking every %s, and kept waiting only while the install was still running.\n"+
+			"each round waited up to %s for the agent, checking every %s, and gave up early if the install went %s without reporting anything new.\n"+
 			"the install script starts the agent with nohup and reports success either way, so reaching here means it did not stay up.\n"+
 			"check on the target that java is present, that %s holds the unpacked agent, and that nothing else is bound to port %s.\n"+
 			"the install script's own account of each round is in %s, with the phase it reached in %s.\n"+
 			"last error: %v",
 		param.NsId, param.InfraId, param.NodeId, agentInstallRounds,
-		strings.Join(attempts, "\n  "), agentUpCeiling, agentPollDelay, agentWorkDir, metricAgentPort,
+		strings.Join(attempts, "\n  "), agentUpCeiling, agentPollDelay, agentStallWindow, agentWorkDir, metricAgentPort,
 		agentInstallLogFile, agentInstallStateFile, lastErr)
 	rec.fail(constant.SubAgentProcess, "Metric agent could not be started", detail)
 	if lastErr == nil {
@@ -387,6 +387,13 @@ func (l *LoadService) waitForAgentProcess(param RunLoadTestParam, rec *stepRecor
 
 	started := time.Now()
 
+	// What the install last said, and when it last said something new. A download over a bad
+	// link can legitimately run for minutes, so time alone cannot condemn it - but the script
+	// reports a figure that advances with the work, so a report that stops changing is the
+	// install stopping. That is what this pair watches.
+	lastReport := ""
+	lastMoved := time.Now()
+
 	for attempt := 1; ; attempt++ {
 		if err := l.probeAgentProcess(ctx, param.NsId, param.InfraId, param.NodeId); err == nil {
 			return fmt.Sprintf("agent came up after %d checks", attempt), nil
@@ -394,7 +401,7 @@ func (l *LoadService) waitForAgentProcess(param RunLoadTestParam, rec *stepRecor
 			lastErr = err
 		}
 
-		installing, what := l.installProgress(ctx, param)
+		st, installing, what := l.installProgress(ctx, param)
 		if !installing {
 			if sawInstaller {
 				return fmt.Sprintf("the install stopped at '%s' and left no agent process", what),
@@ -405,16 +412,32 @@ func (l *LoadService) waitForAgentProcess(param RunLoadTestParam, rec *stepRecor
 		}
 		sawInstaller = true
 
+		// Only a real report counts as movement. A read that failed carries no Raw, and letting
+		// that reset the timer would mean a target we cannot reach never looks stalled.
+		if st.Raw != "" && st.Raw != lastReport {
+			lastReport = st.Raw
+			lastMoved = time.Now()
+		}
+
+		if stalled := time.Since(lastMoved); stalled > agentStallWindow {
+			return fmt.Sprintf("stuck at '%s' - no progress for %s", what, stalled.Round(time.Second)),
+				fmt.Errorf("install stopped moving at %s for %s: %w", what, stalled.Round(time.Second), lastErr)
+		}
+
 		if time.Now().After(deadline) {
 			return fmt.Sprintf("still at '%s' after %s", what, agentUpCeiling),
 				fmt.Errorf("install still at %s after %s without producing an agent: %w", what, agentUpCeiling, lastErr)
 		}
 
-		// The phase is the point of this message. "45s elapsed" only says time is passing;
-		// "downloading the agent, 45s" says whether that is reasonable.
-		rec.progress(constant.SubAgentProcess, round,
-			fmt.Sprintf("Installing the agent - %s (%ds)", what, int(time.Since(started).Seconds())),
-			fmt.Sprintf("the install is still running on the target; waiting up to %s", agentUpCeiling))
+		// What the install is doing is the point of this message. "45s elapsed" only says time
+		// is passing; "downloading the agent, 1.2MB, 45s" says whether that is reasonable.
+		msg := fmt.Sprintf("Installing the agent - %s (%ds)", what, int(time.Since(started).Seconds()))
+		if st.Detail != "" {
+			msg = fmt.Sprintf("Installing the agent - %s: %s (%ds)", what, st.Detail, int(time.Since(started).Seconds()))
+		}
+		rec.progress(constant.SubAgentProcess, round, msg, fmt.Sprintf(
+			"the install is still running on the target; waiting up to %s in total, and up to %s without visible progress",
+			agentUpCeiling, agentStallWindow))
 		time.Sleep(agentPollDelay)
 	}
 }
@@ -430,18 +453,20 @@ func (l *LoadService) waitForAgentProcess(param RunLoadTestParam, rec *stepRecor
 // the install stopped, and reinstalling on either would interrupt work still in progress:
 // a target that cannot be asked (a lost packet), and a marker not yet written (the install was
 // issued moments ago and has not reached its first record). The ceiling ends both.
-func (l *LoadService) installProgress(ctx context.Context, param RunLoadTestParam) (bool, string) {
+func (l *LoadService) installProgress(ctx context.Context, param RunLoadTestParam) (agentInstallState, bool, string) {
 	st, err := l.probeAgentInstallState(ctx, param.NsId, param.InfraId, param.NodeId)
 	if err != nil {
-		return true, "could not read the install state"
+		// Raw is left empty on purpose: a failed read is not a report, and treating it as one
+		// would reset the stall timer every time the network hiccups.
+		return agentInstallState{}, true, "could not read the install state"
 	}
 	switch {
 	case st.Phase == "":
-		return true, "install has not reported yet"
+		return st, true, "install has not reported yet"
 	case st.Phase == "failed" && st.Detail != "":
-		return false, fmt.Sprintf("install failed: %s", st.Detail)
+		return st, false, fmt.Sprintf("install failed: %s", st.Detail)
 	default:
-		return st.Running(), st.Describe()
+		return st, st.Running(), st.Describe()
 	}
 }
 
@@ -449,11 +474,15 @@ const (
 	agentVerifyAttempts = 5
 	agentVerifyDelay    = 3 * time.Second
 
-	// A healthy install lands well inside this; the ceiling is here so an install that never
-	// finishes becomes an answer instead of an open-ended wait.
-	agentUpCeiling  = 2 * time.Minute
-	agentPollDelay  = 5 * time.Second
-	agentProbeGrace = 30 * time.Second
+	// A healthy install lands well inside this. The ceiling is generous because a download over
+	// a bad link can honestly take minutes, and cutting one off to reinstall would only start
+	// the same slow download again. What actually catches a dead install is the stall window:
+	// the script reports a figure that advances with the work, so a report that has not changed
+	// in this long has stopped, however much of the ceiling is left.
+	agentUpCeiling   = 5 * time.Minute
+	agentStallWindow = 90 * time.Second
+	agentPollDelay   = 5 * time.Second
+	agentProbeGrace  = 30 * time.Second
 
 	agentInstallRounds = 2
 
