@@ -15,8 +15,8 @@ type MonitoringAgentInfo struct {
 	AgentType string
 
 	NsId    string
-	InfraId   string
-	NodeId    string
+	InfraId string
+	NodeId  string
 	VmCount int
 }
 
@@ -37,7 +37,7 @@ type LoadGeneratorServer struct {
 	Lat             string
 	Lon             string
 	Username        string
-	NodeId            string
+	NodeId          string
 	StartTime       string
 	AdditionalVmKey string
 	Label           string
@@ -77,9 +77,22 @@ type LoadTestExecutionState struct {
 	gorm.Model
 	LoadTestKey string `gorm:"index:idx_state_load_test_key,unique"`
 
-	NsId  string
+	NsId    string
 	InfraId string
 	NodeId  string
+
+	// NodeUid is cb-tumblebug's generated identifier for the node under test.
+	//
+	// NsId/InfraId/NodeId are *names*: cb-tumblebug builds a node id as "{group name}-{index
+	// within the group}" and reuses it when the same names are used again. Deleting a VM and
+	// recreating it with the same name therefore produces an identical NsId/InfraId/NodeId,
+	// and a lookup by those alone returns the previous VM's run - a result belonging to a
+	// machine that no longer exists. Only the uid is regenerated per VM, so it is what tells
+	// two generations apart.
+	//
+	// Empty for runs recorded before this column existed; callers must treat "" as unknown
+	// rather than as a mismatch.
+	NodeUid string
 
 	ExecutionStatus             constant.ExecutionStatus
 	StartAt                     time.Time
@@ -124,7 +137,7 @@ type LoadTestExecutionInfo struct {
 	RampUpTime   string
 	RampUpSteps  string
 
-	NsId  string
+	NsId    string
 	InfraId string
 	NodeId  string
 

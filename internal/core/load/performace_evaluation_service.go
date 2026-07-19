@@ -152,6 +152,7 @@ func mapLoadTestExecutionStateResult(state LoadTestExecutionState) LoadTestExecu
 	stateResult := &LoadTestExecutionStateResult{
 		ID:                          state.ID,
 		LoadTestKey:                 state.LoadTestKey,
+		NodeUid:                     state.NodeUid,
 		ExecutionStatus:             state.ExecutionStatus,
 		StartAt:                     state.StartAt,
 		FinishAt:                    state.FinishAt,
@@ -205,7 +206,7 @@ func mapLoadGeneratorServerResult(s LoadGeneratorServer) LoadGeneratorServerResu
 		Lat:             s.Lat,
 		Lon:             s.Lon,
 		Username:        s.Username,
-		NodeId:            s.NodeId,
+		NodeId:          s.NodeId,
 		StartTime:       s.StartTime,
 		AdditionalVmKey: s.AdditionalVmKey,
 		Label:           s.Label,
