@@ -39,6 +39,11 @@ This feature provides:
 
 These functionalities are integrated with other subsystems, namely `CB-Tumblebug` and `CB-Spider`, to function properly. Therefore, for CM-ANT to operate correctly, the related subsystems must be running on the same environment.
 
+A load test also needs the target itself to be reachable — the port under test and, when
+system metrics are collected, port `5555`. See
+[Load test — prerequisites and what the messages mean](docs/load-test-troubleshooting.md) for
+what has to be open before a run and what each step message means when something is not.
+
 ### OS Image Search Configuration
 CM-ANT uses CB-Tumblebug's smart image search API to dynamically find appropriate OS images for load testing VM instances. The system supports two modes for image selection:
 
