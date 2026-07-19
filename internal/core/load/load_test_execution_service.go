@@ -726,16 +726,18 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 		return fmt.Errorf("error occurred while retrieve load test execution state: %w", err)
 	}
 
-	// Stopping by name alone can hit the wrong run.
+	// Guard the key-less lookup, which resolves to "the most recent run for this
+	// ns/infra/node" - names that get reused, so the run may belong to a VM that has since
+	// been replaced. Stopping that one would kill a test nobody asked about.
 	//
-	// Without a load test key the lookup above is "the most recent run for this ns/infra/node",
-	// and those are names that get reused - a VM recreated under the old name inherits them.
-	// The run that comes back may therefore belong to the previous VM, and stopping it would
-	// kill a test nobody asked to stop. Reading is merely misleading; this is destructive.
+	// Not reachable over HTTP today: the handler rejects a stop request that omits the load
+	// test key, so callers always arrive with one and take the branch above. The guard is
+	// here because the service accepts the key-less shape and nothing but this handler check
+	// stands between it and the wrong test.
 	//
-	// A stored uid that disagrees with the live one means exactly that case. An empty uid on
-	// either side means "unknown" (rows predating the column, or cb-tumblebug unreachable) and
-	// is left alone rather than guessed at.
+	// A stored uid that disagrees with the live one is that case. An empty uid on either side
+	// means "unknown" (rows predating the column, or cb-tumblebug unreachable) and is left
+	// alone rather than guessed at.
 	if param.LoadTestKey == "" {
 		currentUid := l.resolveNodeUid(ctx, param.NsId, param.InfraId, param.NodeId)
 		if belongsToDifferentNode(state.NodeUid, currentUid) {
