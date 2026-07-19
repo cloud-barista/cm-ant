@@ -181,6 +181,15 @@ type LoadTestExecutionStepResult struct {
 	FinishAt *time.Time             `json:"finishAt,omitempty"`
 	Message  string                 `json:"message,omitempty"`
 	Detail   string                 `json:"detail,omitempty"`
+
+	// ElapsedSec is how long this step has taken: the whole span once it is done, or how long
+	// it has been running so far. The console needs the running figure to tell a step that is
+	// slow from one that is stuck, and computing it here keeps every caller agreeing on it.
+	ElapsedSec int `json:"elapsedSec,omitempty"`
+
+	// Children are the sub-steps of a phase. Callers that only render the phases can ignore
+	// this field and see exactly what they saw before.
+	Children []LoadTestExecutionStepResult `json:"children,omitempty"`
 }
 
 type GetLoadTestExecutionStateParam struct {
