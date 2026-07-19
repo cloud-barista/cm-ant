@@ -43,16 +43,18 @@ const (
 // it carries its own start and finish time (BAR-1553).
 const (
 	// precheck — answered in seconds, before anything is provisioned
-	SubTargetExists     ExecutionStep = "precheck.target_exists"
-	SubTargetRunning    ExecutionStep = "precheck.target_running"
-	SubTargetReachable  ExecutionStep = "precheck.target_reachable"
-	SubMetricPortOpen   ExecutionStep = "precheck.metric_port_open"
-	SubRemoteCommand    ExecutionStep = "precheck.remote_command"
-	SubGeneratorPrecond ExecutionStep = "precheck.generator_precond"
+	SubTargetExists    ExecutionStep = "precheck.target_exists"
+	SubTargetRunning   ExecutionStep = "precheck.target_running"
+	SubTargetReachable ExecutionStep = "precheck.target_reachable"
+	SubMetricPortOpen  ExecutionStep = "precheck.metric_port_open"
+	SubRemoteCommand   ExecutionStep = "precheck.remote_command"
 
 	// generator
-	SubGeneratorLookup    ExecutionStep = "generator_install.lookup"
-	SubGeneratorAlive     ExecutionStep = "generator_install.verify_alive"
+	SubGeneratorLookup ExecutionStep = "generator_install.lookup"
+	SubGeneratorAlive  ExecutionStep = "generator_install.verify_alive"
+	// Whether this cm-ant can still ssh to a reused generator. It belongs to the generator
+	// phase rather than the precheck, which runs before there is a generator record to check.
+	SubGeneratorReachable ExecutionStep = "generator_install.reachable"
 	SubGeneratorProvision ExecutionStep = "generator_install.provision"
 	SubGeneratorInstall   ExecutionStep = "generator_install.install"
 	SubGeneratorVerify    ExecutionStep = "generator_install.verify_install"

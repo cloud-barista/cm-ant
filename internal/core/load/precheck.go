@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
+	"github.com/cloud-barista/cm-ant/internal/utils"
 )
 
 // Checks that can be answered in seconds, run before anything is provisioned (BAR-1553).
@@ -598,6 +600,92 @@ func (l *LoadService) probeAgentInstallState(ctx context.Context, nsId, infraId,
 	}
 	return st, nil
 }
+
+// ensureGeneratorReachable makes sure this cm-ant can still ssh to a reused generator, and
+// puts it back through cb-tumblebug when it cannot.
+//
+// The private half of the generator's key lives in this container's home directory, which no
+// volume backs. Replacing the container - a new image, a restart onto a fresh filesystem -
+// destroys it while the generator VM keeps the matching authorized key and the database keeps
+// calling the generator installed. From then on the generator is unusable in a way that shows
+// up only at the very end: the load runs on the generator itself, so everything succeeds until
+// the results have to be fetched over ssh.
+//
+// Recovering through tumblebug rather than keeping a copy of the key is deliberate. Tumblebug
+// already holds the VM's own credentials, so it can place a new public key on demand; a copy
+// here would have to be stored somewhere durable, kept in step with the VM, and protected -
+// owning a secret's lifetime to save a step someone else can already do.
+func (l *LoadService) ensureGeneratorReachable(info LoadGeneratorInstallInfo, rec *stepRecorder) error {
+	if info.InstallLocation != constant.Remote || len(info.LoadGeneratorServers) == 0 {
+		return nil
+	}
+
+	server := info.LoadGeneratorServers[0]
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("could not resolve the home directory holding the generator key: %w", err)
+	}
+	keyPath := fmt.Sprintf("%s/.ssh/%s", home, info.PrivateKeyName)
+
+	if utils.ExistCheck(keyPath) && sshWorks(keyPath, server.Username, server.PublicIp) {
+		return nil
+	}
+
+	rec.begin(constant.SubGeneratorReachable, "Restoring access to the generator")
+
+	// Regenerates the pair when the private half is missing, and returns the command that puts
+	// the public half on the generator.
+	addAuthorizedKeyCommand, err := getAddAuthorizedKeyCommand(info.PrivateKeyName, info.PublicKeyName)
+	if err != nil {
+		rec.fail(constant.SubGeneratorReachable, "Could not prepare a new key for the generator", err.Error())
+		return fmt.Errorf("could not prepare a key for the generator: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), generatorRecoverTimeout)
+	defer cancel()
+
+	nsId, _, _, _ := getResourceNames()
+	mciName := info.MciName
+	if mciName == "" {
+		_, mciName, _, _ = getResourceNames()
+	}
+
+	if _, err := l.tumblebugClient.CommandToVmWithContext(ctx, nsId, mciName, server.NodeId,
+		tumblebug.SendCommandReq{Command: []string{addAuthorizedKeyCommand}}); err != nil {
+		rec.fail(constant.SubGeneratorReachable, "Could not restore access to the generator", fmt.Sprintf(
+			"the key that reaches generator %s (%s) is gone from this cm-ant, and asking cb-tumblebug to install a new one failed: %v\n"+
+				"the generator is recorded as installed but cannot be used until this succeeds - the load would run and only the results would fail to arrive\n"+
+				"check that ns=%s mci=%s node=%s still exists and answers remote commands",
+			server.NodeId, server.PublicIp, err, nsId, mciName, server.NodeId))
+		return fmt.Errorf("could not restore access to the generator through cb-tumblebug: %w", err)
+	}
+
+	if !sshWorks(keyPath, server.Username, server.PublicIp) {
+		rec.fail(constant.SubGeneratorReachable, "Generator still unreachable after restoring the key", fmt.Sprintf(
+			"cb-tumblebug reported the new key was installed on %s (%s), but ssh with it still does not work\n"+
+				"check port 22 on the generator and whether %s is the right user for it",
+			server.NodeId, server.PublicIp, server.Username))
+		return fmt.Errorf("generator %s is still unreachable after installing a new key", server.PublicIp)
+	}
+
+	rec.ok(constant.SubGeneratorReachable, "Access to the generator restored")
+	return nil
+}
+
+// sshWorks reports whether the key opens a session on the generator. It runs the cheapest
+// thing that proves the whole path - the key, port 22, and the user - since that is exactly
+// what the result fetch will need later.
+func sshWorks(keyPath, username, host string) bool {
+	cmd := fmt.Sprintf(
+		`ssh -i %s -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=%d %s@%s true`,
+		keyPath, int(generatorSSHTimeout.Seconds()), username, host)
+	return utils.InlineCmd(cmd) == nil
+}
+
+const (
+	generatorSSHTimeout     = 10 * time.Second
+	generatorRecoverTimeout = 2 * time.Minute
+)
 
 func lastNonEmptyLine(s string) string {
 	lines := strings.Split(strings.TrimSpace(s), "\n")

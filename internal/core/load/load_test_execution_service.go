@@ -46,6 +46,8 @@ var subStepSeq = map[constant.ExecutionStep]int{
 	constant.SubMetricPortOpen:  4,
 	constant.SubRemoteCommand:   5,
 
+	constant.SubGeneratorReachable: 1,
+
 	constant.SubAgentInstall: 1,
 	constant.SubAgentProcess: 2,
 	constant.SubAgentPort:    3,
@@ -289,6 +291,23 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 	loadGeneratorInstallInfo, err := l.loadRepo.GetValidLoadGeneratorInstallInfoByIdTx(context.Background(), param.LoadGeneratorInstallInfoId)
 	if err != nil {
 		failed(fmt.Sprintf("Error installing load generator: %v", err), err)
+		return
+	}
+
+	// A reused generator can be recorded as installed and still be unreachable, because the
+	// key that reaches it lives in this container rather than anywhere durable: replacing the
+	// container leaves every existing generator with an authorized key whose private half is
+	// gone. Nothing before the very end of the run notices - the load runs on the generator
+	// itself and only fetching the results needs ssh - so the run would spend its whole length
+	// to fail at collection.
+	//
+	// cb-tumblebug still holds the VM's own key, so the way back in is through it: regenerate
+	// the pair and have tumblebug put the new public half in place. That is also why the key
+	// is not worth persisting here - keeping a copy would mean owning its lifetime and its
+	// exposure, to save a step tumblebug can do on demand.
+	if err := l.ensureGeneratorReachable(loadGeneratorInstallInfo, rec); err != nil {
+		rec.fail(constant.StepGeneratorInstall, "Load generator unreachable", err.Error())
+		failed(fmt.Sprintf("load generator is not reachable and could not be recovered: %v", err), err)
 		return
 	}
 
