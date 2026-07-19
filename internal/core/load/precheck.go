@@ -10,7 +10,6 @@ import (
 
 	"github.com/cloud-barista/cm-ant/internal/core/common/constant"
 	"github.com/cloud-barista/cm-ant/internal/infra/outbound/tumblebug"
-	"github.com/rs/zerolog/log"
 )
 
 // Checks that can be answered in seconds, run before anything is provisioned (BAR-1553).
@@ -56,39 +55,30 @@ func retry(rec *stepRecorder, step constant.ExecutionStep, what string, check fu
 	return err
 }
 
-// precheckOutcome carries what the run needs to know afterwards.
-type precheckOutcome struct {
-	// MetricsReachable is false when the metric agent port is closed. The run continues —
-	// load figures are worth having without CPU and memory alongside them — but it is said
-	// up front rather than discovered as missing files at the end.
-	MetricsReachable bool
-}
-
-func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, rec *stepRecorder) (precheckOutcome, error) {
-	out := precheckOutcome{MetricsReachable: true}
+func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, rec *stepRecorder) error {
 	rec.begin(constant.StepPrecheck, "Checking the environment")
 
 	// ── the target exists and is running ────────────────────────────────────────────────
 	rec.begin(constant.SubTargetExists, "Looking up the target node")
 	vm, err := l.tumblebugClient.GetVmWithContext(ctx, param.NsId, param.InfraId, param.NodeId)
 	if err != nil {
-		msg := "Target node not found. Check the namespace, infra and node ids."
+		msg := "Target node not found"
 		rec.fail(constant.SubTargetExists, msg, fmt.Sprintf(
 			"looked up ns=%s infra=%s node=%s in cb-tumblebug: %v",
 			param.NsId, param.InfraId, param.NodeId, err))
 		rec.fail(constant.StepPrecheck, msg, err.Error())
-		return out, fmt.Errorf("target node not found: %w", err)
+		return fmt.Errorf("target node not found: %w", err)
 	}
 	rec.ok(constant.SubTargetExists, "Target node found")
 
 	rec.begin(constant.SubTargetRunning, "Checking the target state")
 	if !strings.EqualFold(vm.Status, "Running") {
-		msg := fmt.Sprintf("Target node is not running (currently %s).", vm.Status)
+		msg := fmt.Sprintf("Target node is %s, not running", vm.Status)
 		rec.fail(constant.SubTargetRunning, msg, fmt.Sprintf(
 			"ns=%s infra=%s node=%s reported status %q; start the node before running a load test",
 			param.NsId, param.InfraId, param.NodeId, vm.Status))
 		rec.fail(constant.StepPrecheck, msg, "")
-		return out, fmt.Errorf("target node is not running: %s", vm.Status)
+		return fmt.Errorf("target node is not running: %s", vm.Status)
 	}
 	rec.ok(constant.SubTargetRunning, "Target node is running")
 
@@ -105,14 +95,14 @@ func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, r
 		return e
 	})
 	if err != nil {
-		msg := fmt.Sprintf("Cannot reach the target on port %s after %d attempts. Open the port in the security group, or check that the service is running.", portOf(param.HttpReqs), precheckAttempts)
+		msg := fmt.Sprintf("Target port %s unreachable", portOf(param.HttpReqs))
 		rec.fail(constant.SubTargetReachable, msg, fmt.Sprintf(
 			"sent %s %s from cm-ant %d times over %s, each with a %s timeout; last error: %v\n"+
 				"check in this order: the service listens on the target, the security group allows inbound on that port, and the node has a reachable address",
 			methodOf(param.HttpReqs), targetURL(param.HttpReqs), precheckAttempts,
 			precheckRetryDelay*time.Duration(precheckAttempts-1), precheckHTTPTimeout, err))
 		rec.fail(constant.StepPrecheck, msg, err.Error())
-		return out, fmt.Errorf("target is not reachable: %w", err)
+		return fmt.Errorf("target is not reachable: %w", err)
 	} else if code >= 400 {
 		// The target is alive but the path is not serving. Worth saying, not worth stopping
 		// for — the user may be load testing an endpoint that returns an error on purpose.
@@ -124,20 +114,32 @@ func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, r
 	}
 
 	// ── the metric agent port ───────────────────────────────────────────────────────────
+	//
+	// The charts are the point of a load test, and they are drawn from the metrics this port
+	// carries. A run that cannot collect them produces response times and nothing else, so it
+	// stops here and asks for the port to be opened rather than spending the time to arrive at
+	// the same place with less to show for it.
+	//
+	// Once the port is open, a later failure is treated differently: by then the run is under
+	// way and the load figures are worth keeping (see verifyMetricAgent).
 	if param.CollectAdditionalSystemMetrics {
 		rec.begin(constant.SubMetricPortOpen, "Checking the metric agent port")
 		if err := retry(rec, constant.SubMetricPortOpen, "Checking the metric agent port", func() error {
 			return dial(vm.PublicIP, metricAgentPort)
 		}); err != nil {
-			out.MetricsReachable = false
-			msg := fmt.Sprintf("Metric port %s on %s is closed after %d attempts, so the run continues without CPU, memory, disk and network charts. Add %s inbound to the security group to collect them.",
-				metricAgentPort, vm.PublicIP, precheckAttempts, metricAgentPort)
-			// Not a failure: the load test itself is unaffected.
-			rec.skip(constant.SubMetricPortOpen, msg)
-			log.Warn().Msgf("metric agent port unreachable on %s: %v", vm.PublicIP, err)
-		} else {
-			rec.ok(constant.SubMetricPortOpen, "Metric agent port is reachable")
+			// The short line goes on screen; the detail is what a hover reveals.
+			msg := fmt.Sprintf("Metric port %s closed", metricAgentPort)
+			detail := fmt.Sprintf(
+				"Metric port %s on %s is closed - add %s inbound to the security group, then run the test again.\n"+
+					"System metrics cannot be measured while it is closed.\n"+
+					"To run without them, turn off additional system metrics in the load configuration.\n"+
+					"(tried %d times with a %s timeout; last error: %v)",
+				metricAgentPort, vm.PublicIP, metricAgentPort, precheckAttempts, precheckDialTimeout, err)
+			rec.fail(constant.SubMetricPortOpen, msg, detail)
+			rec.fail(constant.StepPrecheck, msg, detail)
+			return fmt.Errorf("metric agent port %s is not reachable: %w", metricAgentPort, err)
 		}
+		rec.ok(constant.SubMetricPortOpen, "Metric agent port is reachable")
 	} else {
 		rec.skip(constant.SubMetricPortOpen, "Metrics not requested")
 	}
@@ -151,18 +153,18 @@ func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, r
 	if err := retry(rec, constant.SubRemoteCommand, "Running a test command on the target", func() error {
 		return l.probeRemoteCommand(ctx, param.NsId, param.InfraId, param.NodeId)
 	}); err != nil {
-		msg := "Cannot run remote commands on the target node. Check SSH access and the node agent."
+		msg := "Remote command failed on the target"
 		rec.fail(constant.SubRemoteCommand, msg, fmt.Sprintf(
 			"asked cb-tumblebug to run 'echo' on ns=%s infra=%s node=%s as cb-user, %d times; last error: %v\n"+
 				"everything the run does to the target goes through this path, so it stops here",
 			param.NsId, param.InfraId, param.NodeId, precheckAttempts, err))
 		rec.fail(constant.StepPrecheck, msg, err.Error())
-		return out, fmt.Errorf("remote command failed: %w", err)
+		return fmt.Errorf("remote command failed: %w", err)
 	}
 	rec.ok(constant.SubRemoteCommand, "Remote command works")
 
 	rec.ok(constant.StepPrecheck, "Environment looks good")
-	return out, nil
+	return nil
 }
 
 // probeTarget sends the configured request once and returns the status code.
@@ -275,7 +277,7 @@ func (l *LoadService) verifyMetricAgent(param RunLoadTestParam, rec *stepRecorde
 	if err := retryN(rec, constant.SubAgentProcess, "Checking the agent process", agentVerifyAttempts, agentVerifyDelay, func() error {
 		return l.probeAgentProcess(ctx, param.NsId, param.InfraId, param.NodeId)
 	}); err != nil {
-		rec.fail(constant.SubAgentProcess, "The metric agent is not running on the target", fmt.Sprintf(
+		rec.fail(constant.SubAgentProcess, "Metric agent not running", fmt.Sprintf(
 			"looked for a ServerAgent process on ns=%s infra=%s node=%s %d times over %s; last error: %v\n"+
 				"the install script starts the agent with nohup and reports success either way, so a failure here means it did not stay up - check java on the target and /opt/perfmon-agent",
 			param.NsId, param.InfraId, param.NodeId, agentVerifyAttempts,
@@ -288,7 +290,7 @@ func (l *LoadService) verifyMetricAgent(param RunLoadTestParam, rec *stepRecorde
 	if err := retryN(rec, constant.SubAgentPort, "Waiting for the agent to answer", agentVerifyAttempts, agentVerifyDelay, func() error {
 		return dial(param.AgentHostname, metricAgentPort)
 	}); err != nil {
-		rec.fail(constant.SubAgentPort, fmt.Sprintf("The metric agent is not answering on port %s", metricAgentPort), fmt.Sprintf(
+		rec.fail(constant.SubAgentPort, fmt.Sprintf("Metric agent silent on port %s", metricAgentPort), fmt.Sprintf(
 			"the agent process is running on %s but nothing answered on port %s after %d attempts over %s; last error: %v\n"+
 				"the process being up rules out a failed start, so this is almost always the security group",
 			param.AgentHostname, metricAgentPort, agentVerifyAttempts,

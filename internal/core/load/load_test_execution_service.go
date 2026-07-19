@@ -111,8 +111,12 @@ func (s *stepRecorder) fail(name constant.ExecutionStep, message, detail string)
 	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepFailed, FinishAt: &now, Message: message, Detail: detail})
 }
 
+// skip marks a step as deliberately not run. It stamps a finish time like any other ending:
+// without one the step keeps reporting a growing elapsed figure, which reads as "still busy"
+// when it is in fact long done.
 func (s *stepRecorder) skip(name constant.ExecutionStep, message string) {
-	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepSkipped, Message: message})
+	now := time.Now()
+	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepSkipped, FinishAt: &now, Message: message})
 }
 
 // generatorRunMu serializes load test runs. The load generator is a shared singleton
@@ -250,19 +254,12 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 	// Check the environment before building anything (BAR-1553). A missing target or a closed
 	// port is answered in seconds here, instead of surfacing minutes into a run.
 	precheckCtx, cancelPrecheck := context.WithTimeout(context.Background(), 2*time.Minute)
-	outcome, err := l.runPrecheck(precheckCtx, param, rec)
+	err := l.runPrecheck(precheckCtx, param, rec)
 	cancelPrecheck()
 	if err != nil {
 		failed(fmt.Sprintf("Precheck failed: %v", err), err)
 		return
 	}
-	if !outcome.MetricsReachable {
-		// Say it once, up front. Otherwise it shows up at the end as missing metric files,
-		// which reads like a collection failure rather than a closed port.
-		param.CollectAdditionalSystemMetrics = false
-		loadTestExecutionState.WithMetrics = false
-	}
-
 	if param.LoadGeneratorInstallInfoId == uint(0) {
 		log.Info().Msgf("No LoadGeneratorInstallInfoId provided, installing load generator...")
 		rec.begin(constant.StepGeneratorInstall, "Installing load generator")
@@ -676,31 +673,43 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 	} else if installLocation == constant.Local {
 		log.Info().Msg("Local execute detected.")
 
+		// The remote path above records each step; this one recorded none, so a local run
+		// showed "jmx_prepare" and "jmeter_run" as pending from start to finish and gave no
+		// clue where it was. Both paths now report the same way.
+		rec.begin(constant.StepJmxPrepare, "Preparing test plan")
+
 		exist := utils.ExistCheck(loadGeneratorInstallPath)
 
 		if !exist {
+			rec.fail(constant.StepJmxPrepare, "Load generator missing", fmt.Sprintf("nothing installed at %s", loadGeneratorInstallPath))
 			return compileDuration, executionDuration, errors.New("load generator installaion is not validated")
 		}
 
 		outputFile, err := os.Create(fmt.Sprintf("%s/test_plan/%s.jmx", loadGeneratorInstallPath, loadTestKey))
 		if err != nil {
+			rec.fail(constant.StepJmxPrepare, "Test plan write failed", err.Error())
 			return compileDuration, executionDuration, err
 		}
 
 		err = parseTestPlanStructToString(outputFile, param, loadGeneratorInstallInfo)
 
 		if err != nil {
+			rec.fail(constant.StepJmxPrepare, "Test plan generation failed", err.Error())
 			return compileDuration, executionDuration, err
 		}
+		rec.ok(constant.StepJmxPrepare, "Test plan ready")
 
+		rec.begin(constant.StepJmeterRun, "Running load test")
 		jmeterTestCommand := generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVersion, testPlanName, resultFileName)
 		compileDuration = utils.DurationString(start)
 
 		err = utils.InlineCmd(jmeterTestCommand)
 		executionDuration = utils.DurationString(start)
 		if err != nil {
+			rec.fail(constant.StepJmeterRun, "Load test failed", fmt.Sprintf("jmeter stopped unexpectedly: %v", err))
 			return compileDuration, executionDuration, fmt.Errorf("jmeter test stopped unexpectedly; %w", err)
 		}
+		rec.ok(constant.StepJmeterRun, "Load test finished")
 	}
 
 	return compileDuration, executionDuration, nil
