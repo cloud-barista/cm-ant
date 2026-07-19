@@ -8,7 +8,7 @@ import (
 
 // MonitoringAgentInstallationParams represents parameters for installing a monitoring agent.
 type MonitoringAgentInstallationParams struct {
-	NsId  string   `json:"nsId"`
+	NsId    string   `json:"nsId"`
 	InfraId string   `json:"infraId"`
 	NodeIds []string `json:"nodeIds,omitempty"`
 }
@@ -17,8 +17,8 @@ type MonitoringAgentInstallationParams struct {
 type MonitoringAgentInstallationResult struct {
 	ID        uint      `json:"id,omitempty"`
 	NsId      string    `json:"nsId,omitempty"`
-	InfraId     string    `json:"infraId,omitempty"`
-	NodeId      string    `json:"nodeId,omitempty"`
+	InfraId   string    `json:"infraId,omitempty"`
+	NodeId    string    `json:"nodeId,omitempty"`
 	VmCount   int       `json:"vmCount,omitempty"`
 	Status    string    `json:"status,omitempty"`
 	Username  string    `json:"username,omitempty"`
@@ -28,9 +28,9 @@ type MonitoringAgentInstallationResult struct {
 }
 
 type GetAllMonitoringAgentInfosParam struct {
-	Page  int    `json:"page"`
-	Size  int    `json:"size"`
-	NsId  string `json:"nsId,omitempty"`
+	Page    int    `json:"page"`
+	Size    int    `json:"size"`
+	NsId    string `json:"nsId,omitempty"`
 	InfraId string `json:"infraId,omitempty"`
 	NodeId  string `json:"nodeId,omitempty"`
 }
@@ -44,7 +44,7 @@ type InstallLoadGeneratorParam struct {
 	InstallLocation constant.InstallLocation `json:"installLocation,omitempty"`
 	Coordinates     []string                 `json:"coordinate"`
 	// VM 정보 추가 (CSP 매칭용)
-	NsId  string `json:"nsId,omitempty"`
+	NsId    string `json:"nsId,omitempty"`
 	InfraId string `json:"infraId,omitempty"`
 	NodeId  string `json:"nodeId,omitempty"`
 }
@@ -63,7 +63,7 @@ type LoadGeneratorServerResult struct {
 	Lat             string    `json:"lat,omitempty"`
 	Lon             string    `json:"lon,omitempty"`
 	Username        string    `json:"username,omitempty"`
-	NodeId            string    `json:"nodeId,omitempty"`
+	NodeId          string    `json:"nodeId,omitempty"`
 	StartTime       string    `json:"startTime,omitempty"`
 	AdditionalVmKey string    `json:"additionalVmKey,omitempty"`
 	Label           string    `json:"label,omitempty"`
@@ -114,7 +114,7 @@ type RunLoadTestParam struct {
 	RampUpSteps  string `json:"rampUpSteps"`
 
 	// related tumblebug
-	NsId  string `json:"nsId"`
+	NsId    string `json:"nsId"`
 	InfraId string `json:"infraId"`
 	NodeId  string `json:"nodeId"`
 
@@ -146,21 +146,25 @@ type GetAllLoadTestExecutionStateResult struct {
 }
 
 type LoadTestExecutionStateResult struct {
-	ID                          uint                           `json:"id"`
-	LoadGeneratorInstallInfoId  uint                           `json:"loadGeneratorInstallInfoId,omitempty"`
-	LoadGeneratorInstallInfo    LoadGeneratorInstallInfoResult `json:"loadGeneratorInstallInfo,omitempty"`
-	LoadTestKey                 string                         `json:"loadTestKey,omitempty"`
-	ExecutionStatus             constant.ExecutionStatus       `json:"executionStatus,omitempty"`
-	StartAt                     time.Time                      `json:"startAt,omitempty"`
-	FinishAt                    *time.Time                     `json:"finishAt,omitempty"`
-	ExpectedFinishAt            time.Time                      `json:"expectedFinishAt,omitempty"`
-	IconCode                    constant.IconCode              `json:"iconCode"`
-	TotalExpectedExcutionSecond uint64                         `json:"totalExpectedExecutionSecond,omitempty"`
-	FailureMessage              string                         `json:"failureMessage,omitempty"`
-	CompileDuration             string                         `json:"compileDuration,omitempty"`
-	ExecutionDuration           string                         `json:"executionDuration,omitempty"`
-	CreatedAt                   time.Time                      `json:"createdAt,omitempty"`
-	UpdatedAt                   time.Time                      `json:"updatedAt,omitempty"`
+	ID                         uint                           `json:"id"`
+	LoadGeneratorInstallInfoId uint                           `json:"loadGeneratorInstallInfoId,omitempty"`
+	LoadGeneratorInstallInfo   LoadGeneratorInstallInfoResult `json:"loadGeneratorInstallInfo,omitempty"`
+	LoadTestKey                string                         `json:"loadTestKey,omitempty"`
+	// NodeUid identifies which VM this run belongs to. Node ids are names and get reused,
+	// so a caller that keeps showing "the last run for this node" needs the uid to notice
+	// that the answer belongs to a VM that has since been replaced.
+	NodeUid                     string                   `json:"nodeUid,omitempty"`
+	ExecutionStatus             constant.ExecutionStatus `json:"executionStatus,omitempty"`
+	StartAt                     time.Time                `json:"startAt,omitempty"`
+	FinishAt                    *time.Time               `json:"finishAt,omitempty"`
+	ExpectedFinishAt            time.Time                `json:"expectedFinishAt,omitempty"`
+	IconCode                    constant.IconCode        `json:"iconCode"`
+	TotalExpectedExcutionSecond uint64                   `json:"totalExpectedExecutionSecond,omitempty"`
+	FailureMessage              string                   `json:"failureMessage,omitempty"`
+	CompileDuration             string                   `json:"compileDuration,omitempty"`
+	ExecutionDuration           string                   `json:"executionDuration,omitempty"`
+	CreatedAt                   time.Time                `json:"createdAt,omitempty"`
+	UpdatedAt                   time.Time                `json:"updatedAt,omitempty"`
 	// Steps is the per-stage progress of the run (FR-MA2-PERF-007-08), ordered by seq.
 	Steps []LoadTestExecutionStepResult `json:"steps,omitempty"`
 }
@@ -182,8 +186,8 @@ type LoadTestExecutionStepResult struct {
 type GetLoadTestExecutionStateParam struct {
 	LoadTestKey string `json:"loadTestKey"`
 	NsId        string `json:"nsId"`
-	InfraId       string `json:"infraId"`
-	NodeId        string `json:"nodeId"`
+	InfraId     string `json:"infraId"`
+	NodeId      string `json:"nodeId"`
 }
 
 type GetAllLoadTestExecutionInfosParam struct {
@@ -230,8 +234,8 @@ type GetLoadTestExecutionInfoParam struct {
 type StopLoadTestParam struct {
 	LoadTestKey string `json:"loadTestKey"`
 	NsId        string `json:"nsId"`
-	InfraId       string `json:"infraId"`
-	NodeId        string `json:"nodeId"`
+	InfraId     string `json:"infraId"`
+	NodeId      string `json:"nodeId"`
 }
 
 type ResultSummary struct {
@@ -286,10 +290,10 @@ type GetLoadTestResultParam struct {
 }
 
 type GetLastLoadTestResultParam struct {
-	NsId   string
-	InfraId  string
-	NodeId   string
-	Format constant.ResultFormat
+	NsId    string
+	InfraId string
+	NodeId  string
+	Format  constant.ResultFormat
 }
 
 // LoadTestScenarioCatalog DTOs

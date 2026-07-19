@@ -102,6 +102,24 @@ var generatorRunMu sync.Mutex
 // RunLoadTest initiates the load test and performs necessary initializations.
 // Generates a load test key, installs the load generator or retrieves existing installation information,
 // saves the load test execution state, and then asynchronously runs the load test.
+// resolveNodeUid asks cb-tumblebug which VM the given node name currently refers to.
+//
+// Returns "" when the lookup fails. A load test is worth running even if we cannot label it,
+// and an empty uid is understood downstream as "unknown" rather than as a mismatch - the
+// same treatment rows written before this column existed get.
+func (l *LoadService) resolveNodeUid(ctx context.Context, nsId, infraId, nodeId string) string {
+	if nsId == "" || infraId == "" || nodeId == "" {
+		return ""
+	}
+
+	vm, err := l.tumblebugClient.GetVmWithContext(ctx, nsId, infraId, nodeId)
+	if err != nil {
+		log.Warn().Msgf("could not resolve node uid for %s/%s/%s: %v", nsId, infraId, nodeId, err)
+		return ""
+	}
+	return vm.Uid
+}
+
 func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 	timeout, err := time.ParseDuration(config.AppConfig.Load.Timeout.CommandExecution)
 	if err != nil {
@@ -142,6 +160,17 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 	startAt := time.Now()
 	e := startAt.Add(time.Duration(totalExecutionSecond) * time.Second)
 
+	// Record which VM this run belongs to, not just what it was called.
+	//
+	// Node ids are names that get reused: cb-tumblebug builds them as "{group}-{index}", so
+	// deleting a VM and recreating it under the same name gives an identical
+	// ns/infra/node triple. Without the uid a later lookup cannot tell whether the run it
+	// found belongs to the VM in front of the user or to its predecessor.
+	//
+	// Resolved here rather than taken from the request: the client would have to send it
+	// correctly for the guarantee to hold, and cb-tumblebug already answers the question.
+	nodeUid := l.resolveNodeUid(ctx, param.NsId, param.InfraId, param.NodeId)
+
 	stateArg := LoadTestExecutionState{
 		LoadTestKey:                 loadTestKey,
 		ExecutionStatus:             constant.OnProcessing,
@@ -151,6 +180,7 @@ func (l *LoadService) RunLoadTest(param RunLoadTestParam) (string, error) {
 		NsId:                        param.NsId,
 		InfraId:                     param.InfraId,
 		NodeId:                      param.NodeId,
+		NodeUid:                     nodeUid,
 		WithMetrics:                 param.CollectAdditionalSystemMetrics,
 	}
 
@@ -657,6 +687,20 @@ func generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVe
 	return builder.String()
 }
 
+// belongsToDifferentNode reports whether a recorded run demonstrably belongs to a VM other
+// than the one being asked about.
+//
+// Only a disagreement between two known uids counts. An unknown uid on either side - a run
+// recorded before the column existed, or cb-tumblebug being unreachable - is not evidence of
+// anything, and treating it as a mismatch would block stopping runs that are perfectly
+// legitimate.
+func belongsToDifferentNode(recordedUid, currentUid string) bool {
+	if recordedUid == "" || currentUid == "" {
+		return false
+	}
+	return recordedUid != currentUid
+}
+
 func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -680,6 +724,28 @@ func (l *LoadService) StopLoadTest(param StopLoadTestParam) error {
 
 	if err != nil {
 		return fmt.Errorf("error occurred while retrieve load test execution state: %w", err)
+	}
+
+	// Guard the key-less lookup, which resolves to "the most recent run for this
+	// ns/infra/node" - names that get reused, so the run may belong to a VM that has since
+	// been replaced. Stopping that one would kill a test nobody asked about.
+	//
+	// Not reachable over HTTP today: the handler rejects a stop request that omits the load
+	// test key, so callers always arrive with one and take the branch above. The guard is
+	// here because the service accepts the key-less shape and nothing but this handler check
+	// stands between it and the wrong test.
+	//
+	// A stored uid that disagrees with the live one is that case. An empty uid on either side
+	// means "unknown" (rows predating the column, or cb-tumblebug unreachable) and is left
+	// alone rather than guessed at.
+	if param.LoadTestKey == "" {
+		currentUid := l.resolveNodeUid(ctx, param.NsId, param.InfraId, param.NodeId)
+		if belongsToDifferentNode(state.NodeUid, currentUid) {
+			return fmt.Errorf(
+				"the most recent load test on %s/%s/%s belongs to a different VM (recorded uid %s, current uid %s); pass its load test key to stop it",
+				param.NsId, param.InfraId, param.NodeId, state.NodeUid, currentUid,
+			)
+		}
 	}
 
 	if state.ExecutionStatus == constant.Successed {
