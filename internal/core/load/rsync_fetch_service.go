@@ -70,24 +70,24 @@ func (l *LoadService) fetchData(f *fetchDataParam) {
 			// rsync failure is visible (previously it was only logged and the run was still
 			// marked successed).
 			f.StepRec.begin(constant.StepResultFetch, "Collecting results")
-			retry := config.AppConfig.Load.Retry
-			var fetchErr error
-			var outcome fetchOutcome
-			for retry > 0 {
-				if !f.isRunning() {
-					outcome, fetchErr = rsyncFiles(f)
-					if fetchErr != nil {
-						log.Error().Msgf("error while fetching data from rsync %s", fetchErr.Error())
-					}
-					break
-				}
-				time.Sleep(time.Duration(1<<4-retry) * time.Second)
-				retry--
-			}
+
+			// Wait for the metric files rather than taking one look and moving on.
+			//
+			// Every chart on the results screen is drawn from these csv files, and they are
+			// written while the run is still going, so the metric ones routinely land after
+			// the main result. There is no way to ask for them again afterwards, so a run
+			// that gives up here loses its charts for good.
+			//
+			// Waiting stops when the set of missing files stops shrinking: files still
+			// arriving means more are coming, while nothing new across a whole round means
+			// nothing more is coming.
+			outcome, fetchErr := l.collectResults(f)
 
 			switch {
 			case fetchErr != nil:
-				f.StepRec.fail(constant.StepResultFetch, "Result collection failed", fmt.Sprintf("the load test finished but collecting the result files (rsync) failed: %v", fetchErr))
+				f.StepRec.fail(constant.StepResultFetch, "Result collection failed",
+					fmt.Sprintf("the load test finished but the main result file could not be collected from the generator (%s): %v",
+						f.PublicIp, fetchErr))
 			case len(outcome.MissingMetrics) > 0:
 				// The run stands on its own load figures. Say which charts will be empty and
 				// why, so an empty chart is not read as "the load produced nothing".
@@ -101,6 +101,52 @@ func (l *LoadService) fetchData(f *fetchDataParam) {
 		}
 	}
 }
+
+// collectResults keeps fetching until the files stop arriving.
+//
+// It returns as soon as everything is in. Otherwise it keeps going while progress is being
+// made - each round that brings a new file earns another round - and stops once a whole round
+// adds nothing, or when the overall deadline passes.
+func (l *LoadService) collectResults(f *fetchDataParam) (fetchOutcome, error) {
+	deadline := time.Now().Add(resultCollectWindow)
+	var outcome fetchOutcome
+	var err error
+	previousMissing := -1
+
+	for round := 1; ; round++ {
+		if f.isRunning() {
+			time.Sleep(resultCollectInterval)
+			continue
+		}
+
+		outcome, err = rsyncFiles(f)
+		if err != nil {
+			log.Error().Msgf("error while fetching data from rsync %s", err.Error())
+			return outcome, err
+		}
+		if len(outcome.MissingMetrics) == 0 {
+			return outcome, nil
+		}
+
+		madeProgress := previousMissing < 0 || len(outcome.MissingMetrics) < previousMissing
+		previousMissing = len(outcome.MissingMetrics)
+
+		if !madeProgress || time.Now().After(deadline) {
+			log.Warn().Msgf("giving up on metric files after %d rounds: %v", round, outcome.MissingMetrics)
+			return outcome, nil
+		}
+
+		f.StepRec.progress(constant.StepResultFetch, round,
+			fmt.Sprintf("Collecting results - still waiting for %s", strings.Join(outcome.MissingMetrics, ", ")),
+			"metric files are written during the run and can arrive after the main result")
+		time.Sleep(resultCollectInterval)
+	}
+}
+
+const (
+	resultCollectInterval = 10 * time.Second
+	resultCollectWindow   = 10 * time.Minute
+)
 
 // fetchOutcome says which result files made it across. The distinction matters: the load
 // figures come from the main file, while the cpu/disk/memory/network files are metrics
