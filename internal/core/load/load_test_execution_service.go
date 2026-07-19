@@ -29,11 +29,28 @@ func getResourceNames() (nsId, mciId, vmName, sshKeyBase string) {
 
 // stepSeq fixes the display order of the execution steps (FR-MA2-PERF-007-08).
 var stepSeq = map[constant.ExecutionStep]int{
-	constant.StepGeneratorInstall: 1,
-	constant.StepAgentInstall:     2,
-	constant.StepJmxPrepare:       3,
-	constant.StepJmeterRun:        4,
-	constant.StepResultFetch:      5,
+	constant.StepPrecheck:         1,
+	constant.StepGeneratorInstall: 2,
+	constant.StepAgentInstall:     3,
+	constant.StepJmxPrepare:       4,
+	constant.StepJmeterRun:        5,
+	constant.StepResultFetch:      6,
+}
+
+// subStepSeq orders the sub-steps within their phase. They are seeded alongside the phases so
+// the console can draw the whole tree from the first poll rather than watching rows appear.
+var subStepSeq = map[constant.ExecutionStep]int{
+	constant.SubTargetExists:    1,
+	constant.SubTargetRunning:   2,
+	constant.SubTargetReachable: 3,
+	constant.SubMetricPortOpen:  4,
+	constant.SubRemoteCommand:   5,
+
+	constant.SubGeneratorReachable: 1,
+
+	constant.SubAgentInstall: 1,
+	constant.SubAgentProcess: 2,
+	constant.SubAgentPort:    3,
 }
 
 // stepRecorder persists per-step progress of a running load test so the web console can show
@@ -55,7 +72,11 @@ func (s *stepRecorder) upsert(step *LoadTestExecutionStep) {
 	}
 	step.LoadTestExecutionStateId = s.state.ID
 	step.LoadTestKey = s.state.LoadTestKey
-	step.Seq = stepSeq[step.Name]
+	if seq, ok := stepSeq[step.Name]; ok {
+		step.Seq = seq
+	} else {
+		step.Seq = subStepSeq[step.Name]
+	}
 	if err := s.l.loadRepo.UpsertLoadTestExecutionStepTx(context.Background(), step); err != nil {
 		log.Warn().Msgf("failed to record execution step %s; %v", step.Name, err)
 	}
@@ -64,6 +85,9 @@ func (s *stepRecorder) upsert(step *LoadTestExecutionStep) {
 // seed creates the full pipeline as pending so the web can render every step upfront.
 func (s *stepRecorder) seed() {
 	for name := range stepSeq {
+		s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepPending})
+	}
+	for name := range subStepSeq {
 		s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepPending})
 	}
 }
@@ -89,8 +113,12 @@ func (s *stepRecorder) fail(name constant.ExecutionStep, message, detail string)
 	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepFailed, FinishAt: &now, Message: message, Detail: detail})
 }
 
+// skip marks a step as deliberately not run. It stamps a finish time like any other ending:
+// without one the step keeps reporting a growing elapsed figure, which reads as "still busy"
+// when it is in fact long done.
 func (s *stepRecorder) skip(name constant.ExecutionStep, message string) {
-	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepSkipped, Message: message})
+	now := time.Now()
+	s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepSkipped, FinishAt: &now, Message: message})
 }
 
 // generatorRunMu serializes load test runs. The load generator is a shared singleton
@@ -225,6 +253,15 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		loadTestExecutionState.FinishAt = &finishAt
 	}
 
+	// Check the environment before building anything (BAR-1553). A missing target or a closed
+	// port is answered in seconds here, instead of surfacing minutes into a run.
+	precheckCtx, cancelPrecheck := context.WithTimeout(context.Background(), 2*time.Minute)
+	err := l.runPrecheck(precheckCtx, param, rec)
+	cancelPrecheck()
+	if err != nil {
+		failed(fmt.Sprintf("Precheck failed: %v", err), err)
+		return
+	}
 	if param.LoadGeneratorInstallInfoId == uint(0) {
 		log.Info().Msgf("No LoadGeneratorInstallInfoId provided, installing load generator...")
 		rec.begin(constant.StepGeneratorInstall, "Installing load generator")
@@ -254,6 +291,23 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 	loadGeneratorInstallInfo, err := l.loadRepo.GetValidLoadGeneratorInstallInfoByIdTx(context.Background(), param.LoadGeneratorInstallInfoId)
 	if err != nil {
 		failed(fmt.Sprintf("Error installing load generator: %v", err), err)
+		return
+	}
+
+	// A reused generator can be recorded as installed and still be unreachable, because the
+	// key that reaches it lives in this container rather than anywhere durable: replacing the
+	// container leaves every existing generator with an authorized key whose private half is
+	// gone. Nothing before the very end of the run notices - the load runs on the generator
+	// itself and only fetching the results needs ssh - so the run would spend its whole length
+	// to fail at collection.
+	//
+	// cb-tumblebug still holds the VM's own key, so the way back in is through it: regenerate
+	// the pair and have tumblebug put the new public half in place. That is also why the key
+	// is not worth persisting here - keeping a copy would mean owning its lifetime and its
+	// exposure, to save a step tumblebug can do on demand.
+	if err := l.ensureGeneratorReachable(loadGeneratorInstallInfo, rec); err != nil {
+		rec.fail(constant.StepGeneratorInstall, "Load generator unreachable", err.Error())
+		failed(fmt.Sprintf("load generator is not reachable and could not be recovered: %v", err), err)
 		return
 	}
 
@@ -357,8 +411,24 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 			return
 		}
 
-		rec.ok(constant.StepAgentInstall, "Monitoring agent installed")
-		log.Info().Msgf("metrics agent installed successfully for load test; %s %s %s", arg.NsId, arg.InfraId, arg.NodeIds)
+		rec.ok(constant.SubAgentInstall, "Monitoring agent files installed")
+
+		// Installed is not the same as running, and running is not the same as answering.
+		// The install call reports success as soon as the remote command returns, and the
+		// script behind it starts the agent with nohup and prints success either way — so a
+		// target with no agent process at all was reported as installed, and the run then
+		// spent 27 minutes waiting on a port that was never going to answer (BAR-1552).
+		if err := l.verifyMetricAgent(param, rec); err != nil {
+			// Losing metrics is not worth failing the run for. Say what happened, drop the
+			// metrics and carry on with the load figures.
+			param.CollectAdditionalSystemMetrics = false
+			loadTestExecutionState.WithMetrics = false
+			rec.skip(constant.StepAgentInstall, "Continuing without metrics - the agent is not answering")
+			log.Warn().Msgf("metric agent unavailable, continuing without metrics; %v", err)
+		} else {
+			rec.ok(constant.StepAgentInstall, "Monitoring agent installed")
+			log.Info().Msgf("metrics agent installed successfully for load test; %s %s %s", arg.NsId, arg.InfraId, arg.NodeIds)
+		}
 	} else {
 		rec.skip(constant.StepAgentInstall, "Additional metrics not collected")
 	}
@@ -622,31 +692,43 @@ func (l *LoadService) executeLoadTest(param RunLoadTestParam, loadGeneratorInsta
 	} else if installLocation == constant.Local {
 		log.Info().Msg("Local execute detected.")
 
+		// The remote path above records each step; this one recorded none, so a local run
+		// showed "jmx_prepare" and "jmeter_run" as pending from start to finish and gave no
+		// clue where it was. Both paths now report the same way.
+		rec.begin(constant.StepJmxPrepare, "Preparing test plan")
+
 		exist := utils.ExistCheck(loadGeneratorInstallPath)
 
 		if !exist {
+			rec.fail(constant.StepJmxPrepare, "Load generator missing", fmt.Sprintf("nothing installed at %s", loadGeneratorInstallPath))
 			return compileDuration, executionDuration, errors.New("load generator installaion is not validated")
 		}
 
 		outputFile, err := os.Create(fmt.Sprintf("%s/test_plan/%s.jmx", loadGeneratorInstallPath, loadTestKey))
 		if err != nil {
+			rec.fail(constant.StepJmxPrepare, "Test plan write failed", err.Error())
 			return compileDuration, executionDuration, err
 		}
 
 		err = parseTestPlanStructToString(outputFile, param, loadGeneratorInstallInfo)
 
 		if err != nil {
+			rec.fail(constant.StepJmxPrepare, "Test plan generation failed", err.Error())
 			return compileDuration, executionDuration, err
 		}
+		rec.ok(constant.StepJmxPrepare, "Test plan ready")
 
+		rec.begin(constant.StepJmeterRun, "Running load test")
 		jmeterTestCommand := generateJmeterExecutionCmd(loadGeneratorInstallPath, loadGeneratorInstallVersion, testPlanName, resultFileName)
 		compileDuration = utils.DurationString(start)
 
 		err = utils.InlineCmd(jmeterTestCommand)
 		executionDuration = utils.DurationString(start)
 		if err != nil {
+			rec.fail(constant.StepJmeterRun, "Load test failed", fmt.Sprintf("jmeter stopped unexpectedly: %v", err))
 			return compileDuration, executionDuration, fmt.Errorf("jmeter test stopped unexpectedly; %w", err)
 		}
+		rec.ok(constant.StepJmeterRun, "Load test finished")
 	}
 
 	return compileDuration, executionDuration, nil

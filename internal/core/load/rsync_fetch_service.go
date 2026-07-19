@@ -2,7 +2,8 @@ package load
 
 import (
 	"fmt"
-
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -59,7 +60,7 @@ func (l *LoadService) fetchData(f *fetchDataParam) {
 		case <-ticker.C:
 			if !f.isRunning() {
 				f.setFetchRunning(true)
-				if err := rsyncFiles(f); err != nil {
+				if _, err := rsyncFiles(f); err != nil {
 					log.Error().Msgf("error while fetching data from rsync %s", err.Error())
 				}
 				f.setFetchRunning(false)
@@ -69,23 +70,30 @@ func (l *LoadService) fetchData(f *fetchDataParam) {
 			// rsync failure is visible (previously it was only logged and the run was still
 			// marked successed).
 			f.StepRec.begin(constant.StepResultFetch, "Collecting results")
-			retry := config.AppConfig.Load.Retry
-			var fetchErr error
-			for retry > 0 {
-				if !f.isRunning() {
-					fetchErr = rsyncFiles(f)
-					if fetchErr != nil {
-						log.Error().Msgf("error while fetching data from rsync %s", fetchErr.Error())
-					}
-					break
-				}
-				time.Sleep(time.Duration(1<<4-retry) * time.Second)
-				retry--
-			}
 
-			if fetchErr != nil {
-				f.StepRec.fail(constant.StepResultFetch, "Result collection failed", fmt.Sprintf("the load test finished but collecting the result files (rsync) failed: %v", fetchErr))
-			} else {
+			// Wait for the metric files rather than taking one look and moving on.
+			//
+			// Every chart on the results screen is drawn from these csv files, and they are
+			// written while the run is still going, so the metric ones routinely land after
+			// the main result. There is no way to ask for them again afterwards, so a run
+			// that gives up here loses its charts for good.
+			//
+			// Waiting stops when the set of missing files stops shrinking: files still
+			// arriving means more are coming, while nothing new across a whole round means
+			// nothing more is coming.
+			outcome, fetchErr := l.collectResults(f)
+
+			switch {
+			case fetchErr != nil:
+				f.StepRec.fail(constant.StepResultFetch, "Result collection failed",
+					fmt.Sprintf("the load test finished but the main result file could not be collected from the generator (%s): %v",
+						f.PublicIp, fetchErr))
+			case len(outcome.MissingMetrics) > 0:
+				// The run stands on its own load figures. Say which charts will be empty and
+				// why, so an empty chart is not read as "the load produced nothing".
+				msg := fmt.Sprintf("Results collected, without %s metrics", strings.Join(outcome.MissingMetrics, ", "))
+				f.StepRec.ok(constant.StepResultFetch, msg)
+			default:
 				f.StepRec.ok(constant.StepResultFetch, "Results collected")
 			}
 
@@ -94,7 +102,67 @@ func (l *LoadService) fetchData(f *fetchDataParam) {
 	}
 }
 
-func rsyncFiles(f *fetchDataParam) error {
+// collectResults keeps fetching until the files stop arriving.
+//
+// It returns as soon as everything is in. Otherwise it keeps going while progress is being
+// made - each round that brings a new file earns another round - and stops once a whole round
+// adds nothing, or when the overall deadline passes.
+func (l *LoadService) collectResults(f *fetchDataParam) (fetchOutcome, error) {
+	deadline := time.Now().Add(resultCollectWindow)
+	var outcome fetchOutcome
+	var err error
+	previousMissing := -1
+
+	for round := 1; ; round++ {
+		if f.isRunning() {
+			time.Sleep(resultCollectInterval)
+			continue
+		}
+
+		outcome, err = rsyncFiles(f)
+		if err != nil {
+			log.Error().Msgf("error while fetching data from rsync %s", err.Error())
+			return outcome, err
+		}
+		if len(outcome.MissingMetrics) == 0 {
+			return outcome, nil
+		}
+
+		madeProgress := previousMissing < 0 || len(outcome.MissingMetrics) < previousMissing
+		previousMissing = len(outcome.MissingMetrics)
+
+		if !madeProgress || time.Now().After(deadline) {
+			log.Warn().Msgf("giving up on metric files after %d rounds: %v", round, outcome.MissingMetrics)
+			return outcome, nil
+		}
+
+		f.StepRec.progress(constant.StepResultFetch, round,
+			fmt.Sprintf("Collecting results - still waiting for %s", strings.Join(outcome.MissingMetrics, ", ")),
+			"metric files are written during the run and can arrive after the main result")
+		time.Sleep(resultCollectInterval)
+	}
+}
+
+const (
+	resultCollectInterval = 10 * time.Second
+	resultCollectWindow   = 10 * time.Minute
+)
+
+// fetchOutcome says which result files made it across. The distinction matters: the load
+// figures come from the main file, while the cpu/disk/memory/network files are metrics
+// gathered alongside. Losing a metric file costs a chart; losing the main file costs the run.
+type fetchOutcome struct {
+	MissingMetrics []string // "cpu", "network", ... — collected but not retrievable
+}
+
+// rsyncFiles pulls the result files from the generator. It fails only when the main result is
+// missing; metric files that did not arrive are reported instead, so a run whose load figures
+// are intact is not thrown away for want of a network chart (BAR-1552).
+//
+// Metric files also tend to land later than the main one, so what looks missing now often
+// arrives on a later pass — hence the retries here and the periodic fetch above.
+func rsyncFiles(f *fetchDataParam) (fetchOutcome, error) {
+	var outcome fetchOutcome
 	loadTestKey := f.LoadTestKey
 	installLocation := f.InstallLocation
 	loadGeneratorInstallPath := f.InstallPath
@@ -106,18 +174,22 @@ func rsyncFiles(f *fetchDataParam) error {
 		resultsPrefix = append(resultsPrefix, "_cpu", "_disk", "_memory", "_network")
 	}
 
-	errorChan := make(chan error, len(resultsPrefix))
+	type fileResult struct {
+		prefix string
+		err    error
+	}
+	resultChan := make(chan fileResult, len(resultsPrefix))
 
 	resultFolderPath := utils.JoinRootPathWith("/result/" + loadTestKey)
 
 	err := utils.CreateFolderIfNotExist(utils.JoinRootPathWith("/result"))
 	if err != nil {
-		return err
+		return outcome, err
 	}
 
 	err = utils.CreateFolderIfNotExist(resultFolderPath)
 	if err != nil {
-		return err
+		return outcome, err
 	}
 
 	maxRetries := config.AppConfig.Load.Retry
@@ -147,7 +219,7 @@ func rsyncFiles(f *fetchDataParam) error {
 			err := utils.InlineCmd(cmd)
 
 			if err == nil {
-				errorChan <- nil
+				resultChan <- fileResult{prefix: prefix}
 				return // Success, exit the retry loop
 			}
 
@@ -160,7 +232,7 @@ func rsyncFiles(f *fetchDataParam) error {
 			}
 		}
 
-		errorChan <- fmt.Errorf("failed to rsync %s after %d attempts", fileName, maxRetries)
+		resultChan <- fileResult{prefix: prefix, err: fmt.Errorf("failed to rsync %s after %d attempts", fileName, maxRetries)}
 	}
 
 	if installLocation == constant.Local || installLocation == constant.Remote {
@@ -171,14 +243,20 @@ func rsyncFiles(f *fetchDataParam) error {
 	}
 
 	wg.Wait()
-	close(errorChan)
+	close(resultChan)
 
-	// Collect errors from the error channel
-	for err := range errorChan {
-		if err != nil {
-			return err
+	var mainErr error
+	for r := range resultChan {
+		if r.err == nil {
+			continue
 		}
+		if r.prefix == "" {
+			mainErr = r.err // the load figures themselves
+			continue
+		}
+		outcome.MissingMetrics = append(outcome.MissingMetrics, strings.TrimPrefix(r.prefix, "_"))
 	}
+	sort.Strings(outcome.MissingMetrics)
 
-	return nil
+	return outcome, mainErr
 }
