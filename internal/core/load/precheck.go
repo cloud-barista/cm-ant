@@ -128,38 +128,41 @@ func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, r
 	// ── the metric agent port ───────────────────────────────────────────────────────────
 	//
 	// The charts are the point of a load test, and they are drawn from the metrics this port
-	// carries. A run that cannot collect them produces response times and nothing else, so it
-	// stops here and asks for the port to be opened rather than spending the time to arrive at
-	// the same place with less to show for it.
+	// carries. What this check settles is whether the port can carry them at all - that is,
+	// whether the security group lets the traffic through. Something already listening is not
+	// required, because installing the agent is the run's own next job.
 	//
-	// Once the port is open, a later failure is treated differently: by then the run is under
-	// way and the load figures are worth keeping (see verifyMetricAgent).
+	// The distinction is the whole point here. A dial that times out means the packets are
+	// being dropped, and no later step can undo that, so the run stops and asks for the port
+	// to be opened rather than spending several minutes arriving at the same place with less
+	// to show for it. A dial that is refused means the path is clear and nothing is listening
+	// yet - precisely the state a target is in before the agent is installed, and the state a
+	// target returns to when the agent dies. Stopping there would leave the run unable to do
+	// the one thing that would fix it, so it goes on and verifyMetricAgent judges the result
+	// once the install has actually had its turn.
 	if param.CollectAdditionalSystemMetrics {
 		rec.begin(constant.SubMetricPortOpen, "Checking the metric agent port")
-		if err := retry(rec, constant.SubMetricPortOpen, "Checking the metric agent port", func() error {
+		err := retry(rec, constant.SubMetricPortOpen, "Checking the metric agent port", func() error {
 			return dial(vm.PublicIP, metricAgentPort)
-		}); err != nil {
-			// A refused connection and one that times out call for opposite fixes, and telling
-			// someone to open a port that is already open sends them looking in the wrong
-			// place. Refused means the host answered and nothing was listening - the agent is
-			// down. A timeout means nothing answered at all - the packets are being dropped.
+		})
+		switch {
+		case err == nil:
+			rec.ok(constant.SubMetricPortOpen, "Metric agent port is reachable")
+		case isConnectionRefused(err):
+			rec.ok(constant.SubMetricPortOpen, "Metric agent port is open, agent not up yet")
+		default:
 			msg := fmt.Sprintf("Metric port %s unreachable", metricAgentPort)
-			cause := fmt.Sprintf("Add %s inbound to the security group, then run the test again.", metricAgentPort)
-			if isConnectionRefused(err) {
-				msg = "Metric agent not running"
-				cause = "The port is reachable but nothing is listening, so the metric agent is not running on the target. Check java on the target and /opt/perfmon-agent."
-			}
 			detail := fmt.Sprintf(
-				"Could not reach the metric agent on %s:%s. %s\n"+
-					"System metrics cannot be measured until this is resolved.\n"+
+				"Could not reach %s:%s, and nothing answered at all - the traffic is being dropped rather than refused.\n"+
+					"Add %s inbound to the security group, then run the test again.\n"+
+					"System metrics cannot be measured until this is resolved, and installing the agent will not help while the port is closed.\n"+
 					"If system performance figures are not needed, clear 'Collect Additional System Metrics' in the load configuration and run again.\n"+
 					"(tried %d times with a %s timeout; last error: %v)",
-				vm.PublicIP, metricAgentPort, cause, precheckAttempts, precheckDialTimeout, err)
+				vm.PublicIP, metricAgentPort, metricAgentPort, precheckAttempts, precheckDialTimeout, err)
 			rec.fail(constant.SubMetricPortOpen, msg, detail)
 			rec.fail(constant.StepPrecheck, msg, detail)
 			return fmt.Errorf("metric agent port %s is not reachable: %w", metricAgentPort, err)
 		}
-		rec.ok(constant.SubMetricPortOpen, "Metric agent port is reachable")
 	} else {
 		rec.skip(constant.SubMetricPortOpen, "Metrics not requested")
 	}
@@ -294,48 +297,138 @@ func (l *LoadService) probeRemoteCommand(ctx context.Context, nsId, infraId, nod
 	return nil
 }
 
-// verifyMetricAgent waits for the agent to actually be up rather than trusting the install
-// call, which returns as soon as the remote command does (BAR-1552).
+// verifyMetricAgent decides whether the agent is really up, and reinstalls it if it is not,
+// rather than trusting the install call - which returns as soon as the remote command does,
+// and reports success whether or not anything is left running (BAR-1552).
 //
-// The agent is started with nohup, so there is a gap between the script returning and the
-// port accepting connections. Short repeated checks cover that gap; giving up after them is
-// what turns "never going to answer" into an answer, instead of a wait with no end.
+// Waiting alone is not enough, because two very different things look the same from outside:
+// an install still working through apt and the agent zip, and an install that ended without
+// leaving an agent behind. The first only needs more time; the second will never resolve on
+// its own. So while the agent is missing this asks the target what is going on - if the
+// install is still running, it keeps waiting up to the ceiling; if nothing is running, there
+// is nothing to wait for and it goes straight to reinstalling.
+//
+// A reinstall gets one more round. Two rounds that both end without an agent are reported as
+// a failure with what was seen each time, since a third would only spend more of the run's
+// time arriving at the same answer.
 func (l *LoadService) verifyMetricAgent(param RunLoadTestParam, rec *stepRecorder) error {
-	ctx, cancel := context.WithTimeout(context.Background(), agentVerifyTimeout)
+	rec.begin(constant.SubAgentProcess, "Checking the agent process")
+
+	var lastErr error
+	var attempts []string
+
+	for round := 1; round <= agentInstallRounds; round++ {
+		if round > 1 {
+			// The install script kills whatever holds the port before it starts, so running it
+			// again is the kill-and-reinstall - no separate teardown needed.
+			rec.progress(constant.SubAgentProcess, round,
+				fmt.Sprintf("Agent did not come up, reinstalling (round %d of %d)", round, agentInstallRounds),
+				fmt.Sprintf("previous round: %s", attempts[len(attempts)-1]))
+
+			arg := MonitoringAgentInstallationParams{NsId: param.NsId, InfraId: param.InfraId, NodeIds: []string{param.NodeId}}
+			if _, err := l.InstallMonitoringAgent(arg); err != nil {
+				lastErr = err
+				attempts = append(attempts, fmt.Sprintf("round %d: reinstall itself failed: %v", round, err))
+				continue
+			}
+		}
+
+		outcome, err := l.waitForAgentProcess(param, rec, round)
+		lastErr = err
+		attempts = append(attempts, fmt.Sprintf("round %d: %s", round, outcome))
+		if err != nil {
+			continue
+		}
+
+		rec.ok(constant.SubAgentProcess, "Agent process is running")
+
+		rec.begin(constant.SubAgentPort, "Waiting for the agent to answer")
+		if err := retryN(rec, constant.SubAgentPort, "Waiting for the agent to answer", agentVerifyAttempts, agentVerifyDelay, func() error {
+			return dial(param.AgentHostname, metricAgentPort)
+		}); err != nil {
+			lastErr = err
+			attempts = append(attempts, fmt.Sprintf("round %d: process up but nothing answered on %s: %v", round, metricAgentPort, err))
+			// The precheck already established that the port is not being filtered, so silence
+			// with a process up means the agent did not bind - which a reinstall can fix.
+			continue
+		}
+		rec.ok(constant.SubAgentPort, "Agent is answering")
+		return nil
+	}
+
+	detail := fmt.Sprintf(
+		"the metric agent on ns=%s infra=%s node=%s did not come up after %d install rounds:\n  %s\n"+
+			"each round waited up to %s for the agent, checking every %s, and kept waiting only while the install was still running.\n"+
+			"the install script starts the agent with nohup and reports success either way, so reaching here means it did not stay up.\n"+
+			"check on the target that java is present, that %s holds the unpacked agent, and that nothing else is bound to port %s.\n"+
+			"last error: %v",
+		param.NsId, param.InfraId, param.NodeId, agentInstallRounds,
+		strings.Join(attempts, "\n  "), agentUpCeiling, agentPollDelay, agentWorkDir, metricAgentPort, lastErr)
+	rec.fail(constant.SubAgentProcess, "Metric agent could not be started", detail)
+	if lastErr == nil {
+		lastErr = fmt.Errorf("metric agent did not come up")
+	}
+	return lastErr
+}
+
+// waitForAgentProcess waits for the agent process to appear, giving up early when there is
+// nothing left to wait for. It returns a sentence describing what it saw, for the failure
+// detail - a wait that ended because the install was still going says something different
+// from one that ended because nothing was running at all.
+func (l *LoadService) waitForAgentProcess(param RunLoadTestParam, rec *stepRecorder, round int) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), agentUpCeiling+agentProbeGrace)
 	defer cancel()
 
-	rec.begin(constant.SubAgentProcess, "Checking the agent process")
-	if err := retryN(rec, constant.SubAgentProcess, "Checking the agent process", agentVerifyAttempts, agentVerifyDelay, func() error {
-		return l.probeAgentProcess(ctx, param.NsId, param.InfraId, param.NodeId)
-	}); err != nil {
-		rec.fail(constant.SubAgentProcess, "Metric agent not running", fmt.Sprintf(
-			"looked for a ServerAgent process on ns=%s infra=%s node=%s %d times over %s; last error: %v\n"+
-				"the install script starts the agent with nohup and reports success either way, so a failure here means it did not stay up - check java on the target and /opt/perfmon-agent",
-			param.NsId, param.InfraId, param.NodeId, agentVerifyAttempts,
-			agentVerifyDelay*time.Duration(agentVerifyAttempts-1), err))
-		return err
-	}
-	rec.ok(constant.SubAgentProcess, "Agent process is running")
+	deadline := time.Now().Add(agentUpCeiling)
+	var lastErr error
+	sawInstaller := false
 
-	rec.begin(constant.SubAgentPort, "Waiting for the agent to answer")
-	if err := retryN(rec, constant.SubAgentPort, "Waiting for the agent to answer", agentVerifyAttempts, agentVerifyDelay, func() error {
-		return dial(param.AgentHostname, metricAgentPort)
-	}); err != nil {
-		rec.fail(constant.SubAgentPort, fmt.Sprintf("Metric agent silent on port %s", metricAgentPort), fmt.Sprintf(
-			"the agent process is running on %s but nothing answered on port %s after %d attempts over %s; last error: %v\n"+
-				"the process being up rules out a failed start, so this is almost always the security group",
-			param.AgentHostname, metricAgentPort, agentVerifyAttempts,
-			agentVerifyDelay*time.Duration(agentVerifyAttempts-1), err))
-		return err
+	for attempt := 1; ; attempt++ {
+		if err := l.probeAgentProcess(ctx, param.NsId, param.InfraId, param.NodeId); err == nil {
+			return fmt.Sprintf("agent came up after %d checks", attempt), nil
+		} else {
+			lastErr = err
+		}
+
+		installing, err := l.probeAgentInstalling(ctx, param.NsId, param.InfraId, param.NodeId)
+		if err != nil {
+			// Not being able to ask is itself worth reporting, but it is not proof the install
+			// has stopped - keep waiting rather than reinstalling on a lost packet.
+			installing = true
+		}
+		if !installing {
+			if sawInstaller {
+				return "the install finished but left no agent process", fmt.Errorf("install finished without leaving an agent: %w", lastErr)
+			}
+			return "no agent and no install running", fmt.Errorf("no agent process and no install in progress: %w", lastErr)
+		}
+		sawInstaller = true
+
+		if time.Now().After(deadline) {
+			return fmt.Sprintf("install still running after %s", agentUpCeiling),
+				fmt.Errorf("install still running after %s without producing an agent: %w", agentUpCeiling, lastErr)
+		}
+
+		rec.progress(constant.SubAgentProcess, round,
+			fmt.Sprintf("Installing the agent (%ds elapsed)", int(agentUpCeiling.Seconds())-int(time.Until(deadline).Seconds())),
+			"the install is still running on the target")
+		time.Sleep(agentPollDelay)
 	}
-	rec.ok(constant.SubAgentPort, "Agent is answering")
-	return nil
 }
 
 const (
 	agentVerifyAttempts = 5
 	agentVerifyDelay    = 3 * time.Second
-	agentVerifyTimeout  = 60 * time.Second
+
+	// A healthy install lands well inside this; the ceiling is here so an install that never
+	// finishes becomes an answer instead of an open-ended wait.
+	agentUpCeiling  = 2 * time.Minute
+	agentPollDelay  = 5 * time.Second
+	agentProbeGrace = 30 * time.Second
+
+	agentInstallRounds = 2
+
+	agentWorkDir = "/opt/perfmon-agent"
 )
 
 // probeAgentProcess asks the target whether the agent process exists.
@@ -360,6 +453,29 @@ func (l *LoadService) probeAgentProcess(ctx context.Context, nsId, infraId, node
 		return fmt.Errorf("agent process not found on the target")
 	}
 	return nil
+}
+
+// probeAgentInstalling asks whether an install is still working on the target.
+//
+// This is what separates "give it more time" from "it is never going to finish". The install
+// spends nearly all of its time in apt fetching a JRE, then briefly in wget and unzip on the
+// agent release, and ends by starting the agent - so those are what it looks for. The dpkg
+// lock is included because an install blocked behind another package operation is still an
+// install in progress, and killing it would leave a half-configured target behind.
+func (l *LoadService) probeAgentInstalling(ctx context.Context, nsId, infraId, nodeId string) (bool, error) {
+	res, err := l.tumblebugClient.CommandToVmWithContext(ctx, nsId, infraId, nodeId, tumblebug.SendCommandReq{
+		Command: []string{
+			"if pgrep -f '[a]pt-get' >/dev/null || pgrep -f '[d]pkg' >/dev/null || " +
+				"pgrep -f '[w]get.*perfmon-agent' >/dev/null || pgrep -f '[u]nzip.*ServerAgent' >/dev/null || " +
+				"pgrep -f '[s]tartAgent.sh' >/dev/null || fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; " +
+				"then echo install-running; else echo install-idle; fi",
+		},
+		UserName: "cb-user",
+	})
+	if err != nil {
+		return false, err
+	}
+	return strings.Contains(res, "install-running"), nil
 }
 
 // retryN is retry with the attempt count and delay supplied by the caller.
