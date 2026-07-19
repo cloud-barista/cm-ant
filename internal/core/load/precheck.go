@@ -28,7 +28,33 @@ const (
 	precheckHTTPTimeout   = 10 * time.Second
 	precheckRemoteTimeout = 30 * time.Second
 	metricAgentPort       = "5555"
+
+	// A single failed attempt is not enough to call something closed. A healthy target answers
+	// immediately, so retrying costs almost nothing when things are fine, and it keeps a
+	// momentary network hiccup from being reported as a firewall problem. The attempt count
+	// goes into the step message, so a check that needed retries reads as a warning sign even
+	// when it eventually passes.
+	precheckAttempts   = 3
+	precheckRetryDelay = 2 * time.Second
 )
+
+// retry runs check until it passes, reporting each attempt so the console can show that
+// something needed more than one try. Only the latest state is kept, which is enough: seeing
+// "attempt 2" means the first one failed.
+func retry(rec *stepRecorder, step constant.ExecutionStep, what string, check func() error) error {
+	var err error
+	for attempt := 1; attempt <= precheckAttempts; attempt++ {
+		if attempt > 1 {
+			rec.progress(step, attempt, fmt.Sprintf("%s (attempt %d of %d)", what, attempt, precheckAttempts),
+				fmt.Sprintf("previous attempt failed: %v", err))
+			time.Sleep(precheckRetryDelay)
+		}
+		if err = check(); err == nil {
+			return nil
+		}
+	}
+	return err
+}
 
 // precheckOutcome carries what the run needs to know afterwards.
 type precheckOutcome struct {
@@ -68,8 +94,14 @@ func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, r
 	// load will hit, and a target that answers from here may still be unreachable from the
 	// generator. So the configured request is sent once, and the status code is kept.
 	rec.begin(constant.SubTargetReachable, "Sending a test request to the target")
-	if code, err := probeTarget(ctx, param.HttpReqs); err != nil {
-		msg := fmt.Sprintf("Cannot reach the target on port %s. Open the port in the security group, or check that the service is running.", portOf(param.HttpReqs))
+	var code int
+	err = retry(rec, constant.SubTargetReachable, "Sending a test request to the target", func() error {
+		var e error
+		code, e = probeTarget(ctx, param.HttpReqs)
+		return e
+	})
+	if err != nil {
+		msg := fmt.Sprintf("Cannot reach the target on port %s after %d attempts. Open the port in the security group, or check that the service is running.", portOf(param.HttpReqs), precheckAttempts)
 		rec.fail(constant.SubTargetReachable, msg, err.Error())
 		rec.fail(constant.StepPrecheck, msg, err.Error())
 		return out, fmt.Errorf("target is not reachable: %w", err)
@@ -86,7 +118,9 @@ func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, r
 	// ── the metric agent port ───────────────────────────────────────────────────────────
 	if param.CollectAdditionalSystemMetrics {
 		rec.begin(constant.SubMetricPortOpen, "Checking the metric agent port")
-		if err := dial(vm.PublicIP, metricAgentPort); err != nil {
+		if err := retry(rec, constant.SubMetricPortOpen, "Checking the metric agent port", func() error {
+			return dial(vm.PublicIP, metricAgentPort)
+		}); err != nil {
 			out.MetricsReachable = false
 			msg := fmt.Sprintf("Metric port %s is closed, so the run continues without CPU and memory figures. Add %s inbound to the security group to collect them.", metricAgentPort, metricAgentPort)
 			// Not a failure: the load test itself is unaffected.
@@ -105,7 +139,9 @@ func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, r
 	// remote command. If that does not work, every later step fails in a way that is much
 	// harder to read than this one line.
 	rec.begin(constant.SubRemoteCommand, "Running a test command on the target")
-	if err := l.probeRemoteCommand(ctx, param.NsId, param.InfraId, param.NodeId); err != nil {
+	if err := retry(rec, constant.SubRemoteCommand, "Running a test command on the target", func() error {
+		return l.probeRemoteCommand(ctx, param.NsId, param.InfraId, param.NodeId)
+	}); err != nil {
 		msg := "Cannot run remote commands on the target node. Check SSH access and the node agent."
 		rec.fail(constant.SubRemoteCommand, msg, err.Error())
 		rec.fail(constant.StepPrecheck, msg, err.Error())
@@ -188,4 +224,71 @@ func (l *LoadService) probeRemoteCommand(ctx context.Context, nsId, infraId, nod
 		return fmt.Errorf("remote command returned without executing")
 	}
 	return nil
+}
+
+// verifyMetricAgent waits for the agent to actually be up rather than trusting the install
+// call, which returns as soon as the remote command does (BAR-1552).
+//
+// The agent is started with nohup, so there is a gap between the script returning and the
+// port accepting connections. Short repeated checks cover that gap; giving up after them is
+// what turns "never going to answer" into an answer, instead of a wait with no end.
+func (l *LoadService) verifyMetricAgent(param RunLoadTestParam, rec *stepRecorder) error {
+	ctx, cancel := context.WithTimeout(context.Background(), agentVerifyTimeout)
+	defer cancel()
+
+	rec.begin(constant.SubAgentProcess, "Checking the agent process")
+	if err := retryN(rec, constant.SubAgentProcess, "Checking the agent process", agentVerifyAttempts, agentVerifyDelay, func() error {
+		return l.probeAgentProcess(ctx, param.NsId, param.InfraId, param.NodeId)
+	}); err != nil {
+		rec.fail(constant.SubAgentProcess, "The metric agent is not running on the target", err.Error())
+		return err
+	}
+	rec.ok(constant.SubAgentProcess, "Agent process is running")
+
+	rec.begin(constant.SubAgentPort, "Waiting for the agent to answer")
+	if err := retryN(rec, constant.SubAgentPort, "Waiting for the agent to answer", agentVerifyAttempts, agentVerifyDelay, func() error {
+		return dial(param.AgentHostname, metricAgentPort)
+	}); err != nil {
+		rec.fail(constant.SubAgentPort, fmt.Sprintf("The metric agent is not answering on port %s", metricAgentPort), err.Error())
+		return err
+	}
+	rec.ok(constant.SubAgentPort, "Agent is answering")
+	return nil
+}
+
+const (
+	agentVerifyAttempts = 5
+	agentVerifyDelay    = 3 * time.Second
+	agentVerifyTimeout  = 60 * time.Second
+)
+
+// probeAgentProcess asks the target whether the agent process exists.
+func (l *LoadService) probeAgentProcess(ctx context.Context, nsId, infraId, nodeId string) error {
+	res, err := l.tumblebugClient.CommandToVmWithContext(ctx, nsId, infraId, nodeId, tumblebug.SendCommandReq{
+		Command:  []string{"pgrep -f ServerAgent >/dev/null && echo agent-up || echo agent-down"},
+		UserName: "cb-user",
+	})
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(res, "agent-up") {
+		return fmt.Errorf("agent process not found on the target")
+	}
+	return nil
+}
+
+// retryN is retry with the attempt count and delay supplied by the caller.
+func retryN(rec *stepRecorder, step constant.ExecutionStep, what string, attempts int, delay time.Duration, check func() error) error {
+	var err error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		if attempt > 1 {
+			rec.progress(step, attempt, fmt.Sprintf("%s (attempt %d of %d)", what, attempt, attempts),
+				fmt.Sprintf("previous attempt failed: %v", err))
+			time.Sleep(delay)
+		}
+		if err = check(); err == nil {
+			return nil
+		}
+	}
+	return err
 }

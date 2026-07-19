@@ -45,6 +45,10 @@ var subStepSeq = map[constant.ExecutionStep]int{
 	constant.SubTargetReachable: 3,
 	constant.SubMetricPortOpen:  4,
 	constant.SubRemoteCommand:   5,
+
+	constant.SubAgentInstall: 1,
+	constant.SubAgentProcess: 2,
+	constant.SubAgentPort:    3,
 }
 
 // stepRecorder persists per-step progress of a running load test so the web console can show
@@ -391,8 +395,24 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 			return
 		}
 
-		rec.ok(constant.StepAgentInstall, "Monitoring agent installed")
-		log.Info().Msgf("metrics agent installed successfully for load test; %s %s %s", arg.NsId, arg.InfraId, arg.NodeIds)
+		rec.ok(constant.SubAgentInstall, "Monitoring agent files installed")
+
+		// Installed is not the same as running, and running is not the same as answering.
+		// The install call reports success as soon as the remote command returns, and the
+		// script behind it starts the agent with nohup and prints success either way — so a
+		// target with no agent process at all was reported as installed, and the run then
+		// spent 27 minutes waiting on a port that was never going to answer (BAR-1552).
+		if err := l.verifyMetricAgent(param, rec); err != nil {
+			// Losing metrics is not worth failing the run for. Say what happened, drop the
+			// metrics and carry on with the load figures.
+			param.CollectAdditionalSystemMetrics = false
+			loadTestExecutionState.WithMetrics = false
+			rec.skip(constant.StepAgentInstall, "Continuing without metrics - the agent is not answering")
+			log.Warn().Msgf("metric agent unavailable, continuing without metrics; %v", err)
+		} else {
+			rec.ok(constant.StepAgentInstall, "Monitoring agent installed")
+			log.Info().Msgf("metrics agent installed successfully for load test; %s %s %s", arg.NsId, arg.InfraId, arg.NodeIds)
+		}
 	} else {
 		rec.skip(constant.StepAgentInstall, "Additional metrics not collected")
 	}
