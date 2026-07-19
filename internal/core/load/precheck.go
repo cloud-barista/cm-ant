@@ -361,9 +361,11 @@ func (l *LoadService) verifyMetricAgent(param RunLoadTestParam, rec *stepRecorde
 			"each round waited up to %s for the agent, checking every %s, and kept waiting only while the install was still running.\n"+
 			"the install script starts the agent with nohup and reports success either way, so reaching here means it did not stay up.\n"+
 			"check on the target that java is present, that %s holds the unpacked agent, and that nothing else is bound to port %s.\n"+
+			"the install script's own account of each round is in %s, with the phase it reached in %s.\n"+
 			"last error: %v",
 		param.NsId, param.InfraId, param.NodeId, agentInstallRounds,
-		strings.Join(attempts, "\n  "), agentUpCeiling, agentPollDelay, agentWorkDir, metricAgentPort, lastErr)
+		strings.Join(attempts, "\n  "), agentUpCeiling, agentPollDelay, agentWorkDir, metricAgentPort,
+		agentInstallLogFile, agentInstallStateFile, lastErr)
 	rec.fail(constant.SubAgentProcess, "Metric agent could not be started", detail)
 	if lastErr == nil {
 		lastErr = fmt.Errorf("metric agent did not come up")
@@ -383,6 +385,8 @@ func (l *LoadService) waitForAgentProcess(param RunLoadTestParam, rec *stepRecor
 	var lastErr error
 	sawInstaller := false
 
+	started := time.Now()
+
 	for attempt := 1; ; attempt++ {
 		if err := l.probeAgentProcess(ctx, param.NsId, param.InfraId, param.NodeId); err == nil {
 			return fmt.Sprintf("agent came up after %d checks", attempt), nil
@@ -390,30 +394,60 @@ func (l *LoadService) waitForAgentProcess(param RunLoadTestParam, rec *stepRecor
 			lastErr = err
 		}
 
-		installing, err := l.probeAgentInstalling(ctx, param.NsId, param.InfraId, param.NodeId)
-		if err != nil {
-			// Not being able to ask is itself worth reporting, but it is not proof the install
-			// has stopped - keep waiting rather than reinstalling on a lost packet.
-			installing = true
-		}
+		installing, what := l.installProgress(ctx, param)
 		if !installing {
 			if sawInstaller {
-				return "the install finished but left no agent process", fmt.Errorf("install finished without leaving an agent: %w", lastErr)
+				return fmt.Sprintf("the install stopped at '%s' and left no agent process", what),
+					fmt.Errorf("install stopped at %s without leaving an agent: %w", what, lastErr)
 			}
-			return "no agent and no install running", fmt.Errorf("no agent process and no install in progress: %w", lastErr)
+			return fmt.Sprintf("no agent and no install running (%s)", what),
+				fmt.Errorf("no agent process and no install in progress: %w", lastErr)
 		}
 		sawInstaller = true
 
 		if time.Now().After(deadline) {
-			return fmt.Sprintf("install still running after %s", agentUpCeiling),
-				fmt.Errorf("install still running after %s without producing an agent: %w", agentUpCeiling, lastErr)
+			return fmt.Sprintf("still at '%s' after %s", what, agentUpCeiling),
+				fmt.Errorf("install still at %s after %s without producing an agent: %w", what, agentUpCeiling, lastErr)
 		}
 
+		// The phase is the point of this message. "45s elapsed" only says time is passing;
+		// "downloading the agent, 45s" says whether that is reasonable.
 		rec.progress(constant.SubAgentProcess, round,
-			fmt.Sprintf("Installing the agent (%ds elapsed)", int(agentUpCeiling.Seconds())-int(time.Until(deadline).Seconds())),
-			"the install is still running on the target")
+			fmt.Sprintf("Installing the agent - %s (%ds)", what, int(time.Since(started).Seconds())),
+			fmt.Sprintf("the install is still running on the target; waiting up to %s", agentUpCeiling))
 		time.Sleep(agentPollDelay)
 	}
+}
+
+// installProgress answers whether an install is still going, and what it is doing.
+//
+// The script's own marker is the first source, because it is the only one that can report a
+// failure: an install that died leaves no process, which is indistinguishable from one that
+// never started. Targets whose agent predates the marker have no file, and there the process
+// list is all there is - so it stays as a fallback rather than the primary answer.
+//
+// A target that cannot be asked at all is treated as still installing. A lost packet is not
+// evidence that the install stopped, and reinstalling on one would interrupt work in progress.
+func (l *LoadService) installProgress(ctx context.Context, param RunLoadTestParam) (bool, string) {
+	st, err := l.probeAgentInstallState(ctx, param.NsId, param.InfraId, param.NodeId)
+	if err != nil {
+		return true, "could not read the install state"
+	}
+	if st.Phase != "" {
+		if st.Phase == "failed" && st.Detail != "" {
+			return false, fmt.Sprintf("install failed: %s", st.Detail)
+		}
+		return st.Running(), st.Describe()
+	}
+
+	installing, err := l.probeAgentInstalling(ctx, param.NsId, param.InfraId, param.NodeId)
+	if err != nil {
+		return true, "could not read the process list"
+	}
+	if installing {
+		return true, "install running (no state recorded)"
+	}
+	return false, "no install recorded and nothing running"
 }
 
 const (
@@ -429,6 +463,11 @@ const (
 	agentInstallRounds = 2
 
 	agentWorkDir = "/opt/perfmon-agent"
+
+	// Written by script/install-server-agent.sh as it goes. Kept outside the agent directory
+	// so a failure before that directory exists is still recorded.
+	agentInstallStateFile = "/var/tmp/cm-ant-agent-install.state"
+	agentInstallLogFile   = "/var/tmp/cm-ant-agent-install.log"
 )
 
 // probeAgentProcess asks the target whether the agent process exists.
@@ -455,13 +494,91 @@ func (l *LoadService) probeAgentProcess(ctx context.Context, nsId, infraId, node
 	return nil
 }
 
-// probeAgentInstalling asks whether an install is still working on the target.
+// agentInstallState is what the install script last said about itself.
+type agentInstallState struct {
+	Phase  string // preparing, dependencies, downloading, unpacking, present, starting, started, failed
+	Detail string
+	Raw    string
+}
+
+// Running reports whether the install still has work in front of it. "started" is not running:
+// the script has done all it can and the agent either came up or did not.
+func (s agentInstallState) Running() bool {
+	switch s.Phase {
+	case "preparing", "dependencies", "downloading", "unpacking", "present", "starting":
+		return true
+	default:
+		return false
+	}
+}
+
+// Describe renders the phase for a step message - what the target is actually doing, rather
+// than a spinner that says only that time is passing.
+func (s agentInstallState) Describe() string {
+	switch s.Phase {
+	case "preparing":
+		return "preparing the target"
+	case "dependencies":
+		return "installing java and tools"
+	case "downloading":
+		return "downloading the agent"
+	case "unpacking":
+		return "unpacking the agent"
+	case "present":
+		return "agent already present"
+	case "starting":
+		return "starting the agent"
+	case "started":
+		return "agent start reported"
+	case "failed":
+		return "install failed"
+	case "":
+		return "no install recorded"
+	default:
+		return s.Phase
+	}
+}
+
+// probeAgentInstallState reads the marker the install script writes as it goes.
 //
-// This is what separates "give it more time" from "it is never going to finish". The install
-// spends nearly all of its time in apt fetching a JRE, then briefly in wget and unzip on the
-// agent release, and ends by starting the agent - so those are what it looks for. The dpkg
-// lock is included because an install blocked behind another package operation is still an
-// install in progress, and killing it would leave a half-configured target behind.
+// This is what separates "give it more time" from "it is never going to finish", and the
+// script saying so directly beats inferring it from the process list: an apt running on the
+// target is not necessarily ours, and a failed install leaves no process at all - it looks
+// exactly like one that never started. The script records a phase before each stage and
+// records "failed" from an ERR trap, so both of those become answers instead of guesses.
+//
+// A target whose agent was installed before this marker existed has no file. That is reported
+// as an empty phase rather than an error, and the caller falls back to the process list.
+func (l *LoadService) probeAgentInstallState(ctx context.Context, nsId, infraId, nodeId string) (agentInstallState, error) {
+	res, err := l.tumblebugClient.CommandToVmWithContext(ctx, nsId, infraId, nodeId, tumblebug.SendCommandReq{
+		Command:  []string{fmt.Sprintf("cat %s 2>/dev/null || true", agentInstallStateFile)},
+		UserName: "cb-user",
+	})
+	if err != nil {
+		return agentInstallState{}, err
+	}
+
+	line := lastNonEmptyLine(res)
+	if line == "" {
+		return agentInstallState{}, nil
+	}
+
+	// timestamp \t phase \t detail
+	parts := strings.SplitN(line, "\t", 3)
+	st := agentInstallState{Raw: line}
+	if len(parts) > 1 {
+		st.Phase = strings.TrimSpace(parts[1])
+	}
+	if len(parts) > 2 {
+		st.Detail = strings.TrimSpace(parts[2])
+	}
+	return st, nil
+}
+
+// probeAgentInstalling falls back to the process list for targets whose install predates the
+// state marker. It looks for what the install actually spends its time on: apt fetching a JRE,
+// then the agent download and unpack, then the start script. The dpkg lock counts too, since
+// an install blocked behind another package operation is still an install in progress.
 func (l *LoadService) probeAgentInstalling(ctx context.Context, nsId, infraId, nodeId string) (bool, error) {
 	res, err := l.tumblebugClient.CommandToVmWithContext(ctx, nsId, infraId, nodeId, tumblebug.SendCommandReq{
 		Command: []string{
@@ -476,6 +593,16 @@ func (l *LoadService) probeAgentInstalling(ctx context.Context, nsId, infraId, n
 		return false, err
 	}
 	return strings.Contains(res, "install-running"), nil
+}
+
+func lastNonEmptyLine(s string) string {
+	lines := strings.Split(strings.TrimSpace(s), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if t := strings.TrimSpace(lines[i]); t != "" {
+			return t
+		}
+	}
+	return ""
 }
 
 // retryN is retry with the attempt count and delay supplied by the caller.

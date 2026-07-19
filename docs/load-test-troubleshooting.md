@@ -69,8 +69,18 @@ Each step shows a short line, with the explanation behind it on hover.
 
 The agent install fetches a JRE through apt and then unpacks the agent release, so on a target
 that has never run a load test it takes a while — usually well under a minute, longer on a
-small instance or a slow mirror. The step does not simply wait out a fixed time. While no agent
-process is there, it asks the target whether an install is still running, and:
+small instance or a slow mirror.
+
+The install script records what it is doing as it goes, so the step message names the phase
+rather than just counting seconds — `Installing the agent - downloading the agent (45s)`. That
+is the difference between a slow mirror and a stuck install, and it is also how a *failed*
+install becomes visible: a dead install leaves no process behind, which from outside looks
+exactly like one that never started. The script writes its phase to
+`/var/tmp/cm-ant-agent-install.state` and the full sequence to
+`/var/tmp/cm-ant-agent-install.log`; both are worth reading when a target keeps failing.
+
+The step does not simply wait out a fixed time. While no agent process is there, it asks the
+target what the install is doing, and:
 
 - **an install is running** — it keeps waiting, up to two minutes, reporting the elapsed time
 - **nothing is running** — there is nothing to wait for, so it reinstalls immediately rather
