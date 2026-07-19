@@ -29,11 +29,22 @@ func getResourceNames() (nsId, mciId, vmName, sshKeyBase string) {
 
 // stepSeq fixes the display order of the execution steps (FR-MA2-PERF-007-08).
 var stepSeq = map[constant.ExecutionStep]int{
-	constant.StepGeneratorInstall: 1,
-	constant.StepAgentInstall:     2,
-	constant.StepJmxPrepare:       3,
-	constant.StepJmeterRun:        4,
-	constant.StepResultFetch:      5,
+	constant.StepPrecheck:         1,
+	constant.StepGeneratorInstall: 2,
+	constant.StepAgentInstall:     3,
+	constant.StepJmxPrepare:       4,
+	constant.StepJmeterRun:        5,
+	constant.StepResultFetch:      6,
+}
+
+// subStepSeq orders the sub-steps within their phase. They are seeded alongside the phases so
+// the console can draw the whole tree from the first poll rather than watching rows appear.
+var subStepSeq = map[constant.ExecutionStep]int{
+	constant.SubTargetExists:    1,
+	constant.SubTargetRunning:   2,
+	constant.SubTargetReachable: 3,
+	constant.SubMetricPortOpen:  4,
+	constant.SubRemoteCommand:   5,
 }
 
 // stepRecorder persists per-step progress of a running load test so the web console can show
@@ -55,7 +66,11 @@ func (s *stepRecorder) upsert(step *LoadTestExecutionStep) {
 	}
 	step.LoadTestExecutionStateId = s.state.ID
 	step.LoadTestKey = s.state.LoadTestKey
-	step.Seq = stepSeq[step.Name]
+	if seq, ok := stepSeq[step.Name]; ok {
+		step.Seq = seq
+	} else {
+		step.Seq = subStepSeq[step.Name]
+	}
 	if err := s.l.loadRepo.UpsertLoadTestExecutionStepTx(context.Background(), step); err != nil {
 		log.Warn().Msgf("failed to record execution step %s; %v", step.Name, err)
 	}
@@ -64,6 +79,9 @@ func (s *stepRecorder) upsert(step *LoadTestExecutionStep) {
 // seed creates the full pipeline as pending so the web can render every step upfront.
 func (s *stepRecorder) seed() {
 	for name := range stepSeq {
+		s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepPending})
+	}
+	for name := range subStepSeq {
 		s.upsert(&LoadTestExecutionStep{Name: name, Status: constant.StepPending})
 	}
 }
@@ -223,6 +241,22 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		globalErr = occuredError
 		finishAt := time.Now()
 		loadTestExecutionState.FinishAt = &finishAt
+	}
+
+	// Check the environment before building anything (BAR-1553). A missing target or a closed
+	// port is answered in seconds here, instead of surfacing minutes into a run.
+	precheckCtx, cancelPrecheck := context.WithTimeout(context.Background(), 2*time.Minute)
+	outcome, err := l.runPrecheck(precheckCtx, param, rec)
+	cancelPrecheck()
+	if err != nil {
+		failed(fmt.Sprintf("Precheck failed: %v", err), err)
+		return
+	}
+	if !outcome.MetricsReachable {
+		// Say it once, up front. Otherwise it shows up at the end as missing metric files,
+		// which reads like a collection failure rather than a closed port.
+		param.CollectAdditionalSystemMetrics = false
+		loadTestExecutionState.WithMetrics = false
 	}
 
 	if param.LoadGeneratorInstallInfoId == uint(0) {
