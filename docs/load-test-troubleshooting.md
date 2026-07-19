@@ -53,10 +53,23 @@ Each step shows a short line, with the explanation behind it on hover.
 | `Target port 80 unreachable` | Nothing answered the configured request | Check, in order: the service is listening on the target, the security group allows inbound on that port, the node has a reachable address |
 | `Target answered with status 404` | The target is alive but that path is not serving | Check the request path. The run continues — an endpoint that returns an error may be what you meant to test |
 | `Metric port 5555 closed` | The metric agent port is not reachable | Add 5555 inbound to the security group and run again, or clear **Collect Additional System Metrics** to run without them |
-| `Remote command failed on the target` | cb-tumblebug could not run a command on the node | Check SSH access and the node agent. Nothing else can proceed without this |
+| `Remote command failed on the target` | cb-tumblebug could not run a command on the node | If the node started recently, wait a few minutes and try again (see below). Otherwise check port 22 and the address cb-tumblebug holds for the node |
 | `Metric agent not running` | The agent was installed but no process is up | Check java on the target and `/opt/perfmon-agent`. The install script starts the agent with nohup and reports success either way, so this means it did not stay up |
 | `Metric agent silent on port 5555` | The process is up but nothing answers | The process being up rules out a failed start, so this is almost always the security group |
 | `Results collected, without network metrics` | The load figures are in; one metric file never arrived | The charts for that metric will be empty. The run is otherwise complete |
+
+## When a node has just started
+
+Remote command failures right after a node starts are usually a matter of timing rather than
+configuration. On AWS, ssh can take several minutes to accept connections after a boot, and
+small instance types take longer. The check waits ten seconds per attempt rather than sitting
+through it, so the answer comes back quickly and the run can be retried once the node has
+settled.
+
+A stop and start also gives the node a new public address. cb-tumblebug picks the new one up
+when the node is stopped and started through it, but the two can drift apart — if a run fails
+to reach a node that looks healthy in the provider console, compare the address cb-tumblebug
+holds against the one the provider shows.
 
 ## While a run is going
 

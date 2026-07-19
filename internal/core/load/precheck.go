@@ -23,10 +23,22 @@ import (
 // run behaved, not about the environment it was given.
 
 const (
-	precheckDialTimeout   = 5 * time.Second
-	precheckHTTPTimeout   = 10 * time.Second
-	precheckRemoteTimeout = 30 * time.Second
-	metricAgentPort       = "5555"
+	precheckDialTimeout = 5 * time.Second
+	precheckHTTPTimeout = 10 * time.Second
+	// A working remote command answers in about a second, so waiting half a minute for one
+	// buys nothing and delays the very finding this check exists to deliver quickly. Ten
+	// seconds is ten times the normal round trip.
+	//
+	// Waiting longer would not help in the usual case either: after a node restarts, ssh often
+	// takes minutes to accept connections - more so on small instance types - so this is a
+	// "try again shortly" situation rather than something to sit through.
+	precheckRemoteTimeout = 10 * time.Second
+
+	// Attempts are spaced further apart than the other checks. Cutting a request short on our
+	// side does not stop cb-tumblebug working on it, so retrying immediately would stack
+	// requests against a service that is already struggling to answer.
+	remoteRetryDelay = 5 * time.Second
+	metricAgentPort  = "5555"
 
 	// A single failed attempt is not enough to call something closed. A healthy target answers
 	// immediately, so retrying costs almost nothing when things are fine, and it keeps a
@@ -158,13 +170,16 @@ func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, r
 	// remote command. If that does not work, every later step fails in a way that is much
 	// harder to read than this one line.
 	rec.begin(constant.SubRemoteCommand, "Running a test command on the target")
-	if err := retry(rec, constant.SubRemoteCommand, "Running a test command on the target", func() error {
-		return l.probeRemoteCommand(ctx, param.NsId, param.InfraId, param.NodeId)
-	}); err != nil {
+	if err := retryN(rec, constant.SubRemoteCommand, "Running a test command on the target",
+		precheckAttempts, remoteRetryDelay, func() error {
+			return l.probeRemoteCommand(ctx, param.NsId, param.InfraId, param.NodeId)
+		}); err != nil {
 		msg := "Remote command failed on the target"
 		rec.fail(constant.SubRemoteCommand, msg, fmt.Sprintf(
 			"asked cb-tumblebug to run 'echo' on ns=%s infra=%s node=%s as cb-user, %d times; last error: %v\n"+
-				"everything the run does to the target goes through this path, so it stops here",
+				"everything the run does to the target goes through this path, so it stops here\n"+
+				"if the node was started recently, ssh can take several minutes to accept connections - more so on small instance types - so try again shortly\n"+
+				"if it has been up a while, check that port 22 is open and that the address cb-tumblebug holds for the node still matches the one the provider shows (a stop and start changes it)",
 			param.NsId, param.InfraId, param.NodeId, precheckAttempts, err))
 		rec.fail(constant.StepPrecheck, msg, err.Error())
 		return fmt.Errorf("remote command failed: %w", err)
