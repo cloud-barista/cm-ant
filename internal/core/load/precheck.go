@@ -127,14 +127,22 @@ func (l *LoadService) runPrecheck(ctx context.Context, param RunLoadTestParam, r
 		if err := retry(rec, constant.SubMetricPortOpen, "Checking the metric agent port", func() error {
 			return dial(vm.PublicIP, metricAgentPort)
 		}); err != nil {
-			// The short line goes on screen; the detail is what a hover reveals.
-			msg := fmt.Sprintf("Metric port %s closed", metricAgentPort)
+			// A refused connection and one that times out call for opposite fixes, and telling
+			// someone to open a port that is already open sends them looking in the wrong
+			// place. Refused means the host answered and nothing was listening - the agent is
+			// down. A timeout means nothing answered at all - the packets are being dropped.
+			msg := fmt.Sprintf("Metric port %s unreachable", metricAgentPort)
+			cause := fmt.Sprintf("Add %s inbound to the security group, then run the test again.", metricAgentPort)
+			if isConnectionRefused(err) {
+				msg = "Metric agent not running"
+				cause = "The port is reachable but nothing is listening, so the metric agent is not running on the target. Check java on the target and /opt/perfmon-agent."
+			}
 			detail := fmt.Sprintf(
-				"Metric port %s on %s is closed - add %s inbound to the security group, then run the test again.\n"+
-					"System metrics cannot be measured while it is closed.\n"+
+				"Could not reach the metric agent on %s:%s. %s\n"+
+					"System metrics cannot be measured until this is resolved.\n"+
 					"If system performance figures are not needed, clear 'Collect Additional System Metrics' in the load configuration and run again.\n"+
 					"(tried %d times with a %s timeout; last error: %v)",
-				metricAgentPort, vm.PublicIP, metricAgentPort, precheckAttempts, precheckDialTimeout, err)
+				vm.PublicIP, metricAgentPort, cause, precheckAttempts, precheckDialTimeout, err)
 			rec.fail(constant.SubMetricPortOpen, msg, detail)
 			rec.fail(constant.StepPrecheck, msg, detail)
 			return fmt.Errorf("metric agent port %s is not reachable: %w", metricAgentPort, err)
@@ -232,6 +240,13 @@ func portOf(reqs []RunLoadTestHttpParam) string {
 		return "?"
 	}
 	return reqs[0].Port
+}
+
+// isConnectionRefused reports whether the host answered and refused, as opposed to never
+// answering. The two mean different things: refused is a process that is not there, a timeout
+// is traffic that is not getting through.
+func isConnectionRefused(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "connection refused")
 }
 
 func dial(host, port string) error {
