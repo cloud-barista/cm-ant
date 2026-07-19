@@ -75,9 +75,11 @@ The install script records what it is doing as it goes, so the step message name
 rather than just counting seconds — `Installing the agent - downloading the agent (45s)`. That
 is the difference between a slow mirror and a stuck install, and it is also how a *failed*
 install becomes visible: a dead install leaves no process behind, which from outside looks
-exactly like one that never started. The script writes its phase to
-`/var/tmp/cm-ant-agent-install.state` and the full sequence to
-`/var/tmp/cm-ant-agent-install.log`; both are worth reading when a target keeps failing.
+exactly like one that never started.
+
+The script writes its current phase to `/var/tmp/cm-ant-agent-install.state` and the whole
+sequence, across reinstalls, to `/var/tmp/cm-ant-agent-install.log`. Both are worth reading
+when a target keeps failing — the log shows how far each round got before it stopped.
 
 The step does not simply wait out a fixed time. While no agent process is there, it asks the
 target what the install is doing, and:

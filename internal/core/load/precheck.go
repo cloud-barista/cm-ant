@@ -421,33 +421,28 @@ func (l *LoadService) waitForAgentProcess(param RunLoadTestParam, rec *stepRecor
 
 // installProgress answers whether an install is still going, and what it is doing.
 //
-// The script's own marker is the first source, because it is the only one that can report a
-// failure: an install that died leaves no process, which is indistinguishable from one that
-// never started. Targets whose agent predates the marker have no file, and there the process
-// list is all there is - so it stays as a fallback rather than the primary answer.
+// The script's marker is the only source, and it can be, because the script ships with cm-ant
+// and every install runs the current one. It is also the only source that can report a
+// failure: an install that died leaves no process, which from outside is indistinguishable
+// from one that never started.
 //
-// A target that cannot be asked at all is treated as still installing. A lost packet is not
-// evidence that the install stopped, and reinstalling on one would interrupt work in progress.
+// Two states mean "wait" rather than "give up", for the same reason - neither is evidence that
+// the install stopped, and reinstalling on either would interrupt work still in progress:
+// a target that cannot be asked (a lost packet), and a marker not yet written (the install was
+// issued moments ago and has not reached its first record). The ceiling ends both.
 func (l *LoadService) installProgress(ctx context.Context, param RunLoadTestParam) (bool, string) {
 	st, err := l.probeAgentInstallState(ctx, param.NsId, param.InfraId, param.NodeId)
 	if err != nil {
 		return true, "could not read the install state"
 	}
-	if st.Phase != "" {
-		if st.Phase == "failed" && st.Detail != "" {
-			return false, fmt.Sprintf("install failed: %s", st.Detail)
-		}
+	switch {
+	case st.Phase == "":
+		return true, "install has not reported yet"
+	case st.Phase == "failed" && st.Detail != "":
+		return false, fmt.Sprintf("install failed: %s", st.Detail)
+	default:
 		return st.Running(), st.Describe()
 	}
-
-	installing, err := l.probeAgentInstalling(ctx, param.NsId, param.InfraId, param.NodeId)
-	if err != nil {
-		return true, "could not read the process list"
-	}
-	if installing {
-		return true, "install running (no state recorded)"
-	}
-	return false, "no install recorded and nothing running"
 }
 
 const (
@@ -547,8 +542,8 @@ func (s agentInstallState) Describe() string {
 // exactly like one that never started. The script records a phase before each stage and
 // records "failed" from an ERR trap, so both of those become answers instead of guesses.
 //
-// A target whose agent was installed before this marker existed has no file. That is reported
-// as an empty phase rather than an error, and the caller falls back to the process list.
+// No file yet is reported as an empty phase rather than an error: the install was issued
+// moments ago and has not reached its first record.
 func (l *LoadService) probeAgentInstallState(ctx context.Context, nsId, infraId, nodeId string) (agentInstallState, error) {
 	res, err := l.tumblebugClient.CommandToVmWithContext(ctx, nsId, infraId, nodeId, tumblebug.SendCommandReq{
 		Command:  []string{fmt.Sprintf("cat %s 2>/dev/null || true", agentInstallStateFile)},
@@ -573,26 +568,6 @@ func (l *LoadService) probeAgentInstallState(ctx context.Context, nsId, infraId,
 		st.Detail = strings.TrimSpace(parts[2])
 	}
 	return st, nil
-}
-
-// probeAgentInstalling falls back to the process list for targets whose install predates the
-// state marker. It looks for what the install actually spends its time on: apt fetching a JRE,
-// then the agent download and unpack, then the start script. The dpkg lock counts too, since
-// an install blocked behind another package operation is still an install in progress.
-func (l *LoadService) probeAgentInstalling(ctx context.Context, nsId, infraId, nodeId string) (bool, error) {
-	res, err := l.tumblebugClient.CommandToVmWithContext(ctx, nsId, infraId, nodeId, tumblebug.SendCommandReq{
-		Command: []string{
-			"if pgrep -f '[a]pt-get' >/dev/null || pgrep -f '[d]pkg' >/dev/null || " +
-				"pgrep -f '[w]get.*perfmon-agent' >/dev/null || pgrep -f '[u]nzip.*ServerAgent' >/dev/null || " +
-				"pgrep -f '[s]tartAgent.sh' >/dev/null || fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; " +
-				"then echo install-running; else echo install-idle; fi",
-		},
-		UserName: "cb-user",
-	})
-	if err != nil {
-		return false, err
-	}
-	return strings.Contains(res, "install-running"), nil
 }
 
 func lastNonEmptyLine(s string) string {
