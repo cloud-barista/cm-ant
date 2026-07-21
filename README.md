@@ -195,7 +195,7 @@ To correctly use the  price and cost features provided by CM-ANT, the following 
 
 ## How to Use 🔍
 #### 👉 [CM-ANT Swagger API Doc](https://cloud-barista.github.io/api/?url=https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.yaml)
-#### 👉 [Simple and Sample guide](https://github.com/cloud-barista/cm-ant/wiki/CM%E2%80%90ANT-Simple--&-Sample-API-Usage-guide)
+#### 👉 [Simple & Sample API Usage Guide](docs/api-usage-guide.md)
 
 
 
