@@ -107,11 +107,19 @@ func (l *LoadService) fetchData(f *fetchDataParam) {
 // It returns as soon as everything is in. Otherwise it keeps going while progress is being
 // made - each round that brings a new file earns another round - and stops once a whole round
 // adds nothing, or when the overall deadline passes.
+//
+// Each result file is recorded as its own sub-step (BAR: result-fetch granularity), so a
+// collection that sits for a long time shows exactly which file it is still waiting on rather
+// than one opaque "Collecting results". A 30s run whose results take far longer is almost
+// always waiting on a specific metric csv here, and that file is now named as it waits.
 func (l *LoadService) collectResults(f *fetchDataParam) (fetchOutcome, error) {
 	deadline := time.Now().Add(resultCollectWindow)
 	var outcome fetchOutcome
 	var err error
 	previousMissing := -1
+
+	// Name every file we expect up front so the console draws the whole set from the first poll.
+	f.beginResultFileSteps()
 
 	for round := 1; ; round++ {
 		if f.isRunning() {
@@ -122,8 +130,13 @@ func (l *LoadService) collectResults(f *fetchDataParam) (fetchOutcome, error) {
 		outcome, err = rsyncFiles(f)
 		if err != nil {
 			log.Error().Msgf("error while fetching data from rsync %s", err.Error())
+			f.recordStep(constant.SubFileResult, "failed", "Load result file not collected", err.Error())
 			return outcome, err
 		}
+		// The main file is in (err == nil); flip it and any metric files that have arrived to ok,
+		// and leave the rest waiting with the round they are on.
+		f.recordResultFileProgress(outcome, round)
+
 		if len(outcome.MissingMetrics) == 0 {
 			return outcome, nil
 		}
@@ -133,6 +146,8 @@ func (l *LoadService) collectResults(f *fetchDataParam) (fetchOutcome, error) {
 
 		if !madeProgress || time.Now().After(deadline) {
 			log.Warn().Msgf("giving up on metric files after %d rounds: %v", round, outcome.MissingMetrics)
+			// The load figures are in; the missing metric files only cost their charts.
+			f.skipMissingMetricFiles(outcome)
 			return outcome, nil
 		}
 
@@ -140,6 +155,107 @@ func (l *LoadService) collectResults(f *fetchDataParam) (fetchOutcome, error) {
 			fmt.Sprintf("Collecting results - still waiting for %s", strings.Join(outcome.MissingMetrics, ", ")),
 			"metric files are written during the run and can arrive after the main result")
 		time.Sleep(resultCollectInterval)
+	}
+}
+
+// resultFilePrefixes lists the rsync prefixes this run collects: the main result, plus the
+// metric files when additional system metrics were requested. It matches rsyncFiles exactly.
+func (f *fetchDataParam) resultFilePrefixes() []string {
+	prefixes := []string{""}
+	if f.CollectAdditionalSystemMetrics {
+		prefixes = append(prefixes, "_cpu", "_disk", "_memory", "_network")
+	}
+	return prefixes
+}
+
+// resultFileStep maps an rsync prefix to its sub-step name.
+func resultFileStep(prefix string) constant.ExecutionStep {
+	switch prefix {
+	case "":
+		return constant.SubFileResult
+	case "_cpu":
+		return constant.SubFileCpu
+	case "_disk":
+		return constant.SubFileDisk
+	case "_memory":
+		return constant.SubFileMemory
+	case "_network":
+		return constant.SubFileNetwork
+	}
+	return ""
+}
+
+// resultFileLabel is the human name for a result file, used in the step message.
+func resultFileLabel(prefix string) string {
+	switch prefix {
+	case "":
+		return "load result"
+	case "_cpu":
+		return "cpu metrics"
+	case "_disk":
+		return "disk metrics"
+	case "_memory":
+		return "memory metrics"
+	case "_network":
+		return "network metrics"
+	}
+	return strings.TrimPrefix(prefix, "_")
+}
+
+// recordStep is a nil-safe helper for the file sub-steps.
+func (f *fetchDataParam) recordStep(name constant.ExecutionStep, status, message, detail string) {
+	if f.StepRec == nil || name == "" {
+		return
+	}
+	switch status {
+	case "ok":
+		f.StepRec.ok(name, message)
+	case "failed":
+		f.StepRec.fail(name, message, detail)
+	case "skipped":
+		f.StepRec.skip(name, message)
+	default:
+		f.StepRec.begin(name, message)
+	}
+}
+
+// beginResultFileSteps marks every expected file as waiting, so the set is visible from the start.
+func (f *fetchDataParam) beginResultFileSteps() {
+	for _, p := range f.resultFilePrefixes() {
+		f.recordStep(resultFileStep(p), "running", "Waiting for the "+resultFileLabel(p)+" file", "")
+	}
+}
+
+// recordResultFileProgress flips the files that have arrived to ok and leaves the rest waiting.
+func (f *fetchDataParam) recordResultFileProgress(outcome fetchOutcome, round int) {
+	if f.StepRec == nil {
+		return
+	}
+	missing := map[string]bool{}
+	for _, m := range outcome.MissingMetrics {
+		missing[m] = true
+	}
+	for _, p := range f.resultFilePrefixes() {
+		metric := strings.TrimPrefix(p, "_")
+		if p == "" {
+			f.StepRec.ok(constant.SubFileResult, "Load result file collected")
+			continue
+		}
+		if missing[metric] {
+			f.StepRec.progress(resultFileStep(p), round,
+				fmt.Sprintf("Waiting for the %s file (round %d)", resultFileLabel(p), round),
+				"written on the generator during the run; can arrive after the load result")
+		} else {
+			f.StepRec.ok(resultFileStep(p), resultFileLabel(p)+" collected")
+		}
+	}
+}
+
+// skipMissingMetricFiles records the metric files that never arrived. They are skipped, not
+// failed: the run stands on its load result and only loses those charts (BAR-1552).
+func (f *fetchDataParam) skipMissingMetricFiles(outcome fetchOutcome) {
+	for _, metric := range outcome.MissingMetrics {
+		f.recordStep(resultFileStep("_"+metric), "skipped", resultFileLabel("_"+metric)+" not collected in time", "")
 	}
 }
 
