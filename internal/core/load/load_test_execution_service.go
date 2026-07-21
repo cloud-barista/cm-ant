@@ -357,7 +357,6 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		failed(fmt.Sprintf("Error linking load test execution info to the generator: %v", err), err)
 		return
 	}
-	loadTestExecutionInfoParam.LoadGeneratorInstallInfoId = loadGeneratorInstallInfo.ID
 	loadTestExecutionState.GeneratorInstallInfoId = loadGeneratorInstallInfo.ID
 
 	err = l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)

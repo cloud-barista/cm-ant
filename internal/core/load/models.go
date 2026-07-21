@@ -152,8 +152,11 @@ type LoadTestExecutionInfo struct {
 	LoadTestExecutionStateId uint
 	LoadTestExecutionState   LoadTestExecutionState
 
-	// LoadTestExecutionInfo has one LoadGeneratorInstallInfo
-	LoadGeneratorInstallInfoId uint
+	// LoadTestExecutionInfo has one LoadGeneratorInstallInfo. Nullable: the config row is now
+	// written before the generator exists (so a run that fails in pre-check still records its
+	// parameters for Re-run), and is linked to the generator once it is installed. A non-null
+	// uint would default to 0 and violate the foreign key on that early insert.
+	LoadGeneratorInstallInfoId *uint
 	LoadGeneratorInstallInfo   LoadGeneratorInstallInfo
 }
 
