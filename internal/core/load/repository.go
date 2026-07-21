@@ -351,6 +351,19 @@ func (r *LoadRepository) UpdateLoadTestExecutionInfoDuration(ctx context.Context
 
 }
 
+// UpdateLoadTestExecutionInfoGeneratorTx links the info row to the generator once it is known.
+// The requested configuration is persisted up front, before the generator exists, so a run
+// that fails in pre-check still has its parameters on record; this fills in the generator id
+// afterwards without disturbing the parameters already saved.
+func (r *LoadRepository) UpdateLoadTestExecutionInfoGeneratorTx(ctx context.Context, loadTestKey string, loadGeneratorInstallInfoId uint) error {
+	return r.execInTransaction(ctx, func(d *gorm.DB) error {
+		return d.
+			Model(&LoadTestExecutionInfo{}).
+			Where("load_test_key = ?", loadTestKey).
+			Update("load_generator_install_info_id", loadGeneratorInstallInfoId).Error
+	})
+}
+
 func (r *LoadRepository) GetPagingLoadTestExecutionStateTx(ctx context.Context, param GetAllLoadTestExecutionStateParam) ([]LoadTestExecutionState, int64, error) {
 	var loadTestExecutionStates []LoadTestExecutionState
 	var totalRows int64

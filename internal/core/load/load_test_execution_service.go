@@ -253,6 +253,46 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		loadTestExecutionState.FinishAt = &finishAt
 	}
 
+	// Persist the requested configuration up front, before anything can fail. A run that dies in
+	// pre-check or generator install used to leave no info row at all, because the save happened
+	// only after both succeeded — so GetLoadTestExecutionInfo (which Re-run reads to pre-fill the
+	// form) had nothing to return and answered 500. The parameters are known from the request, so
+	// record them now; the generator id is not known yet and is linked in after install.
+	var hs []LoadTestExecutionHttpInfo
+	for _, h := range param.HttpReqs {
+		hs = append(hs, LoadTestExecutionHttpInfo{
+			Method:   h.Method,
+			Protocol: h.Protocol,
+			Hostname: h.Hostname,
+			Port:     h.Port,
+			Path:     h.Path,
+			BodyData: h.BodyData,
+		})
+	}
+	loadTestExecutionInfoParam := LoadTestExecutionInfo{
+		LoadTestKey:  param.LoadTestKey,
+		TestName:     param.TestName,
+		VirtualUsers: param.VirtualUsers,
+		Duration:     param.Duration,
+		RampUpTime:   param.RampUpTime,
+		RampUpSteps:  param.RampUpSteps,
+
+		NsId:    param.NsId,
+		InfraId: param.InfraId,
+		NodeId:  param.NodeId,
+
+		AgentInstalled: param.CollectAdditionalSystemMetrics,
+		AgentHostname:  param.AgentHostname,
+
+		LoadTestExecutionHttpInfos: hs,
+		LoadTestExecutionStateId:   loadTestExecutionState.ID,
+	}
+	if err := l.loadRepo.SaveForLoadTestExecutionTx(context.Background(), &loadTestExecutionInfoParam); err != nil {
+		failed(fmt.Sprintf("Error saving load test execution info: %v", err), err)
+		return
+	}
+	loadTestExecutionState.TestExecutionInfoId = loadTestExecutionInfoParam.ID
+
 	// Check the environment before building anything (BAR-1553). A missing target or a closed
 	// port is answered in seconds here, instead of surfacing minutes into a run.
 	precheckCtx, cancelPrecheck := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -311,50 +351,14 @@ func (l *LoadService) processLoadTestAsync(param RunLoadTestParam, loadTestExecu
 		return
 	}
 
-	var hs []LoadTestExecutionHttpInfo
-
-	for _, h := range param.HttpReqs {
-		hh := LoadTestExecutionHttpInfo{
-			Method:   h.Method,
-			Protocol: h.Protocol,
-			Hostname: h.Hostname,
-			Port:     h.Port,
-			Path:     h.Path,
-			BodyData: h.BodyData,
-		}
-
-		hs = append(hs, hh)
-	}
-
-	loadTestExecutionInfoParam := LoadTestExecutionInfo{
-		LoadTestKey:  param.LoadTestKey,
-		TestName:     param.TestName,
-		VirtualUsers: param.VirtualUsers,
-		Duration:     param.Duration,
-		RampUpTime:   param.RampUpTime,
-		RampUpSteps:  param.RampUpSteps,
-
-		NsId:    param.NsId,
-		InfraId: param.InfraId,
-		NodeId:  param.NodeId,
-
-		AgentInstalled: param.CollectAdditionalSystemMetrics,
-		AgentHostname:  param.AgentHostname,
-
-		LoadGeneratorInstallInfoId: loadGeneratorInstallInfo.ID,
-		LoadTestExecutionHttpInfos: hs,
-
-		LoadTestExecutionStateId: loadTestExecutionState.ID,
-	}
-
-	err = l.loadRepo.SaveForLoadTestExecutionTx(context.Background(), &loadTestExecutionInfoParam)
-	if err != nil {
-		failed(fmt.Sprintf("Error saving load test execution info: %v", err), err)
+	// The generator exists now; link the info row saved earlier to it. TestExecutionInfoId was
+	// already set from the early save above.
+	if err = l.loadRepo.UpdateLoadTestExecutionInfoGeneratorTx(context.Background(), param.LoadTestKey, loadGeneratorInstallInfo.ID); err != nil {
+		failed(fmt.Sprintf("Error linking load test execution info to the generator: %v", err), err)
 		return
 	}
-
+	loadTestExecutionInfoParam.LoadGeneratorInstallInfoId = loadGeneratorInstallInfo.ID
 	loadTestExecutionState.GeneratorInstallInfoId = loadGeneratorInstallInfo.ID
-	loadTestExecutionState.TestExecutionInfoId = loadTestExecutionInfoParam.ID
 
 	err = l.loadRepo.UpdateLoadTestExecutionStateTx(context.Background(), loadTestExecutionState)
 
