@@ -11,6 +11,9 @@ container-volume
 
 config.yaml
 
+# local docker-compose env (may contain secrets — copy from .env.example)
+.env
+
 # SSH keys (test artifacts)
 id_rsa
 id_rsa.pub
