@@ -115,14 +115,14 @@ If you encounter image-related errors:
 
 ## Prerequisites 📝
 
-### Envionment
-- OS: Ubuntu 22.04
-- Language: Go 1.23.0
+### Environment
+- OS: Ubuntu 22.04 or later
+- Language: Go 1.26.5
 - Container: Docker 25.0.0
 
 ### Subsystem Dependency
-- CB-Spider : v0.11.5
-- CB-Tumblebug : v0.11.9
+- CB-Spider : v0.12.35
+- CB-Tumblebug : v0.12.25
 
 ---
 
