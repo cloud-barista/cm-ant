@@ -44,6 +44,10 @@ system metrics are collected, port `5555`. See
 [Load test — prerequisites and what the messages mean](docs/load-test-troubleshooting.md) for
 what has to be open before a run and what each step message means when something is not.
 
+A load test runs asynchronously; to read where a run is — the `executionStatus` and the
+per-step progress tree a client renders as a progress screen — see
+[Load test — reading a run's status and steps](docs/load-test-status-api.md).
+
 ### OS Image Search Configuration
 CM-ANT uses CB-Tumblebug's smart image search API to dynamically find appropriate OS images for load testing VM instances. The system supports two modes for image selection:
 
@@ -146,6 +150,12 @@ docker compose up -d
 ✔ Container cm-ant                  Started        31.4s 
 ```
 
+> CM-ANT will not finish starting until CB-Tumblebug is initialized. For local
+> development with this compose stack — the required one-time CB-Tumblebug
+> initialization, the `.env` handling, restart behavior, and how to run the
+> local source without rebuilding the image — see the
+> [Standalone Development Environment Guide](docs/standalone-dev-environment.md).
+
 ---
 
 ##  Usage Configuration ⚙️
@@ -196,6 +206,7 @@ To correctly use the  price and cost features provided by CM-ANT, the following 
 ## How to Use 🔍
 #### 👉 [CM-ANT Swagger API Doc](https://cloud-barista.github.io/api/?url=https://raw.githubusercontent.com/cloud-barista/cm-ant/main/api/swagger.yaml)
 #### 👉 [Simple & Sample API Usage Guide](docs/api-usage-guide.md)
+#### 👉 [Load test — reading a run's status and steps](docs/load-test-status-api.md)
 
 
 

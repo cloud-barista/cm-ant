@@ -31,7 +31,46 @@ build:
 ###########################################################
 
 ###########################################################
-.PHONY: run 
+# Standalone docker-compose dev stack (cm-ant + minimal dependencies).
+# See docs/standalone-dev-environment.md for the full workflow.
+
+# Guard: the docker-compose stack reads .env (SPIDER/TB/TERRARIUM
+# credentials, etc.). .env is gitignored (it may hold secrets), so it is
+# NOT created automatically. When missing, print how to create it from
+# .env.example, then stop — the stack is not started.
+.PHONY: env
+env: ## Check that .env exists for the docker-compose stack
+	@if [ -f .env ]; then \
+		echo ".env is present."; \
+	else \
+		echo "ERROR: .env not found."; \
+		echo "The docker-compose stack needs a .env file. Create and configure it:"; \
+		echo ""; \
+		echo "    cp .env.example .env"; \
+		echo ""; \
+		echo "Edit the values (SPIDER/TB/TERRARIUM credentials, etc.), then run 'make up' again."; \
+		exit 1; \
+	fi
+
+.PHONY: up
+up: env ## Build the cm-ant image from source and start the stack (docker compose up -d --build)
+	@docker compose up -d --build
+
+.PHONY: compose-down
+compose-down: ## Stop and remove the docker-compose stack (docker compose down)
+	@docker compose down
+
+.PHONY: logs
+logs: ## Follow docker-compose logs (docker compose logs -f)
+	@docker compose logs -f
+
+.PHONY: ps
+ps: ## Show docker-compose service status (docker compose ps)
+	@docker compose ps
+###########################################################
+
+###########################################################
+.PHONY: run
 run: run-db
 	@go run cmd/cm-ant/main.go
 ###########################################################
