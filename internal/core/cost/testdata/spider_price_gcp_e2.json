@@ -1,0 +1,47 @@
+{
+  "Meta": {
+    "Version": "v0.1",
+    "Description": "Multi-Cloud Price Info"
+  },
+  "CloudName": "GCP",
+  "RegionName": "asia-northeast3",
+  "PriceList": [
+    {
+      "ZoneName": "NA",
+      "ProductInfo": {
+        "ProductId": "NA",
+        "VMSpecInfo": {
+          "Region": "",
+          "Name": "e2-standard-2",
+          "VCpu": {
+            "Count": "2",
+            "ClockGHz": "-1"
+          },
+          "MemSizeMiB": "8192",
+          "DiskSizeGB": "-1"
+        },
+        "Description": "e2-standard-2",
+        "CSPProductInfo": {
+          "MachineType": "e2-standard-2"
+        }
+      },
+      "PriceInfo": {
+        "OnDemand": {
+          "PricingId": "NA",
+          "Unit": "Hour",
+          "Currency": "USD",
+          "Price": "0.08596572",
+          "Description": "OnDemand pricing for e2-standard-2"
+        },
+        "CSPPriceInfo": {
+          "Region": "asia-northeast3",
+          "MachineType": "e2-standard-2",
+          "Amount": 0.08596572,
+          "Currency": "USD",
+          "Unit": "Hour",
+          "Source": "pricing-page"
+        }
+      }
+    }
+  ]
+}
