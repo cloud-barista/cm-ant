@@ -106,420 +106,278 @@ func (s *SpiderPriceCollector) FetchPriceInfos(ctx context.Context, param Recomm
 		return nil, err
 	}
 
-	// Log CB-Spider response results
-	log.Info().Msgf("CB-Spider result for %s %s %s: CloudPriceList=%v, DirectPriceList=%v", param.ProviderName, param.RegionName, param.InstanceType, result.CloudPriceList != nil, result.PriceList != nil)
-	if result.CloudPriceList != nil {
-		log.Info().Msgf("CloudPriceList length: %d", len(result.CloudPriceList))
-	}
-	if result.PriceList != nil {
-		log.Info().Msgf("Direct PriceList length: %d", len(result.PriceList))
-	}
+	createdPriceInfo := s.buildEstimateCostInfos(param, result)
 
-	// Debug: Check actual response structure
-	log.Info().Msgf("Response structure debug - CloudName: %s, RegionName: %s", result.CloudName, result.RegionName)
+	log.Info().Msgf("CB-Spider price result for %s %s %s: received %d items (legacy cloud price lists %d), added %d price infos",
+		param.ProviderName, param.RegionName, param.InstanceType, len(result.PriceList), len(result.CloudPriceList), len(createdPriceInfo))
 
+	return createdPriceInfo, nil
+}
+
+// buildEstimateCostInfos turns a cb-spider price response into estimate cost infos.
+// It performs no I/O, so it can be tested with recorded responses.
+func (s *SpiderPriceCollector) buildEstimateCostInfos(param RecommendSpecParam, result spider.CloudPriceDataRes) EstimateCostInfos {
 	createdPriceInfo := make([]*EstimateCostInfo, 0)
 
-	// Process v0.11.5 API response structure (when PriceList is directly available)
-	if result.PriceList != nil && len(result.PriceList) > 0 {
-		log.Info().Msgf("Processing v0.11.5 API response structure with %d price items", len(result.PriceList))
+	// cb-spider v0.11.5+ response structure (PriceList at the top level)
+	for j := range result.PriceList {
+		createdPriceInfo = append(createdPriceInfo, s.priceInfosFromItem(param, result.PriceList[j])...)
+	}
 
-		// Log detailed information for first few items
-		for i := 0; i < len(result.PriceList) && i < 3; i++ {
-			pl := result.PriceList[i]
-			log.Info().Msgf("Sample PriceList[%d]: InstanceType=%s, vCpu=%s, Memory=%s",
-				i, pl.ProductInfo.InstanceType, pl.ProductInfo.Vcpu, pl.ProductInfo.Memory)
-		}
+	// cb-spider v0.10.0 response structure (CloudPriceList)
+	for i := range result.CloudPriceList {
+		p := result.CloudPriceList[i]
 
-		for j := range result.PriceList {
-			pl := result.PriceList[j]
-			log.Info().Msgf("Processing Direct PriceList[%d]: InstanceType=%s", j, pl.ProductInfo.InstanceType)
-
-			productInfo := pl.ProductInfo
-
-			// Extract vCpu and Memory from v0.11.5 structure
-			var vCpu, originalMemory, instanceType string
-
-			if productInfo.VMSpecInfo != nil {
-				// v0.11.5 new structure
-				vCpu = s.naChecker(productInfo.VMSpecInfo.VCpu.Count)
-				originalMemory = s.naChecker(productInfo.VMSpecInfo.MemSizeMiB)
-				instanceType = s.naChecker(productInfo.VMSpecInfo.Name)
-				log.Info().Msgf("Using v0.11.5 VMSpecInfo: vCpu=%s, Memory=%s, InstanceType=%s", vCpu, originalMemory, instanceType)
-			} else {
-				// v0.10.0 legacy structure
-				vCpu = s.naChecker(productInfo.Vcpu)
-				originalMemory = s.naChecker(productInfo.Memory)
-				instanceType = s.naChecker(productInfo.InstanceType)
-				log.Info().Msgf("Using v0.10.0 ProductInfo: vCpu=%s, Memory=%s, InstanceType=%s", vCpu, originalMemory, instanceType)
-			}
-
-			log.Info().Msgf("ProductInfo: vCpu=%s, Memory=%s, InstanceType=%s, RequestedType=%s", vCpu, originalMemory, instanceType, param.InstanceType)
-
-			// Debug logging
-			if strings.EqualFold(instanceType, param.InstanceType) {
-				log.Error().Msgf("Match found: got=%s, requested=%s, vCpu=%s, originalMemory=%s", instanceType, param.InstanceType, vCpu, originalMemory)
-			}
-
-			// Check instance type matching
-			if !strings.EqualFold(instanceType, param.InstanceType) {
-				log.Info().Msgf("Skipping due to instance type mismatch: got=%s, requested=%s", instanceType, param.InstanceType)
-				continue
-			}
+		for j := range p.PriceList {
+			productInfo := p.PriceList[j].ProductInfo
+			vCpu := s.naChecker(productInfo.Vcpu)
+			originalMemory := s.naChecker(productInfo.Memory)
 
 			if vCpu == "" || originalMemory == "" {
-				log.Info().Msgf("Skipping due to empty vCpu or Memory: vCpu=%s, Memory=%s", vCpu, originalMemory)
+				log.Debug().Msgf("Skipping due to empty vCpu or Memory: vCpu=%s, Memory=%s", vCpu, originalMemory)
 				continue
 			}
 
 			memory, memoryUnit := s.splitMemory(originalMemory)
-			zoneName := s.naChecker(productInfo.ZoneName)
-			osType := s.naChecker(productInfo.OperatingSystem)
-			storage := s.naChecker(productInfo.Storage)
-			productDescription := s.naChecker(productInfo.Description)
+			base := s.newEstimateCostInfo(param, productInfo, productInfo.InstanceType, vCpu, originalMemory, memory, memoryUnit)
 
-			var price, originalCurrency, originalUnit, priceDescription string
-			var unit constant.PriceUnit
-			var currency constant.PriceCurrency
-
-			priceInfo := pl.PriceInfo
-
-			// Add priceInfo debug logs
-			log.Info().Msgf("PriceInfo debug for %s: PricingPolicies=%v, CSPPriceInfo=%v", instanceType, priceInfo.PricingPolicies != nil, priceInfo.CSPPriceInfo != nil)
-			if priceInfo.PricingPolicies != nil {
-				log.Info().Msgf("PricingPolicies count: %d", len(priceInfo.PricingPolicies))
-				for idx, policy := range priceInfo.PricingPolicies {
-					log.Info().Msgf("PricingPolicy[%d]: Policy=%s, Price=%s, Currency=%s, Unit=%s, Description=%s",
-						idx, policy.PricingPolicy, policy.Price, policy.Currency, policy.Unit, policy.Description)
-				}
-			} else {
-				log.Warn().Msgf("PricingPolicies is nil for instance type: %s", instanceType)
-			}
-
-			// Add CSPPriceInfo debug logs
-			if priceInfo.CSPPriceInfo != nil {
-				log.Info().Msgf("CSPPriceInfo exists for %s: %+v", instanceType, priceInfo.CSPPriceInfo)
-			} else {
-				log.Warn().Msgf("CSPPriceInfo is nil for instance type: %s", instanceType)
-			}
-
-			// Extract price information from v0.11.5 CSPPriceInfo
-			if priceInfo.CSPPriceInfo != nil {
-				log.Info().Msgf("Processing CSPPriceInfo for %s", instanceType)
-
-				// CSPPriceInfo is in map[string]interface{} format
-				if cspInfo, ok := priceInfo.CSPPriceInfo.(map[string]interface{}); ok {
-					if terms, ok := cspInfo["terms"].(map[string]interface{}); ok {
-						if onDemand, ok := terms["OnDemand"].(map[string]interface{}); ok {
-							// Process OnDemand price information
-							for sku, termData := range onDemand {
-								if termMap, ok := termData.(map[string]interface{}); ok {
-									if priceDimensions, ok := termMap["priceDimensions"].(map[string]interface{}); ok {
-										for rateCode, dimensionData := range priceDimensions {
-											if dimensionMap, ok := dimensionData.(map[string]interface{}); ok {
-												if pricePerUnit, ok := dimensionMap["pricePerUnit"].(map[string]interface{}); ok {
-													if usdPrice, ok := pricePerUnit["USD"].(string); ok {
-														description := ""
-														if desc, ok := dimensionMap["description"].(string); ok {
-															description = desc
-														}
-
-														log.Info().Msgf("Found OnDemand price: SKU=%s, RateCode=%s, Price=%s, Description=%s", sku, rateCode, usdPrice, description)
-
-														// Create price information
-														regionName := param.RegionName // default value
-														if productInfo.VMSpecInfo != nil {
-															regionName = productInfo.VMSpecInfo.Region // Use VMSpecInfo.Region in CB-Spider v0.11.5 to store accurate region information
-														}
-
-														pi := EstimateCostInfo{
-															ProviderName:           param.ProviderName,
-															RegionName:             regionName,
-															InstanceType:           instanceType,
-															ZoneName:               zoneName,
-															VCpu:                   vCpu,
-															OriginalMemory:         originalMemory,
-															Memory:                 memory,
-															MemoryUnit:             memoryUnit,
-															Storage:                storage,
-															OsType:                 osType,
-															ProductDescription:     productDescription,
-															OriginalPricePolicy:    "OnDemand",
-															PricePolicy:            constant.OnDemand,
-															Price:                  usdPrice,
-															Currency:               constant.USD,
-															Unit:                   constant.PerHour,
-															OriginalUnit:           "Hrs",
-															OriginalCurrency:       "USD",
-															PriceDescription:       description,
-															CalculatedMonthlyPrice: s.calculatePrice(usdPrice, constant.PerHour),
-															LastUpdatedAt:          time.Now(),
-															ImageName:              param.Image,
-														}
-
-														log.Info().Msgf("Before priceValidator check: Provider=%s, PriceDescription=%s, Price=%s", pi.ProviderName, pi.PriceDescription, pi.Price)
-														if !priceValidator[param.ProviderName](&pi) {
-															log.Info().Msgf("Price info filtered out by priceValidator: %s %s %s - PriceDescription: %s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.PriceDescription)
-															continue
-														}
-
-														createdPriceInfo = append(createdPriceInfo, &pi)
-														log.Info().Msgf("Added price info (CSPPriceInfo): %s %s %s - $%s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.Price)
-													}
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			} else if priceInfo.OnDemand.Price != "" {
-				// cb-spider v0.11.5+ — PricingPolicies는 사라지고 OnDemand 단일 객체가 들어옴.
-				// CSPPriceInfo 파싱 실패(=AWS terms 구조가 아니다, 즉 비-AWS)인 경우 OnDemand로 fallback.
-				originalPricePolicy := "OnDemand"
-				priceDescription = s.naChecker(priceInfo.OnDemand.Description)
-				originalCurrency = s.naChecker(priceInfo.OnDemand.Currency)
-				originalUnit = s.naChecker(priceInfo.OnDemand.Unit)
-				unit = s.parseUnit(originalUnit)
-				currency = s.parseCurrency(priceInfo.OnDemand.Currency)
-				convertedPrice, err := strconv.ParseFloat(priceInfo.OnDemand.Price, 64)
-				if err != nil {
-					log.Warn().Msgf("OnDemand price parse error: %s", err)
-				} else if convertedPrice == float64(0) {
-					log.Warn().Msg("OnDemand price empty (=0)")
-				} else {
-					price = s.naChecker(priceInfo.OnDemand.Price)
-
-					regionName := param.RegionName
-					if productInfo.VMSpecInfo != nil {
-						regionName = productInfo.VMSpecInfo.Region
-					}
-
-					pi := EstimateCostInfo{
-						ProviderName:           param.ProviderName,
-						RegionName:             regionName,
-						InstanceType:           instanceType,
-						ZoneName:               zoneName,
-						VCpu:                   vCpu,
-						OriginalMemory:         originalMemory,
-						Memory:                 memory,
-						MemoryUnit:             memoryUnit,
-						Storage:                storage,
-						OsType:                 osType,
-						ProductDescription:     productDescription,
-						OriginalPricePolicy:    originalPricePolicy,
-						PricePolicy:            constant.OnDemand,
-						Price:                  price,
-						Currency:               currency,
-						Unit:                   unit,
-						OriginalUnit:           originalUnit,
-						OriginalCurrency:       originalCurrency,
-						PriceDescription:       priceDescription,
-						CalculatedMonthlyPrice: s.calculatePrice(price, unit),
-						LastUpdatedAt:          time.Now(),
-						ImageName:              param.Image,
-					}
-
-					if priceValidator[param.ProviderName](&pi) {
-						createdPriceInfo = append(createdPriceInfo, &pi)
-						log.Info().Msgf("Added price info (OnDemand): %s %s %s - $%s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.Price)
-					}
-				}
-			} else if priceInfo.PricingPolicies != nil {
-				// Process existing v0.10.0 PricingPolicies
-				for k := range priceInfo.PricingPolicies {
-					policy := priceInfo.PricingPolicies[k]
-					originalPricePolicy := s.naChecker(policy.PricingPolicy)
-					priceDescription = s.naChecker(policy.Description)
-					originalCurrency = s.naChecker(policy.Currency)
-					originalUnit = s.naChecker(policy.Unit)
-					unit = s.parseUnit(originalUnit)
-					currency = s.parseCurrency(policy.Currency)
-					convertedPrice, err := strconv.ParseFloat(policy.Price, 64)
-					if err != nil {
-						log.Warn().Msgf("not allowed for error; %s", err)
-						continue
-					}
-
-					if convertedPrice == float64(0) {
-						log.Warn().Msg("not allowed for empty price")
-						continue
-					}
-					price = s.naChecker(policy.Price)
-
-					if price == "" {
-						log.Warn().Msg("not allowed for empty price")
-						continue
-					}
-
-					if strings.Contains(strings.ToLower(priceDescription), "dedicated") {
-						log.Warn().Msgf("not allowed for dedicated instance hour; %s", priceDescription)
-						continue
-					}
-
-					regionName := param.RegionName // default value
-					if productInfo.VMSpecInfo != nil {
-						regionName = productInfo.VMSpecInfo.Region // Use VMSpecInfo.Region in CB-Spider v0.11.5 to store accurate region information
-					}
-
-					pi := EstimateCostInfo{
-						ProviderName:           param.ProviderName,
-						RegionName:             regionName,
-						InstanceType:           instanceType,
-						ZoneName:               zoneName,
-						VCpu:                   vCpu,
-						OriginalMemory:         originalMemory,
-						Memory:                 memory,
-						MemoryUnit:             memoryUnit,
-						Storage:                storage,
-						OsType:                 osType,
-						ProductDescription:     productDescription,
-						OriginalPricePolicy:    originalPricePolicy,
-						PricePolicy:            constant.OnDemand,
-						Price:                  price,
-						Currency:               currency,
-						Unit:                   unit,
-						OriginalUnit:           originalUnit,
-						OriginalCurrency:       originalCurrency,
-						PriceDescription:       priceDescription,
-						CalculatedMonthlyPrice: s.calculatePrice(price, unit),
-						LastUpdatedAt:          time.Now(),
-						ImageName:              param.Image,
-					}
-
-					log.Info().Msgf("Before priceValidator check: Provider=%s, PriceDescription=%s, Price=%s", pi.ProviderName, pi.PriceDescription, pi.Price)
-					if !priceValidator[param.ProviderName](&pi) {
-						log.Info().Msgf("Price info filtered out by priceValidator: %s %s %s - PriceDescription: %s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.PriceDescription)
-						continue
-					}
-
-					createdPriceInfo = append(createdPriceInfo, &pi)
-					log.Info().Msgf("Added price info (v0.10.0): %s %s %s - $%s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.Price)
-				}
-			}
+			createdPriceInfo = append(createdPriceInfo, s.pricingPolicyPrices(param, base, p.PriceList[j].PriceInfo.PricingPolicies)...)
 		}
 	}
-
-	// Process existing v0.10.0 API response structure (when CloudPriceList is available)
-	if result.CloudPriceList != nil {
-		log.Info().Msgf("Processing CloudPriceList with %d items", len(result.CloudPriceList))
-		for i := range result.CloudPriceList {
-			p := result.CloudPriceList[i]
-			log.Info().Msgf("Processing CloudPrice[%d]: CloudName=%s, PriceList count=%d", i, p.CloudName, len(p.PriceList))
-
-			if p.PriceList != nil {
-				for j := range p.PriceList {
-
-					pl := p.PriceList[j]
-					log.Info().Msgf("Processing PriceList[%d]: InstanceType=%s", j, pl.ProductInfo.InstanceType)
-
-					productInfo := pl.ProductInfo
-					vCpu := s.naChecker(productInfo.Vcpu)
-					originalMemory := s.naChecker(productInfo.Memory)
-
-					log.Info().Msgf("ProductInfo: vCpu=%s, Memory=%s, InstanceType=%s", vCpu, originalMemory, productInfo.InstanceType)
-
-					if vCpu == "" || originalMemory == "" {
-						log.Info().Msgf("Skipping due to empty vCpu or Memory: vCpu=%s, Memory=%s", vCpu, originalMemory)
-						continue
-					}
-
-					memory, memoryUnit := s.splitMemory(originalMemory)
-					zoneName := s.naChecker(productInfo.ZoneName)
-					osType := s.naChecker(productInfo.OperatingSystem)
-					storage := s.naChecker(productInfo.Storage)
-					productDescription := s.naChecker(productInfo.Description)
-
-					var price, originalCurrency, originalUnit, priceDescription string
-					var unit constant.PriceUnit
-					var currency constant.PriceCurrency
-
-					priceInfo := pl.PriceInfo
-
-					if priceInfo.PricingPolicies != nil {
-						for k := range priceInfo.PricingPolicies {
-							policy := priceInfo.PricingPolicies[k]
-							originalPricePolicy := s.naChecker(policy.PricingPolicy)
-							priceDescription = s.naChecker(policy.Description)
-							originalCurrency = s.naChecker(policy.Currency)
-							originalUnit = s.naChecker(policy.Unit)
-							unit = s.parseUnit(originalUnit)
-							currency = s.parseCurrency(policy.Currency)
-							convertedPrice, err := strconv.ParseFloat(policy.Price, 64)
-							if err != nil {
-								log.Warn().Msgf("not allowed for error; %s", err)
-								continue
-							}
-
-							if convertedPrice == float64(0) {
-								log.Warn().Msg("not allowed for empty price")
-								continue
-							}
-							price = s.naChecker(policy.Price)
-
-							if price == "" {
-								log.Warn().Msg("not allowed for empty price")
-								continue
-							}
-
-							if strings.Contains(strings.ToLower(priceDescription), "dedicated") {
-								log.Warn().Msgf("not allowed for dedicated instance hour; %s", priceDescription)
-								continue
-							}
-
-							regionName := param.RegionName // default value
-							if productInfo.VMSpecInfo != nil {
-								regionName = productInfo.VMSpecInfo.Region // Use VMSpecInfo.Region in CB-Spider v0.11.5 to store accurate region information
-							}
-
-							pi := EstimateCostInfo{
-								ProviderName:           param.ProviderName,
-								RegionName:             regionName,
-								InstanceType:           productInfo.InstanceType,
-								ZoneName:               zoneName,
-								VCpu:                   vCpu,
-								OriginalMemory:         originalMemory,
-								Memory:                 memory,
-								MemoryUnit:             memoryUnit,
-								Storage:                storage,
-								OsType:                 osType,
-								ProductDescription:     productDescription,
-								OriginalPricePolicy:    originalPricePolicy,
-								PricePolicy:            constant.OnDemand,
-								Price:                  price,
-								Currency:               currency,
-								Unit:                   unit,
-								OriginalUnit:           originalUnit,
-								OriginalCurrency:       originalCurrency,
-								PriceDescription:       priceDescription,
-								CalculatedMonthlyPrice: s.calculatePrice(price, unit),
-								LastUpdatedAt:          time.Now(),
-								ImageName:              param.Image,
-							}
-
-							if !priceValidator[param.ProviderName](&pi) {
-								continue
-							}
-
-							createdPriceInfo = append(createdPriceInfo, &pi)
-							log.Info().Msgf("Added price info: %s %s %s - $%s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.Price)
-						}
-					}
-
-				}
-			}
-		}
-	}
-
-	log.Info().Msgf("Total created price info count: %d", len(createdPriceInfo))
 
 	sort.Slice(createdPriceInfo, func(i, j int) bool {
 		return createdPriceInfo[i].Price < createdPriceInfo[j].Price
 	})
 
-	return createdPriceInfo, nil
+	return createdPriceInfo
+}
+
+// priceInfosFromItem extracts the prices of one v0.11.5+ price item that matches the requested instance type.
+// Sources are tried in order, and a later source is used only when the earlier one yielded no price:
+//  1. CSPPriceInfo.terms.OnDemand (AWS only; other providers put a different structure in CSPPriceInfo)
+//  2. PriceInfo.OnDemand (GCP and other non-AWS providers)
+//  3. PriceInfo.PricingPolicies (cb-spider < v0.11.5)
+func (s *SpiderPriceCollector) priceInfosFromItem(param RecommendSpecParam, pl spider.PriceRes) []*EstimateCostInfo {
+	productInfo := pl.ProductInfo
+
+	var vCpu, originalMemory, instanceType, memory string
+	var memoryUnit constant.MemoryUnit
+
+	if productInfo.VMSpecInfo != nil {
+		vCpu = s.naChecker(productInfo.VMSpecInfo.VCpu.Count)
+		originalMemory = s.naChecker(productInfo.VMSpecInfo.MemSizeMiB)
+		instanceType = s.naChecker(productInfo.VMSpecInfo.Name)
+		memory, memoryUnit = s.mibToGiB(originalMemory)
+	} else {
+		vCpu = s.naChecker(productInfo.Vcpu)
+		originalMemory = s.naChecker(productInfo.Memory)
+		instanceType = s.naChecker(productInfo.InstanceType)
+		memory, memoryUnit = s.splitMemory(originalMemory)
+	}
+
+	if !strings.EqualFold(instanceType, param.InstanceType) {
+		return nil
+	}
+
+	log.Debug().Msgf("Match found: got=%s, requested=%s, vCpu=%s, originalMemory=%s", instanceType, param.InstanceType, vCpu, originalMemory)
+
+	if vCpu == "" || originalMemory == "" || memory == "" {
+		log.Debug().Msgf("Skipping due to empty vCpu or Memory: vCpu=%s, Memory=%s", vCpu, originalMemory)
+		return nil
+	}
+
+	base := s.newEstimateCostInfo(param, productInfo, instanceType, vCpu, originalMemory, memory, memoryUnit)
+	priceInfo := pl.PriceInfo
+
+	if param.ProviderName == "aws" {
+		if ret, found := s.awsTermsPrices(param, base, priceInfo.CSPPriceInfo); found {
+			return ret
+		}
+	}
+
+	if pi := s.onDemandPrice(param, base, priceInfo.OnDemand); pi != nil {
+		return []*EstimateCostInfo{pi}
+	}
+
+	return s.pricingPolicyPrices(param, base, priceInfo.PricingPolicies)
+}
+
+// newEstimateCostInfo fills the product fields shared by every price of one item.
+func (s *SpiderPriceCollector) newEstimateCostInfo(param RecommendSpecParam, productInfo spider.ProductInfoRes, instanceType, vCpu, originalMemory, memory string, memoryUnit constant.MemoryUnit) EstimateCostInfo {
+	return EstimateCostInfo{
+		ProviderName:       param.ProviderName,
+		RegionName:         resolveRegion(productInfo.VMSpecInfo, param.RegionName),
+		InstanceType:       instanceType,
+		ZoneName:           s.naChecker(productInfo.ZoneName),
+		VCpu:               vCpu,
+		OriginalMemory:     originalMemory,
+		Memory:             memory,
+		MemoryUnit:         memoryUnit,
+		Storage:            s.naChecker(productInfo.Storage),
+		OsType:             s.naChecker(productInfo.OperatingSystem),
+		ProductDescription: s.naChecker(productInfo.Description),
+		PricePolicy:        constant.OnDemand,
+		LastUpdatedAt:      time.Now(),
+		ImageName:          param.Image,
+	}
+}
+
+// awsTermsPrices reads the AWS price list structure (terms.OnDemand.*.priceDimensions.*.pricePerUnit.USD).
+// found reports whether the structure held any price, even if every price was filtered out by the validator,
+// so that a filtered AWS item does not fall through to the next source.
+func (s *SpiderPriceCollector) awsTermsPrices(param RecommendSpecParam, base EstimateCostInfo, cspPriceInfo interface{}) (ret []*EstimateCostInfo, found bool) {
+	cspInfo, ok := cspPriceInfo.(map[string]interface{})
+	if !ok {
+		return nil, false
+	}
+	terms, ok := cspInfo["terms"].(map[string]interface{})
+	if !ok {
+		return nil, false
+	}
+	onDemand, ok := terms["OnDemand"].(map[string]interface{})
+	if !ok {
+		return nil, false
+	}
+
+	for _, termData := range onDemand {
+		termMap, ok := termData.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		priceDimensions, ok := termMap["priceDimensions"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		for _, dimensionData := range priceDimensions {
+			dimensionMap, ok := dimensionData.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			pricePerUnit, ok := dimensionMap["pricePerUnit"].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			usdPrice, ok := pricePerUnit["USD"].(string)
+			if !ok {
+				continue
+			}
+
+			found = true
+			description, _ := dimensionMap["description"].(string)
+
+			pi := base
+			pi.OriginalPricePolicy = "OnDemand"
+			pi.Price = usdPrice
+			pi.Currency = constant.USD
+			pi.Unit = constant.PerHour
+			pi.OriginalUnit = "Hrs"
+			pi.OriginalCurrency = "USD"
+			pi.PriceDescription = description
+			pi.CalculatedMonthlyPrice = s.calculatePrice(usdPrice, constant.PerHour)
+
+			if !priceValidator[param.ProviderName](&pi) {
+				log.Debug().Msgf("Price info filtered out by priceValidator: %s %s %s - PriceDescription: %s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.PriceDescription)
+				continue
+			}
+
+			ret = append(ret, &pi)
+		}
+	}
+
+	return ret, found
+}
+
+// onDemandPrice reads PriceInfo.OnDemand, the single on-demand price cb-spider v0.11.5+ sends for every provider.
+func (s *SpiderPriceCollector) onDemandPrice(param RecommendSpecParam, base EstimateCostInfo, onDemand spider.OnDemandRes) *EstimateCostInfo {
+	if onDemand.Price == "" {
+		return nil
+	}
+
+	convertedPrice, err := strconv.ParseFloat(onDemand.Price, 64)
+	if err != nil {
+		log.Warn().Msgf("OnDemand price parse error: %s", err)
+		return nil
+	}
+	if convertedPrice == float64(0) {
+		log.Warn().Msg("OnDemand price empty (=0)")
+		return nil
+	}
+
+	pi := base
+	pi.OriginalPricePolicy = "OnDemand"
+	pi.Price = s.naChecker(onDemand.Price)
+	pi.OriginalCurrency = s.naChecker(onDemand.Currency)
+	pi.Currency = s.parseCurrency(onDemand.Currency)
+	pi.OriginalUnit = s.naChecker(onDemand.Unit)
+	pi.Unit = s.parseUnit(pi.OriginalUnit)
+	pi.PriceDescription = s.naChecker(onDemand.Description)
+	pi.CalculatedMonthlyPrice = s.calculatePrice(pi.Price, pi.Unit)
+
+	if !priceValidator[param.ProviderName](&pi) {
+		log.Debug().Msgf("Price info filtered out by priceValidator: %s %s %s - PriceDescription: %s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.PriceDescription)
+		return nil
+	}
+
+	return &pi
+}
+
+// pricingPolicyPrices reads PriceInfo.PricingPolicies sent by cb-spider < v0.11.5.
+func (s *SpiderPriceCollector) pricingPolicyPrices(param RecommendSpecParam, base EstimateCostInfo, policies []spider.PricingPoliciesRes) []*EstimateCostInfo {
+	ret := make([]*EstimateCostInfo, 0)
+
+	for k := range policies {
+		policy := policies[k]
+
+		convertedPrice, err := strconv.ParseFloat(policy.Price, 64)
+		if err != nil {
+			log.Warn().Msgf("not allowed for error; %s", err)
+			continue
+		}
+		if convertedPrice == float64(0) {
+			log.Warn().Msg("not allowed for empty price")
+			continue
+		}
+
+		price := s.naChecker(policy.Price)
+		if price == "" {
+			log.Warn().Msg("not allowed for empty price")
+			continue
+		}
+
+		priceDescription := s.naChecker(policy.Description)
+		if strings.Contains(strings.ToLower(priceDescription), "dedicated") {
+			log.Debug().Msgf("not allowed for dedicated instance hour; %s", priceDescription)
+			continue
+		}
+
+		pi := base
+		pi.OriginalPricePolicy = s.naChecker(policy.PricingPolicy)
+		pi.Price = price
+		pi.OriginalCurrency = s.naChecker(policy.Currency)
+		pi.Currency = s.parseCurrency(policy.Currency)
+		pi.OriginalUnit = s.naChecker(policy.Unit)
+		pi.Unit = s.parseUnit(pi.OriginalUnit)
+		pi.PriceDescription = priceDescription
+		pi.CalculatedMonthlyPrice = s.calculatePrice(price, pi.Unit)
+
+		if !priceValidator[param.ProviderName](&pi) {
+			log.Debug().Msgf("Price info filtered out by priceValidator: %s %s %s - PriceDescription: %s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.PriceDescription)
+			continue
+		}
+
+		ret = append(ret, &pi)
+	}
+
+	return ret
+}
+
+// resolveRegion keeps the requested region when cb-spider leaves VMSpecInfo.Region empty (e.g. GCP).
+func resolveRegion(spec *spider.VMSpecInfoRes, requested string) string {
+	if spec != nil && strings.TrimSpace(spec.Region) != "" {
+		return spec.Region
+	}
+	return requested
 }
 
 func (s *SpiderPriceCollector) generateFilter(param RecommendSpecParam) []spider.FilterReq {
@@ -595,6 +453,23 @@ func (s *SpiderPriceCollector) splitMemory(input string) (string, constant.Memor
 		memoryUnit = constant.GIB
 	}
 	return num, memoryUnit
+}
+
+// mibToGiB converts cb-spider MemSizeMiB (a unitless MiB number) to GiB,
+// rounded to one decimal place without a trailing zero (8192 -> "8", 1740.8 -> "1.7").
+func (s *SpiderPriceCollector) mibToGiB(input string) (string, constant.MemoryUnit) {
+	if input == "" {
+		return "", ""
+	}
+
+	mib, err := strconv.ParseFloat(strings.TrimSpace(input), 64)
+	if err != nil {
+		log.Warn().Msgf("error while converting memory from MiB : %s", err.Error())
+		return "", ""
+	}
+
+	gib := strconv.FormatFloat(math.Round(mib/1024*10)/10, 'f', -1, 64)
+	return gib, constant.GIB
 }
 
 func (s *SpiderPriceCollector) parseCurrency(p string) constant.PriceCurrency {

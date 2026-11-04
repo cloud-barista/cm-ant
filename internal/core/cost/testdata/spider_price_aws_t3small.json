@@ -1,0 +1,122 @@
+{
+  "Meta": {
+    "Version": "v0.1",
+    "Description": "Multi-Cloud Price Info"
+  },
+  "CloudName": "AWS",
+  "RegionName": "ap-northeast-2",
+  "PriceList": [
+    {
+      "ZoneName": "NA",
+      "ProductInfo": {
+        "ProductId": "SKU1USED0001",
+        "VMSpecInfo": {
+          "Region": "ap-northeast-2",
+          "Name": "t3.small",
+          "VCpu": {
+            "Count": "2",
+            "ClockGHz": "2.5"
+          },
+          "MemSizeMiB": "2048",
+          "DiskSizeGB": "-1"
+        },
+        "Description": "t3.small Linux Used",
+        "CSPProductInfo": {
+          "attributes": {
+            "instanceType": "t3.small",
+            "capacitystatus": "Used"
+          }
+        }
+      },
+      "PriceInfo": {
+        "OnDemand": {
+          "PricingId": "SKU1USED0001.JRTCKXETXF.6YS6EN2CT7",
+          "Unit": "Hrs",
+          "Currency": "USD",
+          "Price": "0.0260000000",
+          "Description": "$0.026 per On Demand Linux t3.small Instance Hour"
+        },
+        "CSPPriceInfo": {
+          "product": {
+            "sku": "SKU1USED0001",
+            "attributes": {
+              "instanceType": "t3.small",
+              "capacitystatus": "Used"
+            }
+          },
+          "terms": {
+            "OnDemand": {
+              "SKU1USED0001.JRTCKXETXF": {
+                "priceDimensions": {
+                  "SKU1USED0001.JRTCKXETXF.6YS6EN2CT7": {
+                    "description": "$0.026 per On Demand Linux t3.small Instance Hour",
+                    "pricePerUnit": {
+                      "USD": "0.0260000000"
+                    },
+                    "unit": "Hrs"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "ZoneName": "NA",
+      "ProductInfo": {
+        "ProductId": "SKU2UNUSED02",
+        "VMSpecInfo": {
+          "Region": "ap-northeast-2",
+          "Name": "t3.small",
+          "VCpu": {
+            "Count": "2",
+            "ClockGHz": "2.5"
+          },
+          "MemSizeMiB": "2048",
+          "DiskSizeGB": "-1"
+        },
+        "Description": "t3.small Linux UnusedCapacityReservation",
+        "CSPProductInfo": {
+          "attributes": {
+            "instanceType": "t3.small",
+            "capacitystatus": "UnusedCapacityReservation"
+          }
+        }
+      },
+      "PriceInfo": {
+        "OnDemand": {
+          "PricingId": "SKU2UNUSED02.JRTCKXETXF.6YS6EN2CT7",
+          "Unit": "Hrs",
+          "Currency": "USD",
+          "Price": "0.0260000000",
+          "Description": "$0.026 per Unused Reservation Linux t3.small Instance Hour"
+        },
+        "CSPPriceInfo": {
+          "product": {
+            "sku": "SKU2UNUSED02",
+            "attributes": {
+              "instanceType": "t3.small",
+              "capacitystatus": "UnusedCapacityReservation"
+            }
+          },
+          "terms": {
+            "OnDemand": {
+              "SKU2UNUSED02.JRTCKXETXF": {
+                "priceDimensions": {
+                  "SKU2UNUSED02.JRTCKXETXF.6YS6EN2CT7": {
+                    "description": "$0.026 per Unused Reservation Linux t3.small Instance Hour",
+                    "pricePerUnit": {
+                      "USD": "0.0260000000"
+                    },
+                    "unit": "Hrs"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
