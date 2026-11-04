@@ -15,17 +15,17 @@ func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, pf, regionNa
 
 	var cloudPriceData CloudPriceDataRes
 
-	// cb-spider v0.12.3 BREAKING: POST + FilterList(body) → GET + query params
-	//   - FilterList(body) 미전송. cm-ant는 클라이언트 측 필터링으로 충분
-	//     (price_collector.go: instanceType 매칭, priceValidator, CSPPriceInfo의 terms["OnDemand"] 추출)
-	//   - ConnectionName은 query parameter 필수 (v0.12.17 PriceInfoRest.go:72~ ConnectionRequest 바인딩)
-	//   - 라우트는 GET /priceinfo/vm/{RegionName} 으로 고정 (productFamily는 "vm" 하드코딩,
+	// cb-spider v0.12.3 BREAKING: POST + FilterList(body) -> GET + query params
+	//   - FilterList(body) is not sent. Client-side filtering in cm-ant is enough
+	//     (price_collector.go: instanceType matching, priceValidator, price source selection)
+	//   - ConnectionName is a required query parameter (v0.12.17 PriceInfoRest.go:72~ ConnectionRequest binding)
+	//   - The route is fixed to GET /priceinfo/vm/{RegionName} (productFamily is hardcoded to "vm",
 	//     cb-spider v0.12.17 PriceInfoRest.go:98 `cres.RSTypeString(cres.VM)`).
-	//     cm-ant의 pf 인자는 호환을 위해 query에 그대로 보내지만 *서버는 무시* — 향후 정리 후보.
+	//     The pf argument is still sent in the query for compatibility, but the server ignores it.
 	q := neturl.Values{}
 	q.Set("ConnectionName", body.ConnectionName)
 	if pf != "" {
-		// 서버 무시지만 디버깅 흔적용으로 query에 표기. 정식 productFamily 다중화는 별도 라우트(/priceinfo/{pf}/{region}) 도입 시 보정.
+		// Ignored by the server; kept in the query as a debugging trace until a /priceinfo/{pf}/{region} route exists.
 		q.Set("productFamily", pf)
 		log.Info().Msgf("productFamily query (server-side ignored as of v0.12.17): %s", pf)
 	}
@@ -34,8 +34,8 @@ func (s *SpiderClient) GetPriceInfoWithContext(ctx context.Context, pf, regionNa
 
 	log.Info().Msgf("CB-Spider API URL: %s", url)
 
-	// cb-spider v0.12.6+ 강제 인증 — requestWithBaseAuthWithContext가 Authorization 헤더 자동 첨부.
-	// (기존 requestWithContext는 인증 헤더 미송신 → 401 회귀 원인이었음, BAR-685)
+	// cb-spider v0.12.6+ requires authentication; requestWithBaseAuthWithContext attaches the Authorization header.
+	// (requestWithContext sends no auth header and gets 401.)
 	resBytes, err := s.requestWithBaseAuthWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
@@ -75,7 +75,7 @@ func (s *SpiderClient) GetCostWithResourceWithContext(ctx context.Context, body 
 		return &costWithResourceRes, err
 	}
 
-	// cb-spider v0.12.6+ 강제 인증 — anycall도 Authorization 헤더 송신 필요(BAR-685)
+	// cb-spider v0.12.6+ requires authentication for anycall as well
 	resBytes, err := s.requestWithBaseAuthWithContext(ctx, http.MethodPost, url, marshalledBody)
 
 	if err != nil {
