@@ -68,6 +68,18 @@ type SpiderPriceCollector struct {
 	sc *spider.SpiderClient
 }
 
+// isAcceptedPrice applies the provider-specific price filter.
+// Providers without a filter accept every price: looking up a missing key would
+// return a nil func, and calling it panics inside the per-spec goroutine, which
+// no recover middleware catches.
+func isAcceptedPrice(providerName string, pi *EstimateCostInfo) bool {
+	validate, ok := priceValidator[providerName]
+	if !ok {
+		return true
+	}
+	return validate(pi)
+}
+
 func NewSpiderPriceCollector(sc *spider.SpiderClient) PriceCollector {
 	return &SpiderPriceCollector{
 		sc: sc,
@@ -276,7 +288,7 @@ func (s *SpiderPriceCollector) awsTermsPrices(param RecommendSpecParam, base Est
 			pi.PriceDescription = description
 			pi.CalculatedMonthlyPrice = s.calculatePrice(usdPrice, constant.PerHour)
 
-			if !priceValidator[param.ProviderName](&pi) {
+			if !isAcceptedPrice(param.ProviderName, &pi) {
 				log.Debug().Msgf("Price info filtered out by priceValidator: %s %s %s - PriceDescription: %s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.PriceDescription)
 				continue
 			}
@@ -314,7 +326,7 @@ func (s *SpiderPriceCollector) onDemandPrice(param RecommendSpecParam, base Esti
 	pi.PriceDescription = s.naChecker(onDemand.Description)
 	pi.CalculatedMonthlyPrice = s.calculatePrice(pi.Price, pi.Unit)
 
-	if !priceValidator[param.ProviderName](&pi) {
+	if !isAcceptedPrice(param.ProviderName, &pi) {
 		log.Debug().Msgf("Price info filtered out by priceValidator: %s %s %s - PriceDescription: %s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.PriceDescription)
 		return nil
 	}
@@ -361,7 +373,7 @@ func (s *SpiderPriceCollector) pricingPolicyPrices(param RecommendSpecParam, bas
 		pi.PriceDescription = priceDescription
 		pi.CalculatedMonthlyPrice = s.calculatePrice(price, pi.Unit)
 
-		if !priceValidator[param.ProviderName](&pi) {
+		if !isAcceptedPrice(param.ProviderName, &pi) {
 			log.Debug().Msgf("Price info filtered out by priceValidator: %s %s %s - PriceDescription: %s", pi.ProviderName, pi.RegionName, pi.InstanceType, pi.PriceDescription)
 			continue
 		}

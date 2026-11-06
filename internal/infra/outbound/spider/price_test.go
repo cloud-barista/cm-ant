@@ -87,3 +87,24 @@ func TestGetCostWithResource_EmptyResult(t *testing.T) {
 		t.Fatalf("expected ErrSpiderCostResultEmpty, got nil")
 	}
 }
+
+// TestGetPriceInfo_UnsupportedProvider records what cb-spider returns for a
+// driver without a price handler (NHN, KT, Oracle, OpenStack as of v0.13.20):
+// HTTP 500 with a message. The client must surface it as an error so the cost
+// service reports a failure instead of an empty success.
+func TestGetPriceInfo_UnsupportedProvider(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"message":"nhn-kr1 does not support PriceInfo"}`))
+	}))
+	defer srv.Close()
+
+	c := newTestClient(t, srv)
+	_, err := c.GetPriceInfoWithContext(context.Background(), "vm", "KR1", PriceInfoReq{ConnectionName: "nhn-kr1"})
+	if err == nil {
+		t.Fatal("expected an error for an unsupported provider, got nil")
+	}
+	if !strings.Contains(err.Error(), "does not support PriceInfo") {
+		t.Errorf("error should carry the cb-spider message, got: %v", err)
+	}
+}

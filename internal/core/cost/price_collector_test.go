@@ -128,3 +128,24 @@ func TestMibToGiB(t *testing.T) {
 		assert.Equal(t, c.wantUnit, unit, "input %q", c.in)
 	}
 }
+
+// A provider missing from priceValidator must not crash the collector.
+// Cost estimation runs each spec in its own goroutine, so a panic here is not
+// caught by the HTTP recover middleware and takes the whole process down.
+func TestBuildEstimateCostInfos_ProviderWithoutValidator(t *testing.T) {
+	s := &SpiderPriceCollector{}
+	res := loadSpiderPriceFixture(t, "spider_price_gcp_e2.json")
+
+	for _, provider := range []string{"nhn", "kt", "openstack"} {
+		t.Run(provider, func(t *testing.T) {
+			param := RecommendSpecParam{ProviderName: provider, RegionName: "kr1", InstanceType: "e2-standard-2"}
+
+			var got EstimateCostInfos
+			require.NotPanics(t, func() { got = s.buildEstimateCostInfos(param, res) })
+
+			require.Len(t, got, 1)
+			assert.Equal(t, "0.08596572", got[0].Price)
+			assert.Equal(t, provider, got[0].ProviderName)
+		})
+	}
+}

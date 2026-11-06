@@ -93,9 +93,9 @@ func (s *SpiderClient) requestWithContext(ctx context.Context, method, url strin
 		} else if resp.StatusCode == http.StatusUnauthorized {
 			return nil, ErrUnauthorized
 		} else if resp.StatusCode == http.StatusInternalServerError {
-			return nil, ErrInternalServerError
+			return nil, fmt.Errorf("%w: %s", ErrInternalServerError, string(rb))
 		} else if resp.StatusCode == http.StatusBadRequest {
-			return nil, ErrBadRequest
+			return nil, fmt.Errorf("%w: %s", ErrBadRequest, string(rb))
 		}
 
 		return nil, fmt.Errorf("unexpected status code: %d, response: %s", resp.StatusCode, string(rb))
